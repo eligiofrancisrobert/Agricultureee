@@ -1,0 +1,292 @@
+.footer {
+    padding: 70px 0 0;
+    background: var(--primary-color);
+    color: var(--surface-card);
+}
+
+.footer-container {
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 50px 60px;
+
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1.3fr;
+    gap: 60px;
+}
+
+.footer-brand {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.footer-brand h2 {
+    margin: 0;
+    font-family: 'Outfit', sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--surface-card);
+}
+
+.footer-brand h2 span {
+    color: var(--secondary);
+}
+
+.footer-brand p {
+    max-width: 400px;
+    margin: 0;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.7;
+
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.footer-socials {
+    display: flex;
+    gap: 10px;
+}
+
+.footer-socials a {
+    width: 40px;
+    height: 40px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 10px;
+
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--surface-card);
+
+    text-decoration: none;
+
+    transition:
+        background-color 0.3s ease,
+        transform 0.3s ease;
+}
+
+.footer-socials a:hover {
+    background: var(--secondary);
+    transform: translateY(-3px);
+}
+
+
+.footer-links,
+.footer-contact {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.footer-links h3,
+.footer-contact h3 {
+    margin: 0 0 8px;
+
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+
+    color: var(--surface-card);
+}
+
+.footer-links a {
+    width: fit-content;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.85rem;
+
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+
+    transition:
+        color 0.3s ease,
+        transform 0.3s ease;
+}
+
+.footer-links a:hover {
+    color: var(--secondary);
+    transform: translateX(4px);
+}
+
+
+.footer-contact p {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    margin: 0;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.85rem;
+
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.footer-contact i {
+    width: 18px;
+    color: var(--secondary);
+}
+
+
+.footer-bottom {
+    min-height: 70px;
+    padding: 20px 50px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.footer-bottom p {
+    margin: 0;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.75rem;
+
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.footer-bottom div {
+    display: flex;
+    gap: 25px;
+}
+
+.footer-bottom a {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.75rem;
+
+    color: rgba(255, 255, 255, 0.55);
+    text-decoration: none;
+
+    transition: color 0.3s ease;
+}
+
+.footer-bottom a:hover {
+    color: var(--secondary);
+}
+
+
+/* Tablet */
+@media (max-width: 900px) {
+
+    .footer {
+        padding-top: 60px;
+    }
+
+    .footer-container {
+        padding: 0 25px 50px;
+
+        grid-template-columns: 1fr 1fr;
+        gap: 45px;
+    }
+
+    .footer-brand {
+        grid-column: span 2;
+    }
+
+    .footer-brand p {
+        max-width: 600px;
+    }
+
+    .footer-bottom {
+        padding: 20px 25px;
+    }
+
+}
+
+
+/* Mobile */
+@media (max-width: 600px) {
+
+    .footer {
+        padding-top: 50px;
+    }
+
+    .footer-container {
+        padding: 0 20px 40px;
+
+        grid-template-columns: 1fr;
+        gap: 35px;
+    }
+
+    .footer-brand {
+        grid-column: auto;
+        gap: 16px;
+    }
+
+    .footer-brand h2 {
+        font-size: 1.8rem;
+    }
+
+    .footer-brand p {
+        font-size: 0.85rem;
+    }
+
+    .footer-links,
+    .footer-contact {
+        gap: 10px;
+    }
+
+    .footer-links h3,
+    .footer-contact h3 {
+        font-size: 1rem;
+    }
+
+    .footer-links a,
+    .footer-contact p {
+        font-size: 0.8rem;
+    }
+
+    .footer-bottom {
+        padding: 20px;
+
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .footer-bottom div {
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+}
+
+
+/* Small Mobile */
+@media (max-width: 400px) {
+
+    .footer {
+        padding-top: 40px;
+    }
+
+    .footer-container {
+        padding: 0 15px 35px;
+        gap: 30px;
+    }
+
+    .footer-brand h2 {
+        font-size: 1.6rem;
+    }
+
+    .footer-brand p {
+        font-size: 0.8rem;
+    }
+
+    .footer-socials a {
+        width: 36px;
+        height: 36px;
+    }
+
+    .footer-bottom {
+        padding: 18px 15px;
+    }
+
+}
