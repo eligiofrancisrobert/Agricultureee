@@ -1,0 +1,255 @@
+/* =========================================================
+   Harvest Dashboard
+   Tokens used: --border, --background, --text, --muted,
+   --primary, --success, --warning, --danger (with fallbacks)
+   ========================================================= */
+
+.harvest-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+}
+
+.harvest-location {
+    margin: 0;
+    color: var(--muted);
+    font-size: .9rem;
+}
+
+/* ---------- Stat cards ---------- */
+.harvest-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.harvest-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--background);
+}
+
+.harvest-stat__label {
+    color: var(--muted);
+    font-size: .8rem;
+    font-weight: 500;
+}
+
+.harvest-stat__value {
+    font-size: 1.75rem;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.harvest-stat__description {
+    color: var(--muted);
+    font-size: .8rem;
+}
+
+/* ---------- Records card & toolbar ---------- */
+.harvest-records-card {
+    min-width: 0;
+}
+
+.harvest-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.harvest-toolbar h2 {
+    margin: 0 0 4px;
+    font-size: 1.1rem;
+}
+
+.harvest-toolbar p {
+    margin: 0;
+    font-size: .9rem;
+}
+
+.harvest-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.harvest-search,
+.harvest-filter {
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--background);
+    color: var(--text);
+    font: inherit;
+    font-size: .9rem;
+    transition: border-color .2s, box-shadow .2s;
+}
+
+.harvest-search {
+    width: 260px;
+    max-width: 100%;
+}
+
+.harvest-search::placeholder {
+    color: var(--muted);
+}
+
+.harvest-search:focus,
+.harvest-filter:focus {
+    /* Transparent outline (not "none") so focus still shows in high-contrast mode. */
+    outline: 2px solid transparent;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+.harvest-refresh:disabled {
+    opacity: .6;
+    cursor: wait;
+}
+
+/* ---------- Table ---------- */
+.harvest-table-holder {
+    min-width: 0;
+}
+
+.harvest-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.harvest-table {
+    width: 100%;
+    min-width: 720px;
+    border-collapse: collapse;
+    font-size: .9rem;
+}
+
+.harvest-table th,
+.harvest-table td {
+    padding: 12px 14px;
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.harvest-table thead th {
+    background: color-mix(in srgb, var(--muted) 8%, transparent);
+    color: var(--muted);
+    font-size: .75rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.harvest-table tbody tr + tr td {
+    border-top: 1px solid var(--border);
+}
+
+.harvest-table tbody tr:hover {
+    background: color-mix(in srgb, var(--primary) 5%, transparent);
+}
+
+.harvest-empty {
+    padding: 32px 16px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    color: var(--muted);
+    text-align: center;
+}
+
+/* ---------- Status badges ---------- */
+.harvest-badge {
+    --b: var(--muted);
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--b) 14%, transparent);
+    color: var(--b);
+    font-size: .75rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Planting statuses */
+.harvest-badge--planned   { --b: var(--muted); }
+.harvest-badge--planted   { --b: var(--primary); }
+.harvest-badge--growing   { --b: var(--success); }
+.harvest-badge--ready     { --b: var(--warning); }
+.harvest-badge--harvested { --b: var(--success); }
+.harvest-badge--on_hold   { --b: var(--warning); }
+.harvest-badge--failed    { --b: var(--danger, #c0392b); }
+.harvest-badge--cancelled { --b: var(--danger, #c0392b); }
+
+/* Confirmation statuses */
+.harvest-badge--pending   { --b: var(--warning); }
+.harvest-badge--confirmed { --b: var(--success); }
+.harvest-badge--rejected  { --b: var(--danger, #c0392b); }
+
+/* ---------- Pagination ---------- */
+.harvest-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.harvest-pagination__info {
+    font-size: .85rem;
+}
+
+.harvest-pagination__controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.harvest-pagination__page {
+    font-size: .9rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.harvest-page-btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 720px) {
+    .harvest-toolbar {
+        align-items: stretch;
+    }
+
+    .harvest-controls {
+        width: 100%;
+    }
+
+    .harvest-search {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+
+    .harvest-filter {
+        flex: 1 1 auto;
+    }
+}
+
+@media (max-width: 560px) {
+    .harvest-pagination {
+        justify-content: center;
+    }
+}

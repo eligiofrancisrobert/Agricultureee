@@ -85,6 +85,8 @@
 /* ============ BASE ============ */
 html {
     scroll-behavior: smooth;
+    scrollbar-width: none;        /* Firefox, Chrome/Edge bago */
+    -ms-overflow-style: none;     /* lumang Edge/IE */
 }
 
 * {
@@ -97,6 +99,7 @@ body {
     background-color: var(--background);
     color: var(--primary-text);
     transition: background-color 0.3s ease, color 0.3s ease;
+    overflow-y: auto;
 }
 
 /* ============ HEADER ============ */

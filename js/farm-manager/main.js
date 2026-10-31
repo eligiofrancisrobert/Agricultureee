@@ -8,9 +8,12 @@ const TITLES = {
     dashboard: 'Dashboard',
     farms: 'My farms',
     farmers: 'Farmers',
+    'farm-actions': 'Farm Actions',
     'plant-now': 'Plant Now',
     crops: 'Crops',
-    harvest: 'Harvest Dashboard'
+    harvest: 'Harvest Dashboard',
+    reports: 'Reports',
+    settings: 'Settings'
 };
 
 const root = document.getElementById('view');
@@ -23,6 +26,7 @@ const ctx = { query: '', staff: null };
 
 let authorized = false;
 let checking = false;
+let activeViewModule = null;
 
 const route = () => {
     const name = location.hash.slice(1).split('/')[0];
@@ -48,6 +52,13 @@ async function requireFarmManager() {
 async function show() {
     if (!authorized) return;
 
+    // Clean up the previous page's Realtime subscription.
+    if (activeViewModule?.cleanup) {
+        activeViewModule.cleanup();
+    }
+
+    activeViewModule = null;
+
     const key = route();
     document.querySelectorAll('.nav > a').forEach((a) =>
         a.classList.toggle('active', a.dataset.view === key));
@@ -57,6 +68,9 @@ async function show() {
 
     try {
         const view = await import(`./${key}.js`);
+
+        activeViewModule = view;
+
         root.replaceChildren();
         await view.render(root, ctx);
     } catch (err) {
@@ -77,7 +91,7 @@ async function boot() {
 
     if (!staff) {
         await supabase.auth.signOut().catch(() => { });
-        location.replace('../login.html');
+        location.replace('../../login.html');
         return;
     }
 
@@ -128,7 +142,7 @@ function setupChrome() {
             authorized = false;
             html.classList.remove('fm-authorized');
 
-            location.replace('../login.html');
+            location.replace('../../login.html');
         } catch (err) {
             console.error('Logout failed:', err);
 

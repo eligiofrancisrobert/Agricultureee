@@ -14,7 +14,72 @@
     --r: 16px;
 }
 
-/* ===== Global ===== */
+:root[data-theme="dark"] .sidebar {
+    background: var(--side);
+    border-right-color: var(--border);
+}
+
+:root[data-theme="dark"] .sidebar .logo h1 {
+    color: var(--primary-text);
+}
+
+:root[data-theme="dark"] .sidebar .logo h1 span {
+    color: var(--secondary);
+}
+
+:root[data-theme="dark"] .nav>a,
+:root[data-theme="dark"] .nav-parent {
+    border-color: var(--border);
+}
+
+:root[data-theme="dark"] .submenu {
+    border-left-color: var(--border);
+}
+
+:root[data-theme="dark"] .submenu a {
+    color: var(--muted);
+}
+
+:root[data-theme="dark"] .submenu a:hover {
+    background: transparent;
+    color: var(--primary-dark);
+}
+
+:root[data-theme="dark"] .submenu a.active {
+    background: var(--mint);
+    color: var(--primary-dark);
+}
+
+:root[data-theme="dark"] .nav-logout {
+    border-color: var(--border);
+    color: var(--secondary-text);
+}
+
+:root[data-theme="dark"] .nav-logout:hover {
+    background: transparent;
+    border-color: var(--red);
+    color: var(--red);
+}
+
+:root[data-theme="dark"] {
+    --shadow: none;
+}
+
+:root[data-theme="dark"] .fm-user {
+    border-color: var(--border);
+    background: var(--card);
+    color: var(--primary-text);
+}
+
+:root[data-theme="dark"] .fm-user-avatar {
+    background: var(--mint);
+    color: var(--primary-dark);
+}
+
+:root[data-theme="dark"] .fm-user-text small {
+    color: var(--muted);
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -99,14 +164,20 @@ canvas {
     gap: 32px;
     padding: 32px 24px;
     background: var(--primary-color);
+    border-right: 1px solid transparent;
     overflow-y: auto;
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* Internet Explorer */
+    transition: background-color .3s ease, border-color .3s ease;
 }
 
 .brand {
     display: flex;
     align-items: center;
     gap: 10px;
-    color: var(--primary-dark);
+    color: var(--primary-text);
     text-decoration: none;
     font: 600 1.3rem 'Outfit', sans-serif;
     line-height: 1.1;
@@ -131,13 +202,14 @@ canvas {
     align-items: center;
     gap: 12px;
     padding: 13px 20px;
+    border: 1px solid var(--border);
     border-radius: 999px;
     background: var(--card);
     color: var(--muted);
     text-decoration: none;
     font-weight: 500;
     box-shadow: var(--shadow);
-    transition: background .2s, color .2s;
+    transition: background .2s, color .2s, border-color .2s;
 }
 
 .nav>a:hover,
@@ -168,6 +240,7 @@ canvas {
     padding: 12px;
     border: 1px solid var(--border);
     border-radius: 999px;
+    background: transparent;
     color: var(--secondary-text);
     cursor: pointer;
 }
@@ -333,6 +406,24 @@ canvas {
     font-size: 1.15rem;
 }
 
+/* Generic responsive card grid: wrap any set of .card elements in
+   <div class="card-grid"> and they flow into as many columns as fit. */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    align-items: stretch;
+    gap: clamp(16px, 2vw, 24px);
+}
+
+.card-grid>* {
+    min-width: 0;
+}
+
+/* Make a card span the full row when needed */
+.card-grid>.card-wide {
+    grid-column: 1 / -1;
+}
+
 .grid-top {
     display: grid;
     grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
@@ -450,7 +541,7 @@ canvas {
 
 .stat-boxes {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
     gap: 10px;
 }
 
@@ -477,7 +568,7 @@ canvas {
 /* ===== Role tiles ===== */
 .tiles {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
     gap: 10px;
     margin-bottom: 20px;
 }
@@ -995,7 +1086,7 @@ table td.audit-details-td>button.audit-details-button {
 
 .nav-parent {
     width: 100%;
-    border: 0;
+    border: 1px solid var(--border);
     font: inherit;
     font-weight: 500;
     text-align: left;
@@ -1059,263 +1150,571 @@ table td.audit-details-td>button.audit-details-button {
     display: none;
 }
 
-.harvest-page {
-    --harvest-radius: var(--radius);
+/* (Harvest page styles moved to harvest.css) */
 
-    display: grid;
-    gap: var(--space-md);
-    min-width: 0;
-    font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    color: var(--primary-text);
+body.modal-open {
+    overflow: hidden;
 }
 
-.harvest-page h2 {
-    margin: 0 0 0.4rem;
-    font-family: 'Outfit', 'Poppins', sans-serif;
-    font-size: var(--fs-lg);
-    font-weight: 500;
-    color: var(--primary-text);
-}
-
-.harvest-page .muted {
-    color: var(--secondary-text);
-    font-size: var(--fs-sm);
-}
-
-/* Same chip look as .crop-location-note */
-.harvest-location {
-    display: inline-block;
-    width: fit-content;
-    margin: 0;
-    padding: 0.35rem 0.85rem;
-    border: 1px solid color-mix(in srgb, var(--primary-color) 40%, var(--border));
-    border-radius: 999px;
-    background: var(--surface-card);
-    color: var(--primary-color);
-    font-size: var(--fs-xs);
-    font-weight: 600;
-}
-
-/* ---------- Stat tiles ---------- */
-.harvest-stats {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--space-md);
-}
-
-.harvest-stat {
+.delete-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
     display: flex;
-    flex-direction: column;
-    gap: var(--space-xs);
-    min-width: 0;
-    padding: var(--space-md);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgb(20 18 16 / 55%);
+    backdrop-filter: blur(5px);
+    animation: deleteOverlayIn 180ms ease-out;
+}
+
+.delete-modal {
+    width: min(100%, 440px);
+    padding: 30px;
     border: 1px solid var(--border);
-    border-radius: var(--harvest-radius);
+    border-radius: 20px;
     background: var(--surface-card);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    transition: background-color 0.3s ease, border-color 0.3s ease;
-}
-
-.harvest-stat__label,
-.harvest-stat__description {
-    color: var(--secondary-text);
-    font-size: var(--fs-xs);
-}
-
-.harvest-stat__value {
-    font-family: 'Outfit', 'Poppins', sans-serif;
-    font-size: clamp(1.5rem, 2.5vw, 2rem);
-    font-weight: 500;
     color: var(--primary-text);
+    box-shadow: 0 24px 80px rgb(0 0 0 / 22%);
+    text-align: center;
+    animation: deleteModalIn 220ms ease-out;
+}
+
+.delete-modal-icon {
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    margin: 0 auto 18px;
+    border-radius: 50%;
+    background: color-mix(in srgb, #c94332 14%, var(--surface-card));
+    color: #c94332;
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.delete-modal h2 {
+    margin: 0 0 12px;
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+}
+
+.delete-modal-message {
+    margin: 0 auto 24px;
+    color: var(--secondary-text);
+    font-size: 0.94rem;
+    line-height: 1.65;
     overflow-wrap: anywhere;
 }
 
-/* ---------- Records card ---------- */
-.harvest-records-card {
-    min-width: 0;
-    padding: var(--space-md);
-    border: 1px solid var(--border);
-    border-radius: var(--harvest-radius);
-    background: var(--surface-card);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    transition: background-color 0.3s ease, border-color 0.3s ease;
-}
-
-.harvest-toolbar {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-md);
-    margin-bottom: var(--space-md);
-    padding-bottom: var(--space-sm);
-    border-bottom: 1px solid var(--border);
-}
-
-.harvest-controls {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-xs);
-}
-
-/* ---------- Inputs (same look as .crop-input / .crop-select) ---------- */
-.harvest-search,
-.harvest-filter {
-    min-height: 42px;
-    max-width: 100%;
-    padding: 0.7rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: var(--harvest-radius);
-    background: var(--background);
+.delete-modal-message strong {
     color: var(--primary-text);
-    font: inherit;
-    font-size: var(--fs-sm);
-    transition: border-color 0.3s ease, box-shadow 0.3s ease,
-        background-color 0.3s ease;
 }
 
-.harvest-search {
-    width: min(260px, 100%);
+.delete-countdown {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 30px;
 }
 
-.harvest-search::placeholder {
+.delete-countdown-number {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border: 2px solid color-mix(in srgb, #c94332 45%, var(--surface-card));
+    border-radius: 50%;
+    color: #c94332;
+    font-size: 1.35rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.delete-countdown-text {
     color: var(--secondary-text);
+    font-size: 0.8rem;
+    line-height: 1.5;
 }
 
-.harvest-search:focus,
-.harvest-filter:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 25%, transparent);
+.delete-countdown-track {
+    height: 5px;
+    margin-bottom: 26px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: var(--border);
 }
 
-/* Filter dropdown arrow (same as .crop-select) */
-select.harvest-filter {
-    appearance: none;
-    -webkit-appearance: none;
-    padding-right: 2.25rem;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23706860' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.85rem center;
-    background-size: 12px 8px;
+.delete-countdown-progress {
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: #c94332;
+    transition: width 900ms linear;
+}
+
+.delete-modal-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 50px;
+}
+
+.delete-modal-actions .btn {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
     cursor: pointer;
+    transition: opacity 160ms ease, transform 160ms ease;
 }
 
-:root[data-theme="dark"] select.harvest-filter {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23B8AEA2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
-}
-
-/* ---------- Refresh button (same as .btn.ghost) ---------- */
-.harvest-refresh {
-    padding: 0.6rem 1.2rem;
+.delete-modal-actions .delete-cancel {
     border: 1px solid var(--border);
-    border-radius: var(--harvest-radius);
     background: transparent;
     color: var(--primary-text);
-    font: inherit;
-    font-size: var(--fs-sm);
-    cursor: pointer;
-    transition: border-color 0.3s ease, color 0.3s ease;
 }
 
-.harvest-refresh:hover:not(:disabled) {
-    border-color: var(--primary-color);
-    color: var(--primary-color);
+.delete-modal-actions .delete-confirm {
+    border: 1px solid #c94332;
+    background: #c94332;
+    color: #fff;
 }
 
-.harvest-refresh:focus-visible {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
+.delete-modal-actions .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
 }
 
-.harvest-refresh:disabled {
-    opacity: 0.6;
-    cursor: wait;
+.delete-modal-actions .delete-confirm:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
 }
 
-/* ---------- Table ---------- */
-.harvest-table-wrap {
-    width: 100%;
-    overflow-x: auto;
+.sidebar .logo h1 {
+    color: #fff;
+    text-shadow: none;
 }
 
-.harvest-table {
-    width: 100%;
-    border-collapse: collapse;
-    white-space: nowrap;
+.sidebar .logo h1 span {
+    color: color-mix(in srgb, #fff 70%, var(--primary-color));
 }
 
-.harvest-table th,
-.harvest-table td {
-    padding: 0.85rem 0.75rem;
-    border-bottom: 1px solid var(--border);
-    text-align: left;
-    vertical-align: middle;
-    font-size: var(--fs-sm);
-    color: var(--primary-text);
+.nav>a,
+.nav-parent {
+    border-color: transparent;
 }
 
-.harvest-table th {
-    background: var(--background);
-    color: var(--secondary-text);
-    font-family: 'Outfit', 'Poppins', sans-serif;
-    font-size: var(--fs-xs);
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+.submenu {
+    border-left-color: rgba(255, 255, 255, .35);
 }
 
-.harvest-table tbody tr {
-    transition: background-color 0.3s ease;
+.submenu a {
+    color: rgba(255, 255, 255, .85);
 }
 
-.harvest-table tbody tr:hover {
-    background: color-mix(in srgb, var(--primary-color) 6%, transparent);
+.submenu a:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, .12);
 }
 
-.harvest-table tbody tr:last-child td {
-    border-bottom: 0;
+.submenu a.active {
+    background: rgba(255, 255, 255, .2);
+    color: #fff;
 }
 
-/* ---------- Status badges (same pattern as .crop-status) ---------- */
-.harvest-badge {
-    --badge-color: var(--secondary-text);
+.nav-logout {
+    border-color: rgba(255, 255, 255, .55);
+    color: #fff;
+}
 
-    display: inline-flex;
+.nav-logout:hover {
+    background: var(--card);
+    border-color: var(--card);
+    color: var(--red);
+}
+
+.fm-user {
+    display: flex;
     align-items: center;
-    width: fit-content;
-    padding: 0.3rem 0.7rem;
-    border-radius: 999px;
-    color: var(--badge-color);
-    background: color-mix(in srgb, var(--badge-color) 15%, transparent);
-    font-size: var(--fs-xs);
+    gap: 12px;
+    margin-top: auto;
+    padding: 10px 12px;
+    border: 1px solid transparent;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .14);
+    color: #fff;
+    min-width: 0;
+}
+
+.fm-user+.nav-logout {
+    margin-top: 0;
+}
+
+.fm-user-avatar {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--primary-color);
+    font-size: .8rem;
     font-weight: 600;
 }
 
-.harvest-badge--pending {
-    --badge-color: var(--warning);
+.fm-user-text {
+    min-width: 0;
 }
 
-.harvest-badge--confirmed {
-    --badge-color: var(--success);
+.fm-user-text b,
+.fm-user-text small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.harvest-badge--rejected {
-    --badge-color: var(--error);
+.fm-user-text b {
+    font-size: .85rem;
+    font-weight: 600;
 }
 
-/* ---------- Empty state ---------- */
-.harvest-empty {
-    padding: var(--space-lg) var(--space-sm);
-    color: var(--secondary-text);
-    font-size: var(--fs-sm);
+.fm-user-text small {
+    color: rgba(255, 255, 255, .8);
+    font-size: .75rem;
+}
+
+
+/* ---------- Dashboard layout ---------- */
+.fm-dash {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(18px, 2vw, 26px);
+}
+
+.fm-date {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-weight: 500;
+}
+
+/* Stat cards: auto-fit grid, wraps by available width */
+.fm-dash-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    gap: 16px;
+}
+
+/* Panels: auto-fit grid, wraps by available width */
+.fm-grid-main,
+.fm-grid-bottom {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    align-items: stretch;
+    gap: 16px;
+}
+
+/* ---------- Stat cards ---------- */
+.fm-stat-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color .2s, transform .2s;
+}
+
+.fm-stat-card:hover {
+    border-color: var(--c);
+    transform: translateY(-1px);
+}
+
+.fm-stat-icon {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--c) 16%, var(--card));
+    color: var(--c);
+}
+
+.fm-stat-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.fm-stat-label {
+    font-size: .9rem;
+    font-weight: 600;
+}
+
+.fm-stat-value {
+    font: 600 1.9rem/1.15 'Outfit', sans-serif;
+}
+
+.fm-stat-chev {
+    position: absolute;
+    top: 18px;
+    right: 16px;
+    color: var(--muted);
+}
+
+/* ---------- Panels ---------- */
+.fm-panel {
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+}
+
+.fm-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.fm-panel-head h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.05rem;
+}
+
+.fm-panel-head h2 svg {
+    flex-shrink: 0;
+    color: var(--primary);
+}
+
+/* Panel header: title + subtitle on the left, count pill on the right.
+   Uses the shared theme tokens so it follows light/dark mode. */
+.fm-panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.fm-panel-header>div {
+    min-width: 0;
+}
+
+.fm-panel-header h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+}
+
+.fm-panel-header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: .85rem;
+}
+
+/* Keep the record-count pill visible on phones inside panel headers */
+.fm-panel-header .fm-pill {
+    display: inline-block;
+}
+
+.fm-viewall {
+    flex-shrink: 0;
+    color: var(--primary-dark);
+    font-size: .8rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.fm-viewall:hover {
+    text-decoration: underline;
+}
+
+.fm-empty {
+    padding: 28px 8px;
+    color: var(--muted);
+    font-size: .85rem;
     text-align: center;
 }
 
+/* ---------- List rows ---------- */
+.fm-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    text-decoration: none;
+}
 
+.fm-row:last-child {
+    border-bottom: 0;
+}
 
+a.fm-row:hover .fm-row-main b {
+    color: var(--primary-dark);
+}
 
-/* ===== Laptops and small desktops ===== */
+.fm-row>svg:last-child {
+    flex-shrink: 0;
+    color: var(--muted);
+}
+
+.fm-thumb {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: var(--mint);
+    color: var(--primary-dark);
+}
+
+.fm-row-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.fm-row-main b,
+.fm-row-main small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fm-row-main b {
+    font-size: .88rem;
+    font-weight: 600;
+}
+
+.fm-row-main small {
+    font-size: .75rem;
+}
+
+.fm-meta {
+    display: flex !important;
+    align-items: center;
+    gap: 5px;
+}
+
+.fm-meta svg {
+    flex-shrink: 0;
+}
+
+.fm-pill {
+    flex-shrink: 0;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--success) 22%, var(--card));
+    color: var(--text);
+    font-size: .72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.fm-pill.off {
+    background: var(--mint);
+    color: var(--muted);
+}
+
+/* ---------- Quick actions ---------- */
+.fm-quick {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
+    gap: 12px;
+    padding-top: 8px;
+}
+
+.fm-quick a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 92px;
+    padding: 14px 8px;
+    border: 1px solid color-mix(in srgb, var(--c) 28%, var(--border));
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--c) 12%, var(--card));
+    color: var(--text);
+    font-size: .82rem;
+    font-weight: 500;
+    text-align: center;
+    text-decoration: none;
+    transition: transform .2s, border-color .2s;
+}
+
+.fm-quick a:hover {
+    border-color: var(--c);
+    transform: translateY(-2px);
+}
+
+.fm-quick a svg {
+    color: var(--c);
+}
+
+.fm-legend-pct {
+    margin-left: auto;
+    padding-left: 12px;
+    font-size: .8rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.fm-panel .donut-row {
+    padding-top: 12px;
+}
+
+.fm-panel .legend li {
+    align-items: center;
+}
+
+@keyframes deleteOverlayIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes deleteModalIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
 @media (max-width: 1200px) {
     .shell {
         grid-template-columns: 230px minmax(0, 1fr);
@@ -1341,24 +1740,6 @@ select.harvest-filter {
     }
 }
 
-@media (max-width: 1000px) {
-    .harvest-stats {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .harvest-toolbar {
-        flex-direction: column;
-    }
-
-    .harvest-controls {
-        width: 100%;
-    }
-
-    .harvest-search {
-        flex: 1 1 220px;
-    }
-}
-
 /* ===== Tablets ===== */
 @media (max-width: 800px) {
     .shell {
@@ -1373,6 +1754,7 @@ select.harvest-filter {
         padding: 20px;
         gap: 20px;
         overflow: visible;
+        border-right: 0;
     }
 
     .brand {
@@ -1454,6 +1836,9 @@ select.harvest-filter {
 
     .hero {
         min-height: 280px;
+    }
+    .fm-user {
+        margin-top: 0;
     }
 }
 
@@ -1570,15 +1955,6 @@ select.harvest-filter {
         font-size: .82rem;
     }
 
-    .tiles {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-    }
-
-    .stat-boxes {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
     .bars li {
         grid-template-columns: minmax(0, 1fr) 40px;
         gap: 10px;
@@ -1613,10 +1989,6 @@ select.harvest-filter {
         padding: 20px 16px;
     }
 
-    .fields {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
     .doc {
         align-items: flex-start;
     }
@@ -1626,30 +1998,6 @@ select.harvest-filter {
         bottom: 12px;
         left: 12px;
         max-width: none;
-    }
-
-    .harvest-stats {
-        grid-template-columns: 1fr 1fr;
-        gap: var(--space-xs);
-    }
-
-    .harvest-stat {
-        padding: var(--space-sm);
-    }
-
-    .harvest-controls {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .harvest-search,
-    .harvest-filter,
-    .harvest-refresh {
-        width: 100%;
-    }
-
-    .harvest-records-card {
-        padding: var(--space-sm);
     }
 }
 
@@ -1662,10 +2010,6 @@ select.harvest-filter {
 
     .card {
         padding: 15px 10px;
-    }
-
-    .tiles {
-        grid-template-columns: minmax(0, 1fr);
     }
 
     .nav>a,
@@ -1687,174 +2031,6 @@ select.harvest-filter {
         scroll-behavior: auto !important;
         transition: none !important;
         animation: none !important;
-    }
-}
-
-
-/* Delete User Confirmation Modal */
-body.modal-open {
-    overflow: hidden;
-}
-
-.delete-modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 10000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    background: rgb(20 18 16 / 55%);
-    backdrop-filter: blur(5px);
-    animation: deleteOverlayIn 180ms ease-out;
-}
-
-.delete-modal {
-    width: min(100%, 440px);
-    padding: 30px;
-    border: 1px solid var(--border, #e5dfd6);
-    border-radius: 20px;
-    background: var(--surface, #fff);
-    color: var(--text, #24211e);
-    box-shadow: 0 24px 80px rgb(0 0 0 / 22%);
-    text-align: center;
-    animation: deleteModalIn 220ms ease-out;
-}
-
-.delete-modal-icon {
-    display: grid;
-    place-items: center;
-    width: 54px;
-    height: 54px;
-    margin: 0 auto 18px;
-    border-radius: 50%;
-    background: #fff0ed;
-    color: #c94332;
-    font-size: 28px;
-    font-weight: 800;
-}
-
-.delete-modal h2 {
-    margin: 0 0 12px;
-    font-size: 1.4rem;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-}
-
-.delete-modal-message {
-    margin: 0 auto 24px;
-    color: var(--muted, #716b64);
-    font-size: 0.94rem;
-    line-height: 1.65;
-    overflow-wrap: anywhere;
-}
-
-.delete-modal-message strong {
-    color: var(--text, #24211e);
-}
-
-.delete-countdown {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-    margin-bottom: 30px;
-}
-
-.delete-countdown-number {
-    display: grid;
-    place-items: center;
-    width: 52px;
-    height: 52px;
-    border: 2px solid #e8b6ae;
-    border-radius: 50%;
-    color: #c94332;
-    font-size: 1.35rem;
-    font-weight: 800;
-    font-variant-numeric: tabular-nums;
-}
-
-.delete-countdown-text {
-    color: var(--muted, #716b64);
-    font-size: 0.8rem;
-    line-height: 1.5;
-}
-
-.delete-countdown-track {
-    height: 5px;
-    margin-bottom: 26px;
-    overflow: hidden;
-    border-radius: 99px;
-    background: var(--border, #e8e2da);
-}
-
-.delete-countdown-progress {
-    width: 0;
-    height: 100%;
-    border-radius: inherit;
-    background: #c94332;
-    transition: width 900ms linear;
-}
-
-.delete-modal-actions {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    margin-top: 50px;
-}
-
-.delete-modal-actions .btn {
-    flex: 1 1 0;
-    min-width: 0;
-    min-height: 44px;
-    border-radius: 10px;
-    font: inherit;
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: opacity 160ms ease, transform 160ms ease;
-}
-
-.delete-modal-actions .delete-cancel {
-    border: 1px solid var(--border, #ded7ce);
-    background: transparent;
-    color: var(--text, #24211e);
-}
-
-.delete-modal-actions .delete-confirm {
-    border: 1px solid #c94332;
-    background: #c94332;
-    color: #fff;
-}
-
-.delete-modal-actions .btn:hover:not(:disabled) {
-    transform: translateY(-1px);
-}
-
-.delete-modal-actions .delete-confirm:disabled {
-    cursor: not-allowed;
-    opacity: 0.48;
-}
-
-@keyframes deleteOverlayIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
-
-@keyframes deleteModalIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px) scale(0.98);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
     }
 }
 
@@ -1884,4 +2060,205 @@ body.modal-open {
     .delete-countdown-progress {
         transition: none;
     }
+}
+
+
+
+/* ---------- Responsive ---------- */
+@media (max-width: 480px) {
+    .fm-stat-card {
+        padding: 16px;
+    }
+
+    .fm-panel {
+        padding: 16px 14px;
+    }
+
+    .fm-pill {
+        display: none;
+    }
+}
+
+@media (max-width: 800px) {
+    :root[data-theme="dark"] .sidebar {
+        border-right-color: transparent;
+        border-bottom: 1px solid var(--border);
+    }
+}
+
+
+/* ==========================================================
+   PLANTING SCHEDULE PANEL
+   Reuses the harvest table / search / filter / badge styles
+   (now in harvest.css) so both pages look the same.
+   ========================================================== */
+.fm-panel--planting {
+    --harvest-radius: var(--radius, 12px);
+}
+
+/* ---------- Toolbar ---------- */
+.planting-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs, 8px);
+    margin-bottom: 16px;
+}
+
+.planting-toolbar .harvest-search {
+    flex: 1 1 220px;
+}
+
+/* ---------- Crop cell (thumb + name + field) ---------- */
+.planting-crop {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 180px;
+}
+
+.planting-crop .fm-thumb {
+    width: 40px;
+    height: 40px;
+}
+
+.planting-crop b,
+.planting-crop small {
+    display: block;
+    line-height: 1.3;
+}
+
+.planting-crop b {
+    font-size: .88rem;
+    font-weight: 600;
+}
+
+.planting-crop small {
+    font-size: .75rem;
+}
+
+/* ---------- Date cell ---------- */
+.planting-date {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--primary-text);
+}
+
+.planting-date svg {
+    flex-shrink: 0;
+    color: var(--secondary-text);
+}
+
+/* ---------- Growth progress (planting -> expected harvest) ---------- */
+.planting-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 140px;
+}
+
+.planting-progress-track {
+    flex: 1;
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--mint);
+}
+
+.planting-progress-fill {
+    display: block;
+    height: 100%;
+    width: var(--pct, 0%);
+    border-radius: inherit;
+    background: var(--primary-color);
+}
+
+.planting-progress small {
+    min-width: 34px;
+    text-align: right;
+    font-weight: 500;
+}
+
+@media (max-width: 560px) {
+    .planting-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .planting-toolbar .harvest-search,
+    .planting-toolbar .harvest-filter {
+        width: 100%;
+    }
+}
+
+
+/* ---------- Planting schedule rows (reuse .fm-row layout) ---------- */
+.fm-list {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Status pill colours (used on .fm-pill) */
+.fm-pill.planned {
+    background: color-mix(in srgb, var(--primary-color) 20%, var(--card));
+    color: var(--primary-dark);
+}
+
+.fm-pill.planted,
+.fm-pill.growing {
+    background: color-mix(in srgb, var(--success) 22%, var(--card));
+    color: var(--text);
+}
+
+.fm-pill.harvested {
+    background: var(--mint);
+    color: var(--muted);
+}
+
+.fm-pill.delayed {
+    background: color-mix(in srgb, var(--warning) 26%, var(--card));
+    color: var(--text);
+}
+
+.fm-pill.cancelled {
+    background: color-mix(in srgb, var(--error) 20%, var(--card));
+    color: var(--text);
+}
+
+/* Keep the status visible on phones inside planting rows */
+.fm-list .fm-pill {
+    display: inline-block;
+}
+
+.fm-pill.ready {
+    background: color-mix(in srgb, var(--success) 22%, var(--card));
+    color: var(--text);
+}
+
+.fm-pill.on_hold {
+    background: color-mix(in srgb, var(--warning) 26%, var(--card));
+    color: var(--text);
+}
+
+.fm-pill.failed {
+    background: color-mix(in srgb, var(--error) 20%, var(--card));
+    color: var(--text);
+}
+
+/* "+N more" link under a limited list */
+.fm-more {
+    display: block;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    color: var(--primary-dark);
+    font-size: .8rem;
+    font-weight: 500;
+    text-align: center;
+    text-decoration: none;
+}
+
+.fm-more:hover {
+    text-decoration: underline;
 }

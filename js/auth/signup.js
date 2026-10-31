@@ -1,5 +1,5 @@
 
-import { supabase } from "./connection.js";
+import { supabase } from "../connection.js";
 
 const form = document.getElementById("signupForm");
 const message = document.getElementById("message");

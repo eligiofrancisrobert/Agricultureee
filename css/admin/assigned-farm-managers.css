@@ -1,10 +1,4 @@
-/* ==========================================
-   ASSIGNED FARM MANAGERS
-   Matches the Tanikala signup design
-   (tokens come from style.css / signup.css)
-   ========================================== */
 
-/* ============ TOPBAR (same as signup) ============ */
 .topbar {
     position: sticky;
     top: 0;

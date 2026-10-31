@@ -1,4 +1,3 @@
-
 import { supabase } from '../connection.js';
 import { h, pageHead, toast } from '../admin/ui.js';
 
@@ -11,16 +10,104 @@ const FIELD_NAMES = [
     'Field F'
 ];
 
-const STATUSES = {
-    planned: 'Planned',
-    planted: 'Planted',
-    growing: 'Growing',
-    ready: 'Ready for Harvest',
-    harvested: 'Harvested',
-    on_hold: 'On Hold',
-    failed: 'Failed',
-    cancelled: 'Cancelled'
+const STATUS_TABLES = {
+    activity: 'planting_activity_statuses',
+    crop: 'crop_statuses'
 };
+
+const INITIAL_ACTIVITY_STATUS = 'assigned';
+const INITIAL_CROP_STATUS = 'not_planted';
+
+const statusCache = new Map();
+let plantingsChannel = null;
+let plantingsReloadTimer = null;
+
+function loadStatusReference(kind) {
+    if (!statusCache.has(kind)) {
+        const request = (async () => {
+            const { data, error } = await supabase
+                .from(STATUS_TABLES[kind])
+                .select('code, label, display_order')
+                .eq('is_active', true)
+                .order('display_order', { ascending: true });
+
+            if (error) throw error;
+
+            return new Map(
+                (data ?? []).map(status => [
+                    status.code,
+                    {
+                        status_code: status.code,
+                        status_label: status.label,
+                        display_order: status.display_order
+                    }
+                ])
+            );
+        })();
+
+        statusCache.set(kind, request);
+        request.catch(() => statusCache.delete(kind));
+    }
+
+    return statusCache.get(kind);
+}
+
+async function loadStatusReferences() {
+    const results = await Promise.allSettled([
+        loadStatusReference('activity'),
+        loadStatusReference('crop')
+    ]);
+
+    const [activityResult, cropResult] = results;
+
+    const failed = results.find(result => result.status === 'rejected');
+
+    return {
+        activity:
+            activityResult.status === 'fulfilled'
+                ? activityResult.value
+                : new Map(),
+        crop:
+            cropResult.status === 'fulfilled'
+                ? cropResult.value
+                : new Map(),
+        error: failed?.reason ?? null
+    };
+}
+
+// Turns a status code into a CSS-safe class suffix.
+function statusClassName(code) {
+    return (
+        String(code ?? '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, '-') || 'unknown'
+    );
+}
+
+// Fallback only when a code has no matching reference record.
+function fallbackStatusLabel(code) {
+    return String(code)
+        .replace(/[_-]+/g, ' ')
+        .trim()
+        .replace(/\b\w/g, character => character.toUpperCase());
+}
+
+function statusBadge(code, statusMap) {
+    if (!code) {
+        return h('span', { class: 'muted' }, '—');
+    }
+
+    const record = statusMap.get(code);
+
+    return h(
+        'span',
+        {
+            class: `crop-status crop-status--${statusClassName(code)}`
+        },
+        record?.status_label || fallbackStatusLabel(code)
+    );
+}
 
 function normalizeLocation(value) {
     return String(value ?? '')
@@ -598,13 +685,13 @@ async function loadPlantings(farms) {
     const { data: plantings, error: plantingsError } = await supabase
         .from('farm_plantings')
         .select(
-            'id, field_id, product_id, crop_name, sowing_date, expected_harvest_date, status, notes'
+            'id, field_id, product_id, crop_name, sowing_date, expected_harvest_date, activity_status, crop_status, notes'
         )
         .in(
             'field_id',
             fields.map(field => field.id)
         )
-        .order('sowing_date', { ascending: false });
+        .order('created_at', { ascending: true });
 
     if (plantingsError) throw plantingsError;
 
@@ -618,7 +705,59 @@ async function loadPlantings(farms) {
     }));
 }
 
+function cleanupPlantingsRealtime() {
+    clearTimeout(plantingsReloadTimer);
+    plantingsReloadTimer = null;
+
+    if (plantingsChannel) {
+        supabase.removeChannel(plantingsChannel);
+        plantingsChannel = null;
+    }
+}
+
+function subscribeToPlantings(onUpdate) {
+    cleanupPlantingsRealtime();
+
+    plantingsChannel = supabase
+        .channel('farm-manager-plantings')
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'farm_plantings'
+            },
+            () => {
+                clearTimeout(plantingsReloadTimer);
+
+                plantingsReloadTimer = setTimeout(() => {
+                    onUpdate();
+                }, 400);
+            }
+        )
+        .subscribe(status => {
+            if (status === 'SUBSCRIBED') {
+                console.log(
+                    'Farm Manager Plantings Realtime connected.'
+                );
+            } else if (
+                status === 'CHANNEL_ERROR' ||
+                status === 'TIMED_OUT'
+            ) {
+                console.error(
+                    'Farm Manager Plantings Realtime failed:',
+                    status
+                );
+            }
+        });
+}
+
+export function cleanup() {
+    cleanupPlantingsRealtime();
+}
+
 export async function render(root, ctx) {
+    cleanupPlantingsRealtime();
     const holder = h('div', { class: 'crop-page' });
 
     root.append(
@@ -653,10 +792,24 @@ export async function render(root, ctx) {
 
             const managerId = manager.staff_id;
 
-            const [farmers, products] = await Promise.all([
+            const [farmers, products, statuses] = await Promise.all([
                 loadFarmers(),
-                loadProducts()
+                loadProducts(),
+                loadStatusReferences()
             ]);
+
+            // Status labels are non-critical: the page still works if
+            // they fail to load, showing readable codes instead.
+            if (statuses.error) {
+                console.error(
+                    'Could not load status reference tables:',
+                    statuses.error
+                );
+
+                toast(
+                    `Could not load status labels. ${errorMessage(statuses.error)}`
+                );
+            }
 
             const farms = await loadFarms(assignedLocation);
 
@@ -770,7 +923,7 @@ export async function render(root, ctx) {
                 option('', 'Select farmer'),
                 ...farmers.map(farmer =>
                     option(
-                        getFarmerKey(farmer),
+                        farmer.farmer_id,
                         farmer.full_name
                     )
                 )
@@ -959,13 +1112,17 @@ export async function render(root, ctx) {
                         h(
                             'td',
                             {},
-                            h(
-                                'span',
-                                {
-                                    class: `crop-status crop-status--${planting.status}`
-                                },
-                                STATUSES[planting.status] ??
-                                planting.status
+                            statusBadge(
+                                planting.activity_status,
+                                statuses.activity
+                            )
+                        ),
+                        h(
+                            'td',
+                            {},
+                            statusBadge(
+                                planting.crop_status,
+                                statuses.crop
                             )
                         )
                     );
@@ -998,7 +1155,8 @@ export async function render(root, ctx) {
                                         h('th', {}, 'Crop'),
                                         h('th', {}, 'Planting Date'),
                                         h('th', {}, 'Expected Harvest'),
-                                        h('th', {}, 'Status')
+                                        h('th', {}, 'Activity Status'),
+                                        h('th', {}, 'Crop Status')
                                     )
                                 ),
                                 h('tbody', {}, rows)
@@ -1132,7 +1290,10 @@ export async function render(root, ctx) {
                     return;
                 }
 
+                // New assignments start as assigned / not_planted.
+                // The legacy `status` column is intentionally not written.
                 const planting = {
+                    farmer_id: farmerSelect.value,
                     field_id: fieldSelect.value,
                     product_id: matchingProduct
                         ? Number(matchingProduct.id)
@@ -1141,7 +1302,8 @@ export async function render(root, ctx) {
                     sowing_date: sowingDate.input.value,
                     expected_harvest_date:
                         harvestDate.input.value || null,
-                    status: 'planned',
+                    activity_status: INITIAL_ACTIVITY_STATUS,
+                    crop_status: INITIAL_CROP_STATUS,
                     notes: notes.value.trim() || null,
                     assigned_by: user.id
                 };
@@ -1199,8 +1361,11 @@ export async function render(root, ctx) {
 
             updateFarmOptions();
 
-            await refreshRecords();
-            updateSaveButton();
+           await refreshRecords();
+updateSaveButton();
+
+// Listen for Farmer updates to planting records.
+subscribeToPlantings(refreshRecords);
         } catch (error) {
             console.error(
                 'Failed to load crop management:',

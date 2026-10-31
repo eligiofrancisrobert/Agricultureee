@@ -1,0 +1,953 @@
+/* ============ FARM ACTIONS ============
+   Uses the Tanikala design tokens so it follows light/dark mode:
+   --surface-card, --border, --primary-text, --secondary-text,
+   --primary-color, --primary-hover, --success, --warning, --error. */
+
+.fa-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.fa-heading h2 {
+    margin: 0 0 4px;
+    font-family: 'Outfit', sans-serif;
+    font-size: var(--fs-xl);
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--primary-text);
+}
+
+.fa-heading p {
+    margin: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+}
+
+.fa-create-btn {
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius);
+    padding: 12px 18px;
+    background: var(--primary-color);
+    color: var(--on-image, #fff);
+    font-family: 'Poppins', sans-serif;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color .3s ease, border-color .3s ease;
+}
+
+.fa-create-btn:hover:not(:disabled) {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.fa-create-btn:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.fa-create-btn:focus-visible,
+.fa-filter:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* ---- Stat cards (same look as the dashboard stats) ---- */
+.fa-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+
+.fa-tone-primary { --fa-tone: var(--primary-color); }
+.fa-tone-info    { --fa-tone: var(--info, #5B8DD6); }
+.fa-tone-warning { --fa-tone: var(--warning); }
+.fa-tone-success { --fa-tone: var(--success); }
+
+.fa-stat-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-card);
+    transition: border-color .2s ease, background-color .3s ease;
+}
+
+.fa-stat-card:hover {
+    border-color: var(--fa-tone);
+}
+
+.fa-stat-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.fa-stat-label {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+.fa-stat-value {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.9rem;
+    font-weight: 500;
+    line-height: 1.1;
+    color: var(--primary-text);
+}
+
+.fa-stat-icon {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: var(--fa-tone);
+    background: color-mix(in srgb, var(--fa-tone) 16%, transparent);
+}
+
+/* ---- Section card ---- */
+.fa-section {
+    padding: var(--space-md);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-card);
+    box-shadow: var(--shadow, none);
+    transition: background-color .3s ease;
+}
+
+.fa-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: var(--space-sm);
+    margin-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border);
+}
+
+.fa-section-header h3 {
+    margin: 0;
+    font-family: 'Outfit', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.fa-result-count {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+/* ---- Filters ---- */
+.fa-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-md);
+}
+
+.fa-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--secondary-text);
+    font-family: 'Poppins', sans-serif;
+    font-size: var(--fs-xs);
+    cursor: pointer;
+    transition: background-color .25s ease, color .25s ease, border-color .25s ease;
+}
+
+.fa-filter:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.fa-filter.active {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: var(--on-image, #fff);
+}
+
+.fa-filter-count {
+    min-width: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: color-mix(in srgb, currentColor 14%, transparent);
+    font-size: .7rem;
+    line-height: 18px;
+    text-align: center;
+}
+
+/* ---- Action cards ---- */
+.fa-action-list {
+    display: grid;
+    gap: var(--space-sm);
+}
+
+.fa-action-card {
+    padding: var(--space-md);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-card);
+    transition: border-color .2s ease, background-color .3s ease;
+}
+
+.fa-action-card:hover {
+    border-color: var(--primary-color);
+}
+
+.fa-action-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.fa-action-top h3 {
+    margin: 0;
+    font-family: 'Outfit', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.fa-action-farmer,
+.fa-action-description {
+    margin: 8px 0 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+}
+
+.fa-action-farmer {
+    color: var(--primary-text);
+    font-weight: 500;
+}
+
+.fa-action-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    margin-top: var(--space-sm);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--border);
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+/* ---- Status pills (colors come from theme tokens) ---- */
+.fa-status {
+    --fa-tone: var(--secondary-text);
+    padding: 4px 12px;
+    border-radius: 20px;
+    color: var(--fa-tone);
+    background: color-mix(in srgb, var(--fa-tone) 16%, transparent);
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+}
+
+.fa-status-pending            { --fa-tone: var(--warning); }
+.fa-status-accepted,
+.fa-status-in_progress        { --fa-tone: var(--info, #5B8DD6); }
+.fa-status-submitted          { --fa-tone: var(--secondary); }
+.fa-status-verified           { --fa-tone: var(--success); }
+.fa-status-revision_requested { --fa-tone: var(--primary-color); }
+.fa-status-declined,
+.fa-status-cancelled          { --fa-tone: var(--error); }
+
+/* ---- Empty state ---- */
+.fa-empty {
+    padding: var(--space-xl) var(--space-md);
+    text-align: center;
+}
+
+.fa-empty-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto var(--space-sm);
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 16%, transparent);
+}
+
+.fa-empty h3 {
+    margin: 0 0 8px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.fa-empty p {
+    margin: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+    .fa-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 600px) {
+    .fa-page-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .fa-create-btn {
+        width: 100%;
+    }
+
+    .fa-stats {
+        gap: var(--space-xs);
+    }
+
+    .fa-stat-card {
+        padding: var(--space-sm);
+    }
+
+    .fa-stat-icon {
+        width: 38px;
+        height: 38px;
+    }
+
+    .fa-section {
+        padding: var(--space-sm);
+    }
+
+    .fa-filters {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+
+    .fa-filter {
+        flex-shrink: 0;
+    }
+
+    .fa-action-top {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fa-create-btn,
+    .fa-filter,
+    .fa-stat-card,
+    .fa-action-card,
+    .fa-section {
+        transition: none;
+    }
+}
+
+/* ============ CREATE ACTION DIALOG ============ */
+.fa-dialog {
+    width: min(540px, 92vw);
+    max-height: 90vh;
+    margin: auto;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-card);
+    color: var(--primary-text);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .35);
+}
+
+/* Only lay out while open, so the closed dialog stays hidden */
+.fa-dialog[open] {
+    display: flex;
+    flex-direction: column;
+}
+
+.fa-dialog::backdrop {
+    background: rgba(0, 0, 0, .55);
+}
+
+.fa-dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    border-bottom: 1px solid var(--border);
+}
+
+.fa-dialog-header h2 {
+    margin: 0 0 4px;
+    font-family: 'Outfit', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.fa-dialog-header p {
+    margin: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+.fa-close {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--secondary-text);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color .2s ease, color .2s ease;
+}
+
+.fa-close:hover {
+    background: var(--background);
+    color: var(--primary-color);
+}
+
+.fa-close:focus-visible,
+.fa-form-field input:focus-visible,
+.fa-form-field select:focus-visible,
+.fa-form-field textarea:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* ---- Form ---- */
+.fa-create-form {
+    display: grid;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    overflow-y: auto;
+}
+
+.fa-form-field {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.fa-form-field > span {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+.fa-form-field input,
+.fa-form-field select,
+.fa-form-field textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--background);
+    color: var(--primary-text);
+    font-family: 'Poppins', sans-serif;
+    font-size: var(--fs-sm);
+    transition: border-color .2s ease, background-color .3s ease;
+}
+
+.fa-form-field textarea {
+    resize: vertical;
+    min-height: 90px;
+    line-height: 1.5;
+}
+
+.fa-form-field input::placeholder,
+.fa-form-field textarea::placeholder {
+    color: var(--secondary-text);
+    opacity: .7;
+}
+
+.fa-form-field input:focus,
+.fa-form-field select:focus,
+.fa-form-field textarea:focus {
+    border-color: var(--primary-color);
+}
+
+.fa-form-field select:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+.fa-form-field input:invalid:not(:placeholder-shown):not(:focus) {
+    border-color: var(--error);
+}
+
+/* ---- Footer buttons (fallback styles if .btn is not global) ---- */
+.fa-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-xs);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--border);
+}
+
+.fa-modal-actions .btn {
+    padding: 11px 18px;
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius);
+    background: var(--primary-color);
+    color: var(--on-image, #fff);
+    font-family: 'Poppins', sans-serif;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color .3s ease, border-color .3s ease, color .3s ease;
+}
+
+.fa-modal-actions .btn:hover:not(:disabled) {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.fa-modal-actions .btn.ghost {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--primary-text);
+}
+
+.fa-modal-actions .btn.ghost:hover:not(:disabled) {
+    background: transparent;
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.fa-modal-actions .btn:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+.fa-modal-actions .btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* =========================================
+   FARM ACTION SUBMISSION REVIEW
+========================================= */
+
+.fa-action-review {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color, #e5e5e5);
+}
+
+.fa-review-indicator {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary-color, #c65d3a);
+}
+
+.fa-review-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 15px;
+    background: var(--primary-color, #c65d3a);
+    color: #fff;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.fa-review-btn:hover {
+    opacity: 0.88;
+}
+
+.fa-review-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Review dialog
+   Builds on .fa-dialog (flex column, centered, solid surface).
+   The body scrolls; header and footer stay in view. */
+
+.fa-review-dialog {
+    width: min(640px, calc(100% - 32px));
+    max-width: 640px;
+    max-height: min(90vh, 780px);
+}
+
+/* ---- Header ---- */
+.fa-review-dialog .fa-dialog-header {
+    flex-shrink: 0;
+    align-items: flex-start;
+    padding: var(--space-md);
+    background: var(--surface-card);
+}
+
+.fa-review-heading {
+    min-width: 0;
+}
+
+.fa-review-dialog .fa-dialog-header h2 {
+    margin: 0 0 8px;
+}
+
+.fa-review-dialog .fa-dialog-header p {
+    margin: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+    overflow-wrap: anywhere;
+}
+
+.fa-review-dialog .fa-dialog-header .fa-review-action-title {
+    margin-bottom: 2px;
+    color: var(--primary-text);
+    font-weight: 500;
+}
+
+.fa-review-dialog .fa-close {
+    border: 1px solid var(--border);
+}
+
+.fa-review-dialog .fa-close:hover {
+    border-color: var(--primary-color);
+}
+
+/* ---- Scrollable body ---- */
+.fa-review-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    align-content: start;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    overflow-y: auto;
+}
+
+/* ---- Submission details ---- */
+.fa-review-details {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-xs);
+}
+
+.fa-review-detail {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--background);
+}
+
+.fa-review-detail-label {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+.fa-review-detail-value {
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+/* ---- Sections ---- */
+.fa-review-section {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+}
+
+.fa-review-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-xs);
+}
+
+.fa-review-section h3 {
+    margin: 0;
+    font-family: 'Outfit', sans-serif;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.fa-review-count {
+    min-width: 22px;
+    padding: 1px 8px;
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--primary-color) 16%, transparent);
+    color: var(--primary-color);
+    font-size: var(--fs-xs);
+    text-align: center;
+}
+
+.fa-review-notes {
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--background);
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.fa-review-muted {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+/* ---- Evidence attachments ---- */
+.fa-review-section--evidence {
+    padding: var(--space-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--background);
+}
+
+.fa-review-evidence {
+    display: grid;
+    gap: 8px;
+}
+
+.fa-review-evidence > .fa-review-muted {
+    margin: 0;
+    padding: 6px 2px;
+}
+
+.fa-evidence-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-card);
+    transition: border-color .2s ease;
+}
+
+.fa-evidence-item:hover {
+    border-color: var(--primary-color);
+}
+
+.fa-evidence-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius);
+    color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 14%, transparent);
+}
+
+.fa-evidence-info {
+    flex: 1 1 auto;
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.fa-evidence-info strong {
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.fa-evidence-info span {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+    overflow-wrap: anywhere;
+}
+
+.fa-evidence-link {
+    flex-shrink: 0;
+    padding: 7px 14px;
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius);
+    color: var(--primary-color);
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background-color .2s ease, color .2s ease;
+}
+
+.fa-evidence-link:hover {
+    background: var(--primary-color);
+    color: var(--on-image, #fff);
+}
+
+.fa-evidence-link:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* ---- Manager feedback ---- */
+.fa-review-dialog .fa-form-field {
+    display: grid;
+    gap: 8px;
+}
+
+.fa-review-dialog .fa-form-field > span {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+.fa-review-dialog .fa-form-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 110px;
+    resize: vertical;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--background);
+    color: var(--primary-text);
+    font-family: 'Poppins', sans-serif;
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+}
+
+/* ---- Footer actions ---- */
+.fa-review-dialog .fa-modal-actions {
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0;
+    padding: var(--space-sm) var(--space-md);
+    border-top: 1px solid var(--border);
+    background: var(--surface-card);
+}
+
+/* Cancel: quiet, text-style */
+.fa-review-dialog .fa-modal-actions .btn.fa-btn-cancel {
+    border-color: transparent;
+    background: transparent;
+    color: var(--secondary-text);
+}
+
+.fa-review-dialog .fa-modal-actions .btn.fa-btn-cancel:hover:not(:disabled) {
+    border-color: var(--border);
+    background: transparent;
+    color: var(--primary-text);
+}
+
+/* Request Revision: outlined secondary */
+.fa-review-dialog .fa-modal-actions .btn.fa-btn-revision {
+    border-color: var(--primary-color);
+    background: transparent;
+    color: var(--primary-color);
+}
+
+.fa-review-dialog .fa-modal-actions .btn.fa-btn-revision:hover:not(:disabled) {
+    border-color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+    color: var(--primary-color);
+}
+
+/* Verify Submission: solid primary action */
+.fa-review-dialog .fa-modal-actions .btn.fa-btn-verify {
+    border-color: var(--success);
+    background: var(--success);
+    color: var(--on-image, #fff);
+}
+
+.fa-review-dialog .fa-modal-actions .btn.fa-btn-verify:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--success) 85%, #000);
+    background: color-mix(in srgb, var(--success) 85%, #000);
+}
+
+.fa-review-dialog .fa-modal-actions .btn:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+    .fa-dialog {
+        width: 94vw;
+    }
+
+    .fa-dialog-header,
+    .fa-create-form {
+        padding: var(--space-sm);
+    }
+
+    .fa-modal-actions {
+        flex-direction: column-reverse;
+    }
+
+    .fa-modal-actions .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 520px) {
+    .fa-action-review {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .fa-review-btn {
+        width: 100%;
+    }
+
+    .fa-review-dialog {
+        width: calc(100% - 24px);
+        max-height: 92vh;
+    }
+
+    .fa-review-content {
+        padding: var(--space-sm);
+        gap: var(--space-sm);
+    }
+
+    .fa-review-details {
+        grid-template-columns: 1fr;
+    }
+
+    .fa-review-dialog .fa-modal-actions {
+        padding: var(--space-sm);
+    }
+
+    .fa-evidence-item {
+        flex-wrap: wrap;
+    }
+
+    .fa-evidence-info {
+        flex-basis: calc(100% - 52px);
+    }
+
+    .fa-evidence-link {
+        width: 100%;
+        text-align: center;
+    }
+}

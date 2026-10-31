@@ -64,7 +64,7 @@ export async function loadFarms() {
     const [farmRes, ownerRes] = await Promise.all([
         supabase
             .from('farmer_farms')
-            .select('id, farm_name, farm_location, cover_image_path')
+            .select('id, farmer_id, farm_name, farm_location, cover_image_path')
             .order('farm_name'),
 
         supabase.rpc('manager_list_farmers')

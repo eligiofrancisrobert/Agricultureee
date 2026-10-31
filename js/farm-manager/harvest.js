@@ -1,6 +1,9 @@
-
 import { supabase } from '../connection.js';
 import { h, pageHead } from '../admin/ui.js';
+
+const PAGE_SIZE = 5;
+let harvestChannel = null;
+let harvestReloadTimer = null;
 
 const STATUSES = {
     planned: 'Planned',
@@ -150,9 +153,6 @@ async function loadAssignedFarms(staffId) {
     return matchedFarms;
 }
 
-
-
-
 async function loadDashboardData(staff) {
     const farms = await loadAssignedFarms(staff?.staff_id);
 
@@ -188,7 +188,7 @@ async function loadDashboardData(staff) {
     const { data: plantings, error: plantingError } = await supabase
         .from('farm_plantings')
         .select(
-            'id, field_id, product_id, crop_name, sowing_date, expected_harvest_date, status'
+            'id, field_id, product_id, crop_name, sowing_date, expected_harvest_date, status, activity_status, crop_status'
         )
         .in('field_id', fields.map(field => field.id))
         .order('expected_harvest_date', { ascending: true });
@@ -244,14 +244,14 @@ async function loadDashboardData(staff) {
     return { farms, rows };
 }
 
-
-function renderTable(rows, searchTerm, statusFilter) {
+function renderTable(rows, searchTerm, statusFilter, page, onPageChange) {
     const filtered = rows.filter(row => {
         const searchable = normalize([
             row.crop_name,
             row.farmName,
             row.fieldName,
-            row.status,
+            row.activity_status,
+            row.crop_status,
             ...row.harvests.map(item => item.confirmation_status)
         ].join(' '));
 
@@ -259,8 +259,12 @@ function renderTable(rows, searchTerm, statusFilter) {
             !searchTerm || searchable.includes(searchTerm);
 
         const statuses = [
+            normalize(row.activity_status),
+            normalize(row.crop_status),
             normalize(row.status),
-            ...row.harvests.map(item => normalize(item.confirmation_status))
+            ...row.harvests.map(item =>
+                normalize(item.confirmation_status)
+            )
         ];
 
         const matchesStatus =
@@ -270,11 +274,14 @@ function renderTable(rows, searchTerm, statusFilter) {
     });
 
     if (!filtered.length) {
-        return h(
-            'div',
-            { class: 'harvest-empty' },
-            'No harvest records match your search or filter.'
-        );
+        return {
+            page: 1,
+            element: h(
+                'div',
+                { class: 'harvest-empty' },
+                'No harvest records match your search or filter.'
+            )
+        };
     }
 
     const tableRows = [];
@@ -312,40 +319,152 @@ function renderTable(rows, searchTerm, statusFilter) {
                         {},
                         harvest
                             ? badge(harvest.confirmation_status, 'confirmation')
-                            : badge(row.status)
+                            : badge(row.crop_status || row.status)
                     )
                 )
             );
         }
     }
 
-    return h(
+    // ---- Pagination ----
+    const totalRecords = tableRows.length;
+    const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE));
+    const currentPage = Math.min(Math.max(page, 1), totalPages);
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    const endIndex = Math.min(startIndex + PAGE_SIZE, totalRecords);
+    const visibleRows = tableRows.slice(startIndex, endIndex);
+
+    const prevButton = h(
+        'button',
+        { type: 'button', class: 'btn ghost harvest-page-btn' },
+        'Previous'
+    );
+    const nextButton = h(
+        'button',
+        { type: 'button', class: 'btn ghost harvest-page-btn' },
+        'Next'
+    );
+
+    prevButton.disabled = currentPage <= 1;
+    nextButton.disabled = currentPage >= totalPages;
+
+    prevButton.addEventListener('click', () => onPageChange(currentPage - 1));
+    nextButton.addEventListener('click', () => onPageChange(currentPage + 1));
+
+    const pager = h(
         'div',
-        { class: 'harvest-table-wrap' },
+        { class: 'harvest-pagination' },
         h(
-            'table',
-            { class: 'harvest-table' },
+            'span',
+            { class: 'muted harvest-pagination__info' }
+        ),
+        h(
+            'div',
+            { class: 'harvest-pagination__controls' },
+            prevButton,
             h(
-                'thead',
-                {},
-                h(
-                    'tr',
-                    {},
-                    h('th', {}, 'Crop'),
-                    h('th', {}, 'Farm'),
-                    h('th', {}, 'Field'),
-                    h('th', {}, 'Expected Harvest'),
-                    h('th', {}, 'Actual Harvest'),
-                    h('th', {}, 'Quantity'),
-                    h('th', {}, 'Status')
-                )
+                'span',
+                { class: 'harvest-pagination__page' }
             ),
-            h('tbody', {}, tableRows)
+            nextButton
         )
     );
+
+    const element = h(
+        'div',
+        {},
+        h(
+            'div',
+            { class: 'harvest-table-wrap' },
+            h(
+                'table',
+                { class: 'harvest-table' },
+                h(
+                    'thead',
+                    {},
+                    h(
+                        'tr',
+                        {},
+                        h('th', {}, 'Crop'),
+                        h('th', {}, 'Farm'),
+                        h('th', {}, 'Field'),
+                        h('th', {}, 'Expected Harvest'),
+                        h('th', {}, 'Actual Harvest'),
+                        h('th', {}, 'Quantity'),
+                        h('th', {}, 'Status')
+                    )
+                ),
+                h('tbody', {}, visibleRows)
+            )
+        ),
+        pager
+    );
+
+    return { page: currentPage, element };
+}
+
+function cleanupHarvestRealtime() {
+    clearTimeout(harvestReloadTimer);
+    harvestReloadTimer = null;
+
+    if (harvestChannel) {
+        supabase.removeChannel(harvestChannel);
+        harvestChannel = null;
+    }
+}
+
+function subscribeToHarvestUpdates(onUpdate) {
+    cleanupHarvestRealtime();
+
+    harvestChannel = supabase
+        .channel('farm-manager-harvest-dashboard')
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'farm_plantings'
+            },
+            payload => {
+                console.log('[Harvest Realtime] Planting change:', payload);
+                scheduleHarvestRefresh(onUpdate);
+            }
+        )
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'harvested_crops'
+            },
+            payload => {
+                console.log('[Harvest Realtime] Harvest change:', payload);
+                scheduleHarvestRefresh(onUpdate);
+            }
+        )
+        .subscribe(status => {
+            console.log('[Harvest Realtime] Status:', status);
+
+            if (status === 'SUBSCRIBED') {
+                console.log('Farm Manager Harvest Realtime connected.');
+            }
+        });
+}
+
+function scheduleHarvestRefresh(onUpdate) {
+    clearTimeout(harvestReloadTimer);
+
+    harvestReloadTimer = setTimeout(() => {
+        onUpdate();
+    }, 400);
+}
+
+export function cleanup() {
+    cleanupHarvestRealtime();
 }
 
 export async function render(container, ctx) {
+    cleanupHarvestRealtime();
     const page = h('div', { class: 'harvest-page' });
     const summary = h('div', { class: 'harvest-stats' });
     const scopeLabel = h('p', { class: 'harvest-location' });
@@ -416,15 +535,22 @@ export async function render(container, ctx) {
     container.append(page);
 
     let rows = [];
+    let currentPage = 1;
 
     function updateTable() {
-        tableHolder.replaceChildren(
-            renderTable(
-                rows,
-                normalize(search.value),
-                filter.value
-            )
+        const result = renderTable(
+            rows,
+            normalize(search.value),
+            filter.value,
+            currentPage,
+            newPage => {
+                currentPage = newPage;
+                updateTable();
+            }
         );
+
+        currentPage = result.page; // keeps the page valid if results shrink
+        tableHolder.replaceChildren(result.element);
     }
 
     async function load() {
@@ -460,7 +586,7 @@ export async function render(container, ctx) {
             const expected = rows.filter(row =>
                 row.expected_harvest_date &&
                 !['harvested', 'failed', 'cancelled'].includes(
-                    normalize(row.status)
+                    normalize(row.crop_status)
                 )
             ).length;
 
@@ -520,9 +646,19 @@ export async function render(container, ctx) {
         }
     }
 
-    search.addEventListener('input', updateTable);
-    filter.addEventListener('change', updateTable);
+    search.addEventListener('input', () => {
+        currentPage = 1;
+        updateTable();
+    });
+
+    filter.addEventListener('change', () => {
+        currentPage = 1;
+        updateTable();
+    });
+
     refreshButton.addEventListener('click', load);
 
     await load();
+
+    subscribeToHarvestUpdates(load);
 }

@@ -1,7 +1,98 @@
-/* ============================================================
-   Farm Manager additions
-   Reuses tokens from style.css and admin-dash.css.
-   ============================================================ */
+:root[data-theme="dark"] .sidebar {
+    background: var(--surface-card);
+    border-right: 1px solid var(--border);
+    color: var(--primary-text);
+    transition: background-color 0.3s ease, border-color 0.3s ease,
+        color 0.3s ease;
+}
+
+:root[data-theme="dark"] .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *) {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    color: var(--secondary-text);
+    transition: background-color 0.3s ease, color 0.3s ease,
+        border-color 0.3s ease;
+}
+
+:root[data-theme="dark"] .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *):hover {
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    color: var(--primary-text);
+}
+
+:root[data-theme="dark"] .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *).active,
+:root[data-theme="dark"] .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *)[aria-current="page"],
+:root[data-theme="dark"] .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *)[aria-selected="true"] {
+    background: color-mix(in srgb, var(--primary-color) 16%, transparent);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+:root[data-theme="dark"] .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *):focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+:root[data-theme="dark"] .sidebar .sidebar-label {
+    color: var(--secondary-text);
+}
+
+:root[data-theme="dark"] .sidebar .sidebar-footer :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *),
+:root[data-theme="dark"] .sidebar [class*="logout" i] {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--primary-text);
+}
+
+:root[data-theme="dark"] .sidebar .sidebar-footer :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *):hover,
+:root[data-theme="dark"] .sidebar [class*="logout" i]:hover {
+    background: color-mix(in srgb, var(--error) 12%, transparent);
+    border-color: var(--error);
+    color: var(--error);
+}
+
+:root:not([data-theme="dark"]) .sidebar {
+    background: var(--primary-color);
+    border-right-color: color-mix(in srgb, var(--primary-hover) 35%, transparent);
+    color: var(--on-image);
+}
+
+:root:not([data-theme="dark"]) .sidebar .sidebar-label {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Non-active links only: no white boxes, white text */
+:root:not([data-theme="dark"]) .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *):not(.active, .is-active, .current, .selected, [aria-current], [aria-selected="true"]) {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+:root:not([data-theme="dark"]) .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *):not(.active, .is-active, .current, .selected, [aria-current], [aria-selected="true"]):hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: var(--on-image);
+}
+
+/* Footer / log out: white outline instead of grey */
+:root:not([data-theme="dark"]) .sidebar .sidebar-footer {
+    border-top-color: rgba(255, 255, 255, 0.25);
+}
+
+:root:not([data-theme="dark"]) .sidebar .sidebar-footer :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *),
+:root:not([data-theme="dark"]) .sidebar [class*="logout" i] {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    color: var(--on-image);
+}
+
+:root:not([data-theme="dark"]) .sidebar .sidebar-footer :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *):hover,
+:root:not([data-theme="dark"]) .sidebar [class*="logout" i]:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+    color: var(--on-image);
+}
+
 :root {
     --fm-tint: var(--mint, var(--background));
     --fm-muted: var(--muted, var(--secondary-text));
@@ -409,13 +500,6 @@ textarea.crop-input {
 .crop-status--failed    { --status-color: var(--crop-failed); }
 .crop-status--cancelled { --status-color: var(--crop-cancelled); }
 
-/* ============================================================
-   CROP PICKER
-   The trigger selectors are deliberately more specific
-   (.crop-picker button.crop-picker-trigger) so that generic
-   button / select rules in admin-dash.css cannot paint their
-   own tiled arrow background over it.
-   ============================================================ */
 .crop-picker {
     position: relative;
     min-width: 0;
@@ -556,118 +640,6 @@ textarea.crop-input {
     color: var(--secondary-text);
 }
 
-/* ============================================================
-   SIDEBAR THEME
-   Colors only. Width, position and layout are left to
-   admin-dash.css so this cannot break the page layout.
-   Light mode = orange, dark mode = dark surface.
-   ============================================================ */
-
-/* ---------- Dark mode ---------- */
-:root[data-theme="dark"] .sidebar {
-    background: var(--surface-card);
-    border-right: 1px solid var(--border);
-    color: var(--primary-text);
-    transition: background-color 0.3s ease, border-color 0.3s ease,
-        color 0.3s ease;
-}
-
-:root[data-theme="dark"] .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *) {
-    background: transparent;
-    border: 0;
-    box-shadow: none;
-    color: var(--secondary-text);
-    transition: background-color 0.3s ease, color 0.3s ease,
-        border-color 0.3s ease;
-}
-
-:root[data-theme="dark"] .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *):hover {
-    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
-    color: var(--primary-text);
-}
-
-:root[data-theme="dark"] .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *).active,
-:root[data-theme="dark"] .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *)[aria-current="page"],
-:root[data-theme="dark"] .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *)[aria-selected="true"] {
-    background: color-mix(in srgb, var(--primary-color) 16%, transparent);
-    color: var(--primary-color);
-    font-weight: 600;
-}
-
-:root[data-theme="dark"] .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *):focus-visible {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
-}
-
-:root[data-theme="dark"] .sidebar .sidebar-label {
-    color: var(--secondary-text);
-}
-
-:root[data-theme="dark"] .sidebar .sidebar-footer :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *),
-:root[data-theme="dark"] .sidebar [class*="logout" i] {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--primary-text);
-}
-
-:root[data-theme="dark"] .sidebar .sidebar-footer :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *):hover,
-:root[data-theme="dark"] .sidebar [class*="logout" i]:hover {
-    background: color-mix(in srgb, var(--error) 12%, transparent);
-    border-color: var(--error);
-    color: var(--error);
-}
-
-/* ---------- Light mode: orange ----------
-   The active item (Harvest) is excluded on purpose, so it keeps
-   its original look (white box, orange text) from admin-dash.css. */
-:root:not([data-theme="dark"]) .sidebar {
-    background: var(--primary-color);
-    border-right-color: color-mix(in srgb, var(--primary-hover) 35%, transparent);
-    color: var(--on-image);
-}
-
-/* The "Tanikala" name/logo is intentionally NOT styled here,
-   so it keeps its original color. */
-
-:root:not([data-theme="dark"]) .sidebar .sidebar-label {
-    color: rgba(255, 255, 255, 0.7);
-}
-
-/* Non-active links only: no white boxes, white text */
-:root:not([data-theme="dark"]) .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *):not(.active, .is-active, .current, .selected, [aria-current], [aria-selected="true"]) {
-    background: transparent;
-    border: 0;
-    box-shadow: none;
-    color: rgba(255, 255, 255, 0.9);
-}
-
-:root:not([data-theme="dark"]) .sidebar :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *):not(.active, .is-active, .current, .selected, [aria-current], [aria-selected="true"]):hover {
-    background: rgba(255, 255, 255, 0.14);
-    color: var(--on-image);
-}
-
-/* Footer / log out: white outline instead of grey */
-:root:not([data-theme="dark"]) .sidebar .sidebar-footer {
-    border-top-color: rgba(255, 255, 255, 0.25);
-}
-
-:root:not([data-theme="dark"]) .sidebar .sidebar-footer :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *),
-:root:not([data-theme="dark"]) .sidebar [class*="logout" i] {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    color: var(--on-image);
-}
-
-:root:not([data-theme="dark"]) .sidebar .sidebar-footer :is(a, button):not([class*="logo" i], [class*="brand" i], [class*="logo" i] *, [class*="brand" i] *):hover,
-:root:not([data-theme="dark"]) .sidebar [class*="logout" i]:hover {
-    background: var(--primary-hover);
-    border-color: var(--primary-hover);
-    color: var(--on-image);
-}
-
-/* ============================================================
-   GLASS EFFECT ON FARM CARDS
-   ============================================================ */
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
     .fm-hero .hero-card {
         background: color-mix(in srgb, var(--surface-card) 55%, transparent);
@@ -684,9 +656,6 @@ textarea.crop-input {
     }
 }
 
-/* ============================================================
-   RESPONSIVE
-   ============================================================ */
 @media (max-width: 700px) {
     .crop-form-grid {
         grid-template-columns: minmax(0, 1fr);

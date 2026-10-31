@@ -1,6 +1,4 @@
-// Show/Hide buttons. Each click is handled once: layout.js uses the same
-// flag, so it does not matter which script's handler runs first, or whether
-// an old cached copy of either file is also running.
+
 document.querySelectorAll('.password-toggle[data-target]').forEach((button) => {
     button.addEventListener('click', (event) => {
         if (event.passwordToggleHandled) return;

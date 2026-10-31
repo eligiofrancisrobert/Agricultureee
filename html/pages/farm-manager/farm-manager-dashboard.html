@@ -19,11 +19,16 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600&family=Poppins:wght@300;400;500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="../../css/style.css">
-    <link rel="stylesheet" href="../../css/admin-dash.css">
-    <link rel="stylesheet" href="../../css/staff.css">
-    <link rel="stylesheet" href="../../css/farm-manager.css">
-    <link rel="stylesheet" href="../../css/crops.css">
+    <link rel="stylesheet" href="../../../css/feature/style.css">
+    <link rel="stylesheet" href="../../../css/admin/admin-dash.css">
+    <link rel="stylesheet" href="../../../css/admin/staff.css">
+    <link rel="stylesheet" href="../../../css/farm-manager/farm-manager.css">
+    <link rel="stylesheet" href="../../../css/farm-manager/crops.css">
+    <link rel="stylesheet" href="../../../css/farm-manager/harvest.css">
+    <link rel="stylesheet" href="../../../css/farm-manager/farm-actions.css">
+    <link rel="stylesheet" href="../../../css/feature/reports.css">
+    <link rel="stylesheet" href="../../../css/feature/settings.css">
+
     <script>
         document.documentElement.dataset.theme = localStorage.getItem('theme') || 'light';
     </script>
@@ -34,11 +39,12 @@
         <aside class="sidebar">
             <div class="logo">
                 <h1>T<span>ani</span>kala</h1>
-                <img src="../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
+                <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
             </div>
+
             <nav class="nav" aria-label="Farm Manager sections">
                 <a href="#dashboard" data-view="dashboard">
-                    <svg viewBox="0 0 24 24">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
                         <rect x="3" y="3" width="7" height="9" rx="1.5" />
                         <rect x="14" y="3" width="7" height="5" rx="1.5" />
                         <rect x="14" y="12" width="7" height="9" rx="1.5" />
@@ -46,8 +52,7 @@
                     </svg>Dashboard
                 </a>
                 <a href="#farms" data-view="farms">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M4 21V10l8-6 8 6v11" />
                         <path d="M9 21v-7h6v7" />
                         <path d="M9 14l6 7M15 14l-6 7" />
@@ -55,46 +60,62 @@
                     </svg>My farms
                 </a>
                 <a href="#farmers" data-view="farmers">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-                        stroke-linejoin="round" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                         <circle cx="10" cy="7" r="4" />
                         <path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>Farmers
+                </a>
+                <a href="#farm-actions" data-view="farm-actions">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4" />
+                        <path d="M9 3h6v4H9z" />
+                        <path d="m8 13 2 2 5-5" />
                     </svg>
-                    Farmers
+                    Farm Actions
                 </a>
                 <a href="#plant-now" data-view="plant-now">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-                        stroke-linejoin="round" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M12 21v-8" />
                         <path d="M12 13C7 13 4 10 4 5c5 0 8 3 8 8Z" />
                         <path d="M12 16c0-4 3-7 8-7 0 5-3 8-8 8" />
-                    </svg>
-                    Plant Now
+                    </svg>Plant Now
                 </a>
                 <a href="#crops" data-view="crops">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-                        stroke-linejoin="round" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M12 22V9" />
                         <path d="M12 9c-1.5-1.2-1.5-3.4 0-5 1.5 1.6 1.5 3.8 0 5Z" />
-                        <path d="M12 13c-2.8 0-4.5-1.7-4.5-4.2 2.8 0 4.5 1.700 4.500 4.200Z" />
-                        <path d="M12 18c-2.8 0-4.5-1.7-4.5-4.2 2.800 0 4.500 1.700 4.500 4.200Z" />
-                        <path d="M12 13c2.800 0 4.500-1.700 4.500-4.200-2.800 0-4.500 1.700-4.500 4.200Z" />
-                        <path d="M12 18c2.800 0 4.500-1.700 4.500-4.200-2.800 0-4.500 1.700-4.500 4.200Z" />
-                    </svg>
-                    Crops
+                        <path d="M12 13c-2.8 0-4.5-1.7-4.5-4.2 2.8 0 4.5 1.7 4.5 4.2Z" />
+                        <path d="M12 18c-2.8 0-4.5-1.7-4.5-4.2 2.8 0 4.5 1.7 4.5 4.2Z" />
+                        <path d="M12 13c2.8 0 4.5-1.7 4.5-4.2-2.8 0-4.5 1.7-4.5 4.2Z" />
+                        <path d="M12 18c2.8 0 4.5-1.7 4.5-4.2-2.8 0-4.5 1.7-4.5 4.2Z" />
+                    </svg>Crops
                 </a>
                 <a href="#harvest" data-view="harvest">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-                        stroke-linejoin="round" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M7 10V8a5 5 0 0 1 10 0v2" />
                         <path d="M3 10h18l-1.5 9a2 2 0 0 1-2 1.7h-11a2 2 0 0 1-2-1.7L3 10Z" />
                         <path d="M9 14v3" />
                         <path d="M15 14v3" />
-                    </svg>
-                    Harvest
+                    </svg>Harvest
+                </a>
+                <!-- FIXED: Reports and Settings used to point to #harvest with the harvest icon -->
+                <a href="#reports" data-view="reports">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M5 21V11" />
+                        <path d="M12 21V4" />
+                        <path d="M19 21v-7" />
+                    </svg>Reports
+                </a>
+                <a href="#settings" data-view="settings">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+                        <circle cx="15" cy="7" r="2" />
+                        <circle cx="9" cy="17" r="2" />
+                    </svg>Settings
                 </a>
             </nav>
+
             <button type="button" id="logoutButton" class="nav-logout">Log out</button>
         </aside>
 
@@ -106,15 +127,15 @@
                         <circle cx="11" cy="11" r="7" />
                         <path d="m20 20-3.5-3.5" />
                     </svg>
-                    <input id="fmSearch" type="search" placeholder="Search farm name or location"
-                        aria-label="Search farms" autocomplete="off">
+                    <input id="fmSearch" type="search" placeholder="Search farms, farmers, or crops..."
+                        aria-label="Search farms, farmers, or crops" autocomplete="off">
                 </label>
                 <div class="topbar-right">
                     <div class="chip">
                         <span id="todayLabel"></span>
                         <button type="button" id="themeToggle" class="icon-btn" aria-label="Switch theme">
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
                             </svg>
                         </button>
@@ -128,7 +149,7 @@
     </div>
 
     <div id="toast" class="toast" role="status" hidden></div>
-    <script type="module" src="../../js/farm-manager/main.js"></script>
+    <script type="module" src="../../../js/farm-manager/main.js"></script>
 </body>
 
 </html>

@@ -1,0 +1,392 @@
+.activities-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+}
+
+/* ============ ACTIVITY LIST (medium cards in a responsive grid) ============ */
+
+.activity-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: var(--space-md);
+    align-items: start;
+}
+
+.activity-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    max-width: 520px;
+    padding: var(--space-md);
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    color: var(--primary-text);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.activity-card:hover {
+    border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border));
+}
+
+/* ---------- Header ---------- */
+
+.activity-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-md);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border);
+}
+
+.activity-card-header > div {
+    display: grid;
+    gap: var(--space-xs);
+    min-width: 0;
+}
+
+.activity-card h3 {
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-md);
+    font-weight: 500;
+    line-height: 1.3;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.activity-category {
+    margin: 0;
+    color: var(--primary-color);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.activity-status {
+    --status-color: var(--success);
+
+    display: inline-block;
+    flex-shrink: 0;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-transform: capitalize;
+    color: var(--status-color);
+    background: color-mix(in srgb, var(--status-color) 15%, transparent);
+}
+
+/* ---------- Description (clamped to keep cards even) ---------- */
+
+.activity-description {
+    margin: 0;
+    font-size: var(--fs-sm);
+    line-height: 1.7;
+    color: var(--secondary-text);
+    white-space: pre-wrap;
+}
+
+.activity-card > .activity-description {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ---------- Details: 2 x 2 with breathing room ---------- */
+
+.activity-details,
+.planting-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-md) var(--space-lg, var(--space-md));
+}
+
+.activity-details {
+    padding: var(--space-md) 0;
+    border-top: 1px solid var(--border);
+}
+
+.detail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    min-width: 0;
+}
+
+.detail-label {
+    font-size: var(--fs-xs);
+    font-weight: 400;
+    color: var(--secondary-text);
+}
+
+.detail-value {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--primary-text);
+    overflow-wrap: anywhere;
+}
+
+/* ---------- Planting (collapsible) ---------- */
+
+.planting-information {
+    padding: var(--space-sm) var(--space-md);
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.planting-information summary {
+    cursor: pointer;
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.planting-information[open] summary {
+    margin-bottom: var(--space-md);
+}
+
+.planting-information .activity-description {
+    margin-top: var(--space-md);
+}
+
+/* ---------- Approve / Reject ---------- */
+
+.activity-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-sm);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--border);
+}
+
+.btn-approve,
+.btn-reject {
+    min-width: 110px;
+    padding: 0.6rem 1.2rem;
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.btn-approve {
+    border: 1px solid var(--primary-color);
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.btn-approve:hover:not(:disabled) {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.btn-reject {
+    border: 1px solid var(--error);
+    background: transparent;
+    color: var(--error);
+}
+
+.btn-reject:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--error) 12%, transparent);
+}
+
+.btn-approve:disabled,
+.btn-reject:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-approve:focus-visible,
+.btn-reject:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.activity-card__message {
+    margin: 0;
+    font-size: var(--fs-xs);
+    color: var(--error);
+}
+
+/* ============ LOADING / EMPTY / ERROR ============ */
+
+.loading-state,
+.empty-state,
+.error-state {
+    grid-column: 1 / -1;
+    padding: var(--space-lg) var(--space-md);
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    text-align: center;
+    font-size: var(--fs-sm);
+    color: var(--secondary-text);
+}
+
+.error-state {
+    color: var(--error);
+    font-weight: 500;
+    border-color: color-mix(in srgb, var(--error) 40%, var(--border));
+}
+/* ============ COMPLETION SUBMISSION MODAL ============ */
+
+.activity-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.55);
+    overflow-y: auto;
+}
+
+.activity-completion-modal {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    width: 100%;
+    max-width: 540px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: var(--space-lg);
+    background: var(--surface-card);
+    color: var(--primary-text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.2);
+}
+
+.activity-completion-modal h2 {
+    margin: 0;
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 600;
+}
+
+.activity-completion-modal > p {
+    margin: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+    line-height: 1.6;
+}
+
+.activity-completion-modal label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--primary-text);
+}
+
+.activity-completion-modal textarea,
+.activity-completion-modal input[type="date"],
+.activity-completion-modal input[type="file"] {
+    width: 100%;
+    min-width: 0;
+    padding: 0.75rem;
+    font: inherit;
+    font-size: var(--fs-sm);
+    color: var(--primary-text);
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.activity-completion-modal textarea {
+    resize: vertical;
+    min-height: 110px;
+    line-height: 1.6;
+}
+
+.activity-completion-modal textarea:focus,
+.activity-completion-modal input:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.activity-completion-modal input[type="file"] {
+    cursor: pointer;
+}
+
+.activity-completion-modal .activity-actions {
+    margin-top: var(--space-sm);
+}
+
+.activity-completion-modal .activity-card__message:not([hidden]) {
+    padding: var(--space-sm);
+    background: color-mix(in srgb, var(--error) 10%, transparent);
+    border-radius: var(--radius);
+}
+
+/* ============ RESPONSIVE ============ */
+
+@media (max-width: 700px) {
+    .activity-list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .activity-card {
+        max-width: none;
+        padding: var(--space-sm) var(--space-md);
+    }
+}
+
+@media (max-width: 480px) {
+    .activity-card-header {
+        flex-direction: column;
+    }
+
+    .activity-details,
+    .planting-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .activity-actions > button {
+        flex: 1;
+    }
+    .activity-completion-modal {
+        padding: var(--space-md);
+    }
+
+    .activity-completion-modal .activity-actions {
+        flex-direction: column-reverse;
+    }
+
+    .activity-completion-modal .activity-actions button {
+        width: 100%;
+    }
+}
+
+/* ============ STATUS VARIANTS (class set by activities.js) ============ */
+
+.activity-status--pending,
+.activity-status--assigned,
+.activity-status--requested { --status-color: var(--warning); }
+
+.activity-status--in-progress,
+.activity-status--ongoing   { --status-color: var(--secondary); }
+
+.activity-status--approved,
+.activity-status--completed,
+.activity-status--done      { --status-color: var(--success); }
+
+.activity-status--cancelled,
+.activity-status--rejected,
+.activity-status--overdue   { --status-color: var(--error); }
+
+.activity-status--unspecified { --status-color: var(--secondary-text); }

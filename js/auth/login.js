@@ -1,5 +1,5 @@
 
-import { supabase } from "./connection.js";
+import { supabase } from "../connection.js";
 
 const form = document.getElementById("loginForm");
 const emailInput = document.getElementById("email");
@@ -134,7 +134,7 @@ async function getApprovedDestination(userId) {
         throw new Error("Unable to check your administrator account.");
     }
 
-    if (admin) return "./pages/admin-dashboard.html";
+    if (admin) return "./pages/admin/admin-dashboard.html";
 
     // 2. Check staff accounts using the Supabase Auth UUID.
     const { data: staff, error: staffError } = await supabase
@@ -173,11 +173,11 @@ async function getApprovedDestination(userId) {
         }
 
         const staffRolePages = {
-            "Farm Manager": "./pages/farm-manager-dashboard.html",
+            "Farm Manager": "./pages/farm-manager/farm-manager-dashboard.html",
             "Warehouse Officer": "./pages/warehouse-officer-dashboard.html",
             "Agricultural Technician": "./pages/agricultural-technician-dashboard.html",
             "Accountant": "./pages/accountant-dashboard.html",
-            "Admin": "./pages/admin-dashboard.html"
+            "Admin": "./pages/admin/admin-dashboard.html"
         };
 
         const destination = staffRolePages[role.role_name];
@@ -227,7 +227,7 @@ async function getApprovedDestination(userId) {
     }
 
     const rolePages = {
-        farmer: "./pages/farmer-dashboard.html",
+        farmer: "./pages/farmer/farmer-dashboard.html",
         buyer: "./pages/buyer-dashboard.html",
         supplier: "./pages/supplier-dashboard.html"
     };

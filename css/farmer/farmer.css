@@ -1,0 +1,925 @@
+/* ============================================================
+   FARMER DASHBOARD
+   Load AFTER css/feature/style.css (tokens, reset, dark theme).
+   Fonts (Outfit + Poppins) come from the <link> in the HTML.
+
+   Aligned with the Farm Manager stylesheet:
+   - Headings: Outfit, weight 500, token sizes (--fs-lg / --fs-xl)
+   - Body / labels: Poppins, --fs-sm / --fs-xs
+   - Cards: --space-md padding, 1px border, --radius, same shadow
+   - Transitions: 0.3s ease; focus ring: 2px primary, 2px offset
+   - No hardcoded font sizes or paddings where a token exists
+   ============================================================ */
+
+/* ============ BASE ============ */
+
+body {
+    font-family: 'Poppins', system-ui, sans-serif;
+    color: var(--primary-text);
+}
+
+.app-layout {
+    min-height: 100vh;
+    display: flex;
+}
+
+/* ============ SIDEBAR ============
+   light: primary-color sidebar, white text
+   dark:  surface-card sidebar */
+
+.sidebar {
+    width: 250px;
+    padding: var(--space-lg) var(--space-md);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    background: var(--primary-color);
+    color: var(--on-image);
+    border-right: 1px solid color-mix(in srgb, var(--primary-hover) 35%, transparent);
+    transition: background-color 0.3s ease, border-color 0.3s ease,
+        color 0.3s ease;
+}
+
+.sidebar .logo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-xl, 55px);
+}
+
+.sidebar .logo h1 {
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-xl);
+    font-weight: 600;
+    color: var(--on-image);
+    text-shadow: none;
+}
+
+.sidebar .logo h1 span {
+    color: var(--primary-text);
+}
+
+.sidebar .logo-image {
+    height: 36px;
+}
+
+.navigation {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    text-decoration: none;
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.nav-link svg,
+.logout-button svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: var(--on-image);
+}
+
+.nav-link.active,
+.nav-link[aria-current="page"] {
+    background: var(--on-image);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.sidebar-bottom {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    padding-top: var(--space-md);
+    border-top: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.logout-button {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    color: var(--on-image);
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: var(--radius);
+    transition: background-color 0.3s ease, border-color 0.3s ease,
+        color 0.3s ease;
+}
+
+.logout-button:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+    color: var(--on-image);
+}
+
+.logout-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.nav-link:focus-visible,
+.logout-button:focus-visible {
+    outline: 2px solid var(--on-image);
+    outline-offset: 2px;
+}
+
+/* ---- dark mode sidebar ---- */
+
+:root[data-theme="dark"] .sidebar {
+    background: var(--surface-card);
+    border-right: 1px solid var(--border);
+    color: var(--primary-text);
+}
+
+:root[data-theme="dark"] .sidebar .logo h1 {
+    color: var(--primary-text);
+}
+
+:root[data-theme="dark"] .sidebar .logo h1 span {
+    color: var(--logo-dm);
+}
+
+:root[data-theme="dark"] .nav-link {
+    color: var(--secondary-text);
+}
+
+:root[data-theme="dark"] .nav-link:hover {
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    color: var(--primary-text);
+}
+
+:root[data-theme="dark"] .nav-link.active,
+:root[data-theme="dark"] .nav-link[aria-current="page"] {
+    background: color-mix(in srgb, var(--primary-color) 16%, transparent);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+:root[data-theme="dark"] .sidebar-bottom {
+    border-top-color: var(--border);
+}
+
+:root[data-theme="dark"] .logout-button {
+    border-color: var(--border);
+    color: var(--primary-text);
+}
+
+:root[data-theme="dark"] .logout-button:hover {
+    background: color-mix(in srgb, var(--error) 12%, transparent);
+    border-color: var(--error);
+    color: var(--error);
+}
+
+:root[data-theme="dark"] .nav-link:focus-visible,
+:root[data-theme="dark"] .logout-button:focus-visible {
+    outline-color: var(--primary-color);
+}
+
+/* ============ MAIN CONTENT ============ */
+
+.main-content {
+    flex: 1;
+    padding: var(--space-lg);
+    min-width: 0;
+    display: grid;
+    gap: var(--space-md);
+    align-content: start;
+}
+
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.topbar-label,
+.welcome-label {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--primary-color);
+    margin-bottom: var(--space-xs);
+}
+
+.topbar h2 {
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+/* date + theme toggle pill (same as Farm Manager info chips) */
+.chip {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: 0.2rem 0.4rem 0.2rem 0.85rem;
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: var(--fs-xs);
+    color: var(--secondary-text);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.icon-btn {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--primary-text);
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.icon-btn:hover {
+    background: var(--primary-color);
+    color: var(--on-image);
+}
+
+.icon-btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* moon in light mode, sun in dark mode */
+.icon-btn .icon-sun {
+    display: none;
+}
+
+:root[data-theme="dark"] .icon-btn .icon-moon {
+    display: none;
+}
+
+:root[data-theme="dark"] .icon-btn .icon-sun {
+    display: block;
+}
+
+.profile {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.avatar {
+    width: 43px;
+    height: 43px;
+    background: var(--secondary);
+    color: var(--on-image);
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    font-weight: 700;
+}
+
+.profile p {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+}
+
+.profile span {
+    font-size: var(--fs-xs);
+    color: var(--secondary-text);
+}
+
+/* ============ SHARED CARD (same as .crop-page .card) ============ */
+
+.welcome-section,
+.access-card,
+.information-section {
+    padding: var(--space-md);
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    color: var(--primary-text);
+    transition: background-color 0.3s ease, border-color 0.3s ease,
+        transform 0.3s ease;
+}
+
+/* ============ WELCOME ============ */
+
+.welcome-section {
+    border-left: 4px solid var(--primary-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.welcome-section h1 {
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-xl);
+    font-weight: 500;
+    margin-bottom: var(--space-xs);
+}
+
+.welcome-section p:last-child {
+    font-size: var(--fs-sm);
+    color: var(--secondary-text);
+    max-width: 520px;
+    line-height: 1.7;
+}
+
+.welcome-icon svg {
+    width: 56px;
+    height: 56px;
+    fill: none;
+    stroke: var(--secondary);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* ============ QUICK ACCESS ============ */
+
+.section-heading {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.section-heading h2,
+.information-section h2 {
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.section-heading p,
+.information-section p {
+    font-size: var(--fs-sm);
+    color: var(--secondary-text);
+}
+
+.quick-access {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-md);
+}
+
+.access-card {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+    text-decoration: none;
+}
+
+.access-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary-color);
+}
+
+.access-card:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.access-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
+
+.access-icon svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: var(--on-image);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.farm-icon {
+    background: var(--secondary);
+}
+
+.activity-icon {
+    background: var(--primary-color);
+}
+
+.access-card h3 {
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-md);
+    font-weight: 500;
+    margin-bottom: var(--space-xs);
+}
+
+.access-card p {
+    font-size: var(--fs-sm);
+    color: var(--secondary-text);
+    line-height: 1.6;
+}
+
+.card-arrow {
+    margin-left: auto;
+    color: var(--primary-color);
+    font-size: var(--fs-lg);
+}
+
+/* ============ INFORMATION ============ */
+
+.information-section {
+    display: grid;
+    gap: var(--space-sm);
+}
+
+.information-section p {
+    line-height: 1.7;
+}
+
+.error-message {
+    padding: var(--space-lg);
+}
+
+.error-message p {
+    color: var(--error);
+    font-weight: 500;
+    margin-top: var(--space-sm);
+}
+
+.activities-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+}
+
+/* ============ ACTIVITY LIST (medium cards in a responsive grid) ============ */
+
+.activity-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: var(--space-md);
+    align-items: start;
+}
+
+.activity-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    max-width: 520px;
+    padding: var(--space-md);
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    color: var(--primary-text);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.activity-card:hover {
+    border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border));
+}
+
+/* ---------- Header ---------- */
+
+.activity-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-md);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border);
+}
+
+.activity-card-header>div {
+    display: grid;
+    gap: var(--space-xs);
+    min-width: 0;
+}
+
+.activity-card h3 {
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-md);
+    font-weight: 500;
+    line-height: 1.3;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.activity-category {
+    margin: 0;
+    color: var(--primary-color);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.activity-status {
+    --status-color: var(--success);
+
+    display: inline-block;
+    flex-shrink: 0;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-transform: capitalize;
+    color: var(--status-color);
+    background: color-mix(in srgb, var(--status-color) 15%, transparent);
+}
+
+/* ---------- Description (clamped to keep cards even) ---------- */
+
+.activity-description {
+    margin: 0;
+    font-size: var(--fs-sm);
+    line-height: 1.7;
+    color: var(--secondary-text);
+    white-space: pre-wrap;
+}
+
+.activity-card>.activity-description {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ---------- Details: 2 x 2 with breathing room ---------- */
+
+.activity-details,
+.planting-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-md) var(--space-lg, var(--space-md));
+}
+
+.activity-details {
+    padding: var(--space-md) 0;
+    border-top: 1px solid var(--border);
+}
+
+.detail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    min-width: 0;
+}
+
+.detail-label {
+    font-size: var(--fs-xs);
+    font-weight: 400;
+    color: var(--secondary-text);
+}
+
+.detail-value {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--primary-text);
+    overflow-wrap: anywhere;
+}
+
+/* ---------- Planting (collapsible) ---------- */
+
+.planting-information {
+    padding: var(--space-sm) var(--space-md);
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.planting-information summary {
+    cursor: pointer;
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.planting-information[open] summary {
+    margin-bottom: var(--space-md);
+}
+
+.planting-information .activity-description {
+    margin-top: var(--space-md);
+}
+
+/* ---------- Approve / Reject ---------- */
+
+.activity-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-sm);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--border);
+}
+
+.btn-approve,
+.btn-reject {
+    min-width: 110px;
+    padding: 0.6rem 1.2rem;
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.btn-approve {
+    border: 1px solid var(--primary-color);
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.btn-approve:hover:not(:disabled) {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.btn-reject {
+    border: 1px solid var(--error);
+    background: transparent;
+    color: var(--error);
+}
+
+.btn-reject:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--error) 12%, transparent);
+}
+
+.btn-approve:disabled,
+.btn-reject:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-approve:focus-visible,
+.btn-reject:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.activity-card__message {
+    margin: 0;
+    font-size: var(--fs-xs);
+    color: var(--error);
+}
+
+/* ============ STATUS SELECT ============ */
+
+.status-select {
+    display: block;
+    width: 100%;
+    margin-top: var(--space-xs);
+    padding: 0.6rem 2.2rem 0.6rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--surface-card);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.7rem center;
+    background-size: 1rem;
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    line-height: 1.4;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    transition: border-color 0.2s ease, background-color 0.3s ease;
+}
+
+.status-select:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border));
+}
+
+.status-select:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.status-select:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.status-save-message {
+    display: block;
+    margin-top: var(--space-xs);
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.status-save-success {
+    color: var(--success);
+}
+
+.status-save-error {
+    color: var(--error);
+}
+
+/* ============ LOADING / EMPTY / ERROR ============ */
+
+.loading-state,
+.empty-state,
+.error-state {
+    grid-column: 1 / -1;
+    padding: var(--space-lg) var(--space-md);
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    text-align: center;
+    font-size: var(--fs-sm);
+    color: var(--secondary-text);
+}
+
+.error-state {
+    color: var(--error);
+    font-weight: 500;
+    border-color: color-mix(in srgb, var(--error) 40%, var(--border));
+}
+
+/* ============ RESPONSIVE ============ */
+
+@media (max-width: 850px) {
+    .sidebar {
+        width: 210px;
+    }
+
+    .main-content {
+        padding: var(--space-md);
+    }
+
+    .quick-access {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 700px) {
+
+    .welcome-section,
+    .access-card,
+    .information-section {
+        padding: var(--space-sm);
+    }
+
+    .activity-list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .activity-card {
+        max-width: none;
+        padding: var(--space-sm) var(--space-md);
+    }
+}
+
+@media (max-width: 600px) {
+    .app-layout {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        padding: var(--space-sm) var(--space-md);
+    }
+
+    .sidebar .logo {
+        margin-bottom: var(--space-md);
+    }
+
+    .navigation {
+        flex-direction: row;
+        overflow-x: auto;
+    }
+
+    .nav-link {
+        white-space: nowrap;
+        font-size: var(--fs-xs);
+        padding: var(--space-sm);
+    }
+
+    .sidebar-bottom {
+        flex-direction: row;
+        margin-top: var(--space-sm);
+        padding-top: var(--space-sm);
+        overflow-x: auto;
+    }
+
+    .logout-button {
+        white-space: nowrap;
+        font-size: var(--fs-xs);
+        padding: var(--space-sm);
+    }
+
+    .main-content {
+        padding: var(--space-md) var(--space-sm);
+    }
+
+    .topbar {
+        flex-wrap: wrap;
+    }
+
+    .topbar-right {
+        gap: var(--space-sm);
+    }
+
+    #todayLabel {
+        display: none;
+    }
+
+    .chip {
+        padding: 2px;
+    }
+
+    .welcome-icon svg {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+@media (max-width: 480px) {
+    .activity-card-header {
+        flex-direction: column;
+    }
+
+    .activity-details,
+    .planting-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .activity-actions>button {
+        flex: 1;
+    }
+}
+
+/* ============ STATUS VARIANTS (class set by activities.js) ============ */
+
+.activity-status--pending,
+.activity-status--assigned,
+.activity-status--requested {
+    --status-color: var(--warning);
+}
+
+.activity-status--in-progress,
+.activity-status--ongoing {
+    --status-color: var(--secondary);
+}
+
+.activity-status--approved,
+.activity-status--completed,
+.activity-status--done {
+    --status-color: var(--success);
+}
+
+.activity-status--cancelled,
+.activity-status--rejected,
+.activity-status--overdue {
+    --status-color: var(--error);
+}
+
+.activity-status--unspecified {
+    --status-color: var(--secondary-text);
+}

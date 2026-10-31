@@ -96,7 +96,7 @@ async function boot() {
 
     const ok = await requireAdmin();
     checking = false;
-    if (!ok) { location.replace('../../html/login.html'); return; }
+    if (!ok) { location.replace('../../login.html'); return; }
 
     authorized = true;
     html.classList.add('admin-authorized');
@@ -144,7 +144,7 @@ function setupChrome() {
 
         try {
             await logout();
-            location.replace('../../html/login.html');
+            location.replace('../../login.html');
         } catch (err) {
             console.error('Logout failed:', err);
             logoutButton.disabled = false;
