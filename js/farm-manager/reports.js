@@ -1,18 +1,12 @@
+
 import { supabase } from '../connection.js';
 import { h, pageHead } from '../admin/ui.js';
 import { loadFarms } from './farms.js';
 
-// Rows shown per page in the on-page preview table (the CSV always has everything).
 const PREVIEW_PAGE_SIZE = 5;
-
-// "Due soon" window for the stats row, in days.
 const DUE_SOON_DAYS = 7;
-
-// Crop statuses that no longer count as an upcoming harvest.
-// Adjust these codes to match your crop_statuses table.
 const TERMINAL_CROP_STATUSES = ['harvested', 'failed', 'cancelled'];
 
-/* ---------- Icons (same style as the dashboard) ---------- */
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const ICON = {
@@ -70,6 +64,11 @@ async function loadPlantings(farmIds) {
             expected_harvest_date,
             farm_fields!inner (
                 farm_id
+            ),
+            harvested_crops (
+                harvest_quantity,
+                harvest_unit,
+                confirmation_status
             )
         `)
         .in('farm_fields.farm_id', farmIds)
@@ -86,7 +85,6 @@ async function loadPlantings(farmIds) {
     }));
 }
 
-// code -> label, from the same reference table Plant Management uses.
 async function loadCropStatusLabels() {
     const { data, error } = await supabase
         .from('crop_statuses')
@@ -116,7 +114,6 @@ const formatDate = (value) => {
         });
 };
 
-// Prefer the label from crop_statuses; fall back to a readable code.
 const statusLabel = (status, labels) => {
     const code = status?.trim();
 
@@ -158,6 +155,37 @@ function isDueSoon(planting, today) {
     return new Date(`${planting.expected_harvest_date}T00:00:00`) <= limit;
 }
 
+function getConfirmedHarvestTotals(planting) {
+    const totalsByUnit = new Map();
+
+    for (const harvest of planting.harvested_crops ?? []) {
+        if (harvest.confirmation_status !== 'confirmed') continue;
+
+        const unit = harvest.harvest_unit?.trim() || 'Unspecified';
+        const quantity = Number(harvest.harvest_quantity);
+
+        if (!Number.isFinite(quantity)) continue;
+
+        totalsByUnit.set(
+            unit,
+            (totalsByUnit.get(unit) ?? 0) + quantity
+        );
+    }
+
+    const entries = [...totalsByUnit.entries()];
+
+    return {
+        Quantity: entries.length
+            ? entries.map(([, quantity]) =>
+                Number(quantity.toFixed(3)).toString()
+            ).join(', ')
+            : '—',
+        Unit: entries.length
+            ? entries.map(([unit]) => unit).join(', ')
+            : '—'
+    };
+}
+
 function toCsv(columns, rows) {
     const escape = (value) =>
         `"${String(value ?? '').replace(/"/g, '""')}"`;
@@ -169,7 +197,6 @@ function toCsv(columns, rows) {
 }
 
 function downloadCsv(report) {
-    // Use the CSV-specific rows (ISO dates) when the report has them.
     const csv = toCsv(report.columns, report.csvRows ?? report.rows);
     const blob = new Blob(['\ufeff', csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -190,7 +217,6 @@ function buildReports(farms, plantings, cropLabels) {
     const farmById = new Map(farms.map((farm) => [farm.id, farm]));
     const today = startOfToday();
 
-    // Friendly values for the screen.
     const plantingRow = (planting) => {
         const farm = farmById.get(planting.farm_id);
 
@@ -201,11 +227,11 @@ function buildReports(farms, plantings, cropLabels) {
             'Sowing date': formatDate(planting.sowing_date),
             'Expected harvest': formatDate(planting.expected_harvest_date),
             'Crop status': statusLabel(planting.crop_status, cropLabels),
-            _status: statusSlug(planting.crop_status)
+            _status: statusSlug(planting.crop_status),
+            ...getConfirmedHarvestTotals(planting)
         };
     };
 
-    // ISO dates for the CSV so Excel can sort them.
     const plantingCsvRow = (planting) => {
         const farm = farmById.get(planting.farm_id);
 
@@ -215,11 +241,17 @@ function buildReports(farms, plantings, cropLabels) {
             Location: farm?.farm_location || 'Location not set',
             'Sowing date': planting.sowing_date ?? '',
             'Expected harvest': planting.expected_harvest_date ?? '',
-            'Crop status': statusLabel(planting.crop_status, cropLabels)
+            'Crop status': statusLabel(planting.crop_status, cropLabels),
+            ...getConfirmedHarvestTotals(planting)
         };
     };
 
     const upcoming = plantings.filter((planting) => isUpcoming(planting, today));
+
+    const harvested = plantings.filter(
+        (planting) =>
+            planting.crop_status?.trim().toLowerCase() === 'harvested'
+    );
 
     const countByFarm = new Map();
 
@@ -256,6 +288,16 @@ function buildReports(farms, plantings, cropLabels) {
             columns: plantingColumns,
             rows: plantings.map(plantingRow),
             csvRows: plantings.map(plantingCsvRow)
+        },
+        {
+            id: 'harvest-report',
+            title: 'Harvest Report',
+            description: 'Plantings that have been confirmed as harvested.',
+            iconPaths: ICON.basket,
+            color: 'var(--success)',
+            columns: [...plantingColumns, 'Quantity', 'Unit'],
+            rows: harvested.map(plantingRow),
+            csvRows: harvested.map(plantingCsvRow)
         },
         {
             id: 'harvest-forecast',
@@ -300,6 +342,7 @@ function statCard({ label, value, sub, color, iconPaths }) {
 
 function statsRow({ farms, plantings, reports }) {
     const forecast = reports.find((report) => report.id === 'harvest-forecast');
+    const harvested = reports.find((report) => report.id === 'harvest-report');
     const today = startOfToday();
     const dueSoon = plantings.filter((planting) => isDueSoon(planting, today)).length;
 
@@ -321,8 +364,15 @@ function statsRow({ farms, plantings, reports }) {
             iconPaths: ICON.sprout
         }),
         statCard({
+            label: 'Harvested Crops',
+            value: harvested?.rows.length ?? 0,
+            sub: 'Confirmed harvested plantings',
+            color: 'var(--success)',
+            iconPaths: ICON.basket
+        }),
+        statCard({
             label: 'Upcoming Harvests',
-            value: forecast.rows.length,
+            value: forecast?.rows.length ?? 0,
             sub: 'Expected harvest dates',
             color: 'var(--warning)',
             iconPaths: ICON.basket
@@ -372,8 +422,6 @@ function reportCard(report, onPreview) {
         'Download CSV'
     );
 
-    // The whole card is clickable for mouse/touch users. Keyboard and screen-reader
-    // users use the real Preview button, so the card itself isn't given a role.
     return h(
         'section',
         {
@@ -505,7 +553,6 @@ function previewPanel(report, requestedPage, onPage) {
 }
 
 /* ---------- Date filter ---------- */
-// Dates are ISO strings (YYYY-MM-DD), so plain string comparison works.
 function filterPlantings(plantings, { basis, from, to, cropStatus }) {
     if (!from && !to && !cropStatus) return plantings;
 
@@ -658,8 +705,6 @@ function reportsPage({ farms, plantings: allPlantings, cropLabels }) {
         }
     };
 
-    // Rebuild everything from the filtered plantings so the stats,
-    // previews and CSV downloads all respect the date range.
     const build = () => {
         const plantings = filterPlantings(allPlantings, state);
 
@@ -681,8 +726,6 @@ function reportsPage({ farms, plantings: allPlantings, cropLabels }) {
                 : '';
     };
 
-    // Crop statuses that actually appear in the data, in the order
-    // defined by crop_statuses (unlisted codes go last).
     const statusCodes = [
         ...new Set(
             allPlantings.map(
@@ -729,12 +772,12 @@ function skeleton() {
         h(
             'div',
             { class: 'fm-dash-stats' },
-            ...[1, 2, 3, 4].map(() => h('div', { class: 'fm-skeleton fm-skeleton--stat' }))
+            ...[1, 2, 3, 4, 5].map(() => h('div', { class: 'fm-skeleton fm-skeleton--stat' }))
         ),
         h(
             'div',
             { class: 'fm-report-grid' },
-            ...[1, 2, 3].map(() => h('div', { class: 'fm-skeleton fm-skeleton--card' }))
+            ...[1, 2, 3, 4].map(() => h('div', { class: 'fm-skeleton fm-skeleton--card' }))
         ),
         h('div', { class: 'fm-skeleton fm-skeleton--panel' })
     );
@@ -771,7 +814,6 @@ export async function render(root) {
 
             const [plantings, cropLabels] = await Promise.all([
                 loadPlantings(farms.map((farm) => farm.id)),
-                // Labels are non-critical: fall back to readable codes.
                 loadCropStatusLabels().catch((err) => {
                     console.error('Could not load crop status labels:', err);
                     return new Map();

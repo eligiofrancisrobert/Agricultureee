@@ -340,9 +340,33 @@ function statCard({ label, value, sub, href, color, iconPaths }) {
 
 /* ---------- Cards ---------- */
 function statsRow({ farms, farmers, plantings, areas }) {
+    const harvested = plantings.filter(
+        (planting) =>
+            planting.crop_status?.trim().toLowerCase() === 'harvested'
+    ).length;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const upcoming = plantings.filter((planting) => {
+        if (!planting.expected_harvest_date) return false;
+
+        const harvestDate = new Date(
+            `${planting.expected_harvest_date}T00:00:00`
+        );
+
+        return (
+            harvestDate >= today &&
+            !TERMINAL_CROP_STATUSES.includes(
+                planting.crop_status?.trim().toLowerCase()
+            )
+        );
+    }).length;
+
     return h(
         'div',
         { class: 'fm-dash-stats' },
+
         statCard({
             label: 'Assigned Farms',
             value: farms.length,
@@ -351,6 +375,7 @@ function statsRow({ farms, farmers, plantings, areas }) {
             color: 'var(--primary-color)',
             iconPaths: ICON.sprout
         }),
+
         statCard({
             label: 'Farmers Under You',
             value: farmers.length,
@@ -359,6 +384,7 @@ function statsRow({ farms, farmers, plantings, areas }) {
             color: 'var(--secondary)',
             iconPaths: ICON.users
         }),
+
         statCard({
             label: 'Planting Records',
             value: plantings.length,
@@ -367,29 +393,23 @@ function statsRow({ farms, farmers, plantings, areas }) {
             color: 'var(--success)',
             iconPaths: ICON.sprout
         }),
+
+        statCard({
+            label: 'Harvested Crops',
+            value: harvested,
+            sub: 'Confirmed harvest records',
+            href: '#reports',
+            color: 'var(--success)',
+            iconPaths: ICON.basket
+        }),
+
         statCard({
             label: 'Upcoming Harvests',
-            value: plantings.filter((planting) => {
-                if (!planting.expected_harvest_date) return false;
-
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-
-                const harvestDate = new Date(
-                    `${planting.expected_harvest_date}T00:00:00`
-                );
-
-                return (
-                    harvestDate >= today &&
-                    !TERMINAL_CROP_STATUSES.includes(
-                        planting.crop_status?.trim().toLowerCase()
-                    )
-                );
-            }).length,
+            value: upcoming,
             sub: 'Expected harvest dates',
             href: '#harvest',
             color: 'var(--warning)',
-            iconPaths: ICON.basket
+            iconPaths: ICON.calendar
         })
     );
 }

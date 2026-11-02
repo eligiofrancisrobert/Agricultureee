@@ -1,3 +1,29 @@
+/* ============ SIDEBAR LOGO: distance between logo icon and name ============
+   Same as Farmer. Change the gap value to make it closer or farther. */
+.sidebar .logo {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+}
+
+/* ============ SIDEBAR OPTIONS: distance between nav items ============
+   Same as Farmer (8px). Change the gap value to make it closer or farther. */
+.sidebar .nav,
+.sidebar .navigation,
+.sidebar nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sidebar .logo img,
+.sidebar .logo svg,
+.sidebar .logo .logo-image,
+.sidebar .logo-image {
+    margin: 0;
+}
+
 :root[data-theme="dark"] .sidebar {
     background: var(--surface-card);
     border-right: 1px solid var(--border);

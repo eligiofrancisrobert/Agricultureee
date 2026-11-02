@@ -415,6 +415,18 @@ export async function render(root, ctx) {
 
     assignMunicipalityBtn.hidden = true;
 
+    const assignFarmLocationBtn = h('button', {
+        class: 'btn',
+        type: 'button',
+        onclick: () => {
+            window.location.href = './assigned-warehouse-officers.html';
+        }
+    }, 'Assign Farm Location');
+
+    assignFarmLocationBtn.hidden = true;
+
+
+
     const load = async () => {
         holder.replaceChildren(h('p', { class: 'muted' }, 'Loading staff accounts...'));
         count.textContent = '';
@@ -434,8 +446,13 @@ export async function render(root, ctx) {
                             (r) => String(r.id) === v
                         );
 
+                        const roleName = selectedRole?.name?.toLowerCase().trim();
+
                         assignMunicipalityBtn.hidden =
-                            selectedRole?.name?.toLowerCase().trim() !== 'farm manager';
+                            roleName !== 'farm manager';
+
+                        assignFarmLocationBtn.hidden =
+                            roleName !== 'warehouse officer';
 
                         draw();
                     },
@@ -457,7 +474,8 @@ export async function render(root, ctx) {
                     },
                     'Filter by status'
                 ),
-                assignMunicipalityBtn
+                assignMunicipalityBtn,
+                assignFarmLocationBtn
             );
             addBtn.disabled = false;
             draw();

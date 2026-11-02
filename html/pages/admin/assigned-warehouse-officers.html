@@ -1,0 +1,148 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Assigned Warehouse Officers | Tanikala</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500&family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="../../../css/feature/style.css">
+    <link rel="stylesheet" href="../../../css/auth/signup.css">
+    <link rel="stylesheet" href="../../../css/admin/assigned-farm-managers.css">
+    <link rel="stylesheet" href="../../../css/admin/assigned-warehouse-officers.css">
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="logo">
+            <h1>T<span>ani</span>kala</h1>
+            <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
+        </div>
+    </header>
+
+    <main class="admin-page">
+        <header class="page-header">
+            <div>
+                <h1>Assigned Warehouse Officers</h1>
+                <p>Manage Warehouse Officer assignments to individual farms.</p>
+            </div>
+
+            <div class="page-actions">
+                <button class="btn ghost" type="button" onclick="history.back()">
+                    Back
+                </button>
+
+                <button class="btn" id="assignFarmBtn" type="button">
+                    <span>Assign Farm</span>
+                    <span class="button-arrow">→</span>
+                </button>
+            </div>
+        </header>
+
+        <section class="card">
+            <div class="section-heading">
+                <span class="section-number">01</span>
+                <div>
+                    <h2>Warehouse Officer Assignments</h2>
+                    <p>Search and manage farm assignments</p>
+                </div>
+            </div>
+
+            <div class="toolbar">
+                <input
+                    id="officerSearch"
+                    type="search"
+                    placeholder="Search officer or farm"
+                    aria-label="Search Warehouse Officers">
+
+                <select id="assignmentFilter" aria-label="Filter assignments">
+                    <option value="all">All Warehouse Officers</option>
+                    <option value="assigned">Assigned</option>
+                    <option value="unassigned">Not assigned</option>
+                </select>
+            </div>
+
+            <div id="assignmentMessage" role="status"></div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Warehouse Officer</th>
+                            <th>Assigned Farm</th>
+                            <th>Assigned By</th>
+                            <th>Date Assigned</th>
+                            <th>Account Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="assignedOfficersBody">
+                        <tr>
+                            <td colspan="6">Loading assignments...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <dialog id="farmAssignmentDialog" class="details staff-dialog">
+        <form id="farmAssignmentForm" class="staff-form">
+            <div class="section-heading">
+                <span class="section-number">01</span>
+                <div>
+                    <h2>Assign Warehouse Officer</h2>
+                    <p>Assign an officer to one specific farm</p>
+                </div>
+            </div>
+
+            <label>
+                Warehouse Officer
+                <select id="officerSelect" required>
+                    <option value="">Select a Warehouse Officer</option>
+                </select>
+            </label>
+
+            <label>
+                Farm
+                <select id="farmSelect" required>
+                    <option value="">Select a farm</option>
+                </select>
+            </label>
+
+            <div class="approval-note">
+                <span class="approval-icon">◷</span>
+                <p>
+                    <strong>Assignment scope</strong>
+                    Each Warehouse Officer can be assigned to only one farm.
+                    A farm may have multiple Warehouse Officers.
+                </p>
+            </div>
+
+            <div class="staff-buttons">
+                <button class="btn ghost" id="cancelFarmAssignment" type="button">
+                    Cancel
+                </button>
+
+                <button class="btn" type="submit">
+                    <span>Save Assignment</span>
+                    <span class="button-arrow">→</span>
+                </button>
+            </div>
+        </form>
+    </dialog>
+
+    <script type="module" src="../../../js/admin/assigned-warehouse-officers.js"></script>
+    <script type="module" src="../../../js/feature/theme.js"></script>
+</body>
+
+</html>

@@ -28,7 +28,7 @@ const saveButton = document.getElementById("saveButton");
 // Loaded only when needed, so a problem in connection.js shows up as a
 // readable message on submit instead of silently breaking the page.
 async function getSupabase() {
-    const module = await import("./connection.js");
+    const module = await import("../connection.js");
     return module.supabase;
 }
 

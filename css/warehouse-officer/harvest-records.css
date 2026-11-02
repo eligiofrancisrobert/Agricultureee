@@ -1,0 +1,452 @@
+/* ============ HARVEST RECORDS PAGE ============ */
+/* Uses .wo-page-heading from dashboard.css */
+
+.wo-harvest-records {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 1500px;
+    min-height: calc(100vh - var(--topbar-h, 72px));
+    margin: 0 auto;
+    padding: var(--space-xl, 48px) var(--space-lg, 32px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md, 20px);
+    background: var(--background);
+    color: var(--primary-text);
+    font-family: "Poppins", sans-serif;
+    font-size: var(--fs-md, 0.95rem);
+    line-height: 1.5;
+}
+
+.wo-harvest-records .muted {
+    margin: var(--space-xs, 8px) 0 0;
+    font-size: var(--fs-sm, 0.9rem);
+    color: var(--secondary-text);
+}
+
+.wo-assigned-farm-context {
+    align-self: flex-start;
+    margin: 0;
+    padding: 6px var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background-color: color-mix(in srgb, var(--primary-color) 10%, var(--surface-card));
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 500;
+}
+
+/* ============ SHARED FORM CONTROLS + BUTTONS ============ */
+.wo-form-input {
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    outline: none;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-md, 0.95rem);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.wo-form-input::placeholder {
+    color: var(--secondary-text);
+    opacity: 0.7;
+}
+
+.wo-form-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+.wo-form-input:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.wo-form-input:user-invalid {
+    border-color: var(--error);
+}
+
+textarea.wo-form-input {
+    min-height: 90px;
+    resize: vertical;
+}
+
+select.wo-form-input {
+    appearance: none;
+    cursor: pointer;
+    padding-right: 40px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23706860' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--space-md, 20px) center;
+}
+
+:root[data-theme="dark"] select.wo-form-input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23B8AEA2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+}
+
+select.wo-form-input option {
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+}
+
+.wo-form-label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs, 8px);
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 500;
+}
+
+.wo-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs, 8px);
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius, 10px);
+    background-color: var(--primary-color);
+    color: #FFFFFF;
+    font-family: inherit;
+    font-size: var(--fs-md, 0.95rem);
+    font-weight: 600;
+    line-height: 1.4;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
+}
+
+.wo-button:hover {
+    border-color: var(--primary-hover);
+    background-color: var(--primary-hover);
+}
+
+.wo-button:active {
+    transform: scale(0.98);
+}
+
+.wo-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.wo-button:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.wo-button-secondary {
+    border-color: var(--border);
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+}
+
+.wo-button-secondary:hover {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 8%, var(--surface-card));
+}
+
+/* ============ TOOLBAR ============ */
+.wo-harvest-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-sm, 12px);
+    padding: var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background-color: var(--surface-card);
+    box-shadow: 0 0 10px rgba(140, 95, 40, 0.12);
+}
+
+.wo-harvest-filter {
+    flex: 0 1 240px;
+    width: auto;
+}
+
+/* ============ LIST ============ */
+.wo-harvest-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    align-items: start;
+    gap: var(--space-md, 20px);
+}
+
+/* Loading / error / empty messages take the full row */
+.wo-harvest-list > p {
+    grid-column: 1 / -1;
+    margin: 0;
+}
+
+.wo-harvest-records .msg {
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    background-color: var(--surface-card);
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+}
+
+.wo-harvest-records .msg.error {
+    border-color: var(--error);
+    background-color: color-mix(in srgb, var(--error) 8%, var(--surface-card));
+    color: var(--error);
+}
+
+.wo-empty-state {
+    padding: 48px 20px;
+    border: 1px dashed var(--border);
+    border-radius: 20px;
+    background-color: var(--surface-card);
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    text-align: center;
+}
+
+/* ============ HARVEST CARD ============ */
+.wo-harvest-card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    box-shadow: 0 0 10px rgba(140, 95, 40, 0.12);
+    transition: border-color 0.3s ease, transform 0.2s ease;
+}
+
+.wo-harvest-card:hover {
+    border-color: var(--primary-color);
+}
+
+:root[data-theme="dark"] .wo-harvest-card,
+:root[data-theme="dark"] .wo-harvest-toolbar {
+    box-shadow: none;
+}
+
+.wo-harvest-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-sm, 12px);
+    padding: var(--space-md, 20px);
+    border-bottom: 1px solid var(--border);
+}
+
+.wo-harvest-card-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.wo-harvest-card-title h2 {
+    margin: 0;
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-lg, 1.1rem);
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--primary-text);
+    overflow-wrap: anywhere;
+}
+
+.wo-harvest-id {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    overflow-wrap: anywhere;
+}
+
+/* ---- Status badges ---- */
+.wo-harvest-status {
+    flex-shrink: 0;
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background-color: var(--surface-card);
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.wo-status-pending {
+    border-color: var(--warning);
+    background-color: color-mix(in srgb, var(--warning) 12%, var(--surface-card));
+    color: var(--warning);
+}
+
+.wo-status-in_progress {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 12%, var(--surface-card));
+    color: var(--primary-color);
+}
+
+.wo-status-confirmed {
+    border-color: var(--success);
+    background-color: color-mix(in srgb, var(--success) 12%, var(--surface-card));
+    color: var(--success);
+}
+
+.wo-status-rejected {
+    border-color: var(--error);
+    background-color: color-mix(in srgb, var(--error) 12%, var(--surface-card));
+    color: var(--error);
+}
+
+/* ---- Details ---- */
+.wo-harvest-details-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-sm, 12px);
+    padding: var(--space-md, 20px);
+}
+
+.wo-harvest-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.wo-harvest-detail-label {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+}
+
+.wo-harvest-detail-value {
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* ---- Footer ---- */
+.wo-harvest-card-footer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs, 8px);
+    margin-top: auto;
+    padding: var(--space-md, 20px);
+    border-top: 1px solid var(--border);
+    background-color: color-mix(in srgb, var(--secondary) 6%, var(--surface-card));
+}
+
+.wo-harvest-card-footer:empty {
+    display: none;
+}
+
+.wo-harvest-card-footer > .wo-button {
+    align-self: flex-start;
+}
+
+.wo-harvest-info,
+.wo-harvest-success,
+.wo-harvest-rejected {
+    margin: 0;
+    font-size: var(--fs-sm, 0.9rem);
+}
+
+.wo-harvest-info {
+    color: var(--secondary-text);
+}
+
+.wo-harvest-success {
+    color: var(--success);
+    font-weight: 600;
+}
+
+.wo-harvest-rejected {
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--error);
+    border-radius: var(--radius, 10px);
+    background-color: color-mix(in srgb, var(--error) 8%, var(--surface-card));
+    color: var(--error);
+}
+
+/* ============ VERIFICATION FORM ============ */
+.wo-verification-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm, 12px);
+    margin: 0;
+}
+
+.wo-verification-form h3 {
+    margin: 0 0 var(--space-xs, 8px);
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-md, 0.95rem);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.wo-verification-form .wo-button {
+    align-self: flex-end;
+}
+
+/* ============ THEME TRANSITION ============ */
+.wo-harvest-records,
+.wo-harvest-toolbar,
+.wo-harvest-card,
+.wo-harvest-card-footer,
+.wo-harvest-status {
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 900px) {
+    .wo-harvest-records {
+        padding: var(--space-lg, 32px) var(--space-md, 20px);
+    }
+}
+
+@media (max-width: 600px) {
+    .wo-harvest-records {
+        padding: 16px;
+    }
+
+    .wo-harvest-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 14px;
+        border-radius: 16px;
+    }
+
+    .wo-harvest-filter {
+        flex: 1 1 auto;
+        width: 100%;
+    }
+
+    .wo-harvest-list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .wo-harvest-card {
+        border-radius: 16px;
+    }
+
+    .wo-harvest-details-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .wo-harvest-card-footer > .wo-button,
+    .wo-verification-form .wo-button {
+        align-self: stretch;
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wo-harvest-records *,
+    .wo-harvest-records {
+        transition: none !important;
+    }
+}

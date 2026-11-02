@@ -1,0 +1,503 @@
+/* ============ WAREHOUSE OFFICER SHELL ============ */
+.shell {
+    --sidebar-w: 270px;
+    --topbar-h: 72px;
+
+    display: grid;
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+    min-height: 100vh;
+    background-color: var(--background);
+    color: var(--primary-text);
+    font-family: "Poppins", sans-serif;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+/* ============ SIDEBAR ============ */
+.shell .sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 110;
+    height: 100vh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md, 20px);
+    padding: var(--space-md, 20px);
+    overflow-y: auto;
+    border-right: 1px solid var(--primary-hover);
+    background-color: var(--primary-color);
+    color: #FFFFFF;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+}
+
+.shell .sidebar .logo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs, 8px);
+    padding: 0 var(--space-xs, 8px) var(--space-md, 20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.shell .sidebar .logo h1 {
+    margin: 0;
+    font-family: "Outfit", sans-serif;
+    font-size: 1.7rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: #FFFFFF;
+    text-shadow: none;
+}
+
+.shell .sidebar .logo h1 span {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.shell .sidebar .logo-image {
+    height: 36px;
+    width: auto;
+    object-fit: contain;
+}
+
+/* ---- Nav ---- */
+.shell .nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.shell .nav a {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm, 12px);
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid transparent;
+    border-radius: var(--radius, 10px);
+    color: rgba(255, 255, 255, 0.82);
+    font-size: var(--fs-md, 0.95rem);
+    font-weight: 500;
+    line-height: 1.4;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
+}
+
+.shell .nav a svg {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.shell .nav a:hover {
+    background-color: rgba(255, 255, 255, 0.14);
+    color: #FFFFFF;
+}
+
+.shell .nav a:active {
+    transform: scale(0.98);
+}
+
+.shell .nav a:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: 2px;
+}
+
+.shell .nav a.active,
+.shell .nav a[aria-current="page"] {
+    border-color: transparent;
+    background-color: #FFFFFF;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+/* ---- Logout ---- */
+.shell .nav-logout {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: var(--radius, 10px);
+    background-color: transparent;
+    color: #FFFFFF;
+    font-family: inherit;
+    font-size: var(--fs-md, 0.95rem);
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease, transform 0.2s ease;
+}
+
+.shell .nav-logout:hover {
+    border-color: #FFFFFF;
+    background-color: rgba(255, 255, 255, 0.16);
+    color: #FFFFFF;
+}
+
+.shell .nav-logout:active {
+    transform: scale(0.98);
+}
+
+.shell .nav-logout:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: 2px;
+}
+
+/* ============ MAIN ============ */
+.shell .main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#view {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ============ TOPBAR ============ */
+.shell .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: var(--topbar-h);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md, 20px);
+    padding: 0 var(--space-lg, 32px);
+    border-bottom: 1px solid var(--border);
+    background-color: var(--background);
+}
+
+/* ---- Search ---- */
+.shell .topbar .search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    max-width: 520px;
+    min-width: 0;
+}
+
+.shell .topbar .search svg {
+    position: absolute;
+    left: var(--space-md, 20px);
+    color: var(--secondary-text);
+    pointer-events: none;
+}
+
+.shell .topbar .search input {
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--space-sm, 12px) var(--space-md, 20px) var(--space-sm, 12px) 48px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    outline: none;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-sm, 0.9rem);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.shell .topbar .search input::placeholder {
+    color: var(--secondary-text);
+    opacity: 0.7;
+}
+
+.shell .topbar .search input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+/* ---- Right side ---- */
+.shell .topbar-right {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: var(--space-sm, 12px);
+}
+
+.shell .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm, 12px);
+    padding: 6px 6px 6px var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background-color: var(--surface-card);
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.shell .icon-btn {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    cursor: pointer;
+    transition: border-color 0.3s ease, background-color 0.3s ease, transform 0.2s ease;
+}
+
+.shell .icon-btn:hover {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 8%, var(--surface-card));
+}
+
+.shell .icon-btn:active {
+    transform: scale(0.94);
+}
+
+.shell .icon-btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.shell .avatar {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: #FFFFFF;
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    user-select: none;
+}
+
+/* ============ TOAST ============ */
+.toast {
+    position: fixed;
+    right: var(--space-lg, 32px);
+    bottom: var(--space-lg, 32px);
+    z-index: 1000;
+    max-width: min(380px, calc(100% - 32px));
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--primary-color);
+    border-radius: var(--radius, 10px);
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    animation: toast-in 0.3s ease;
+}
+
+.toast.success {
+    border-left-color: var(--success);
+}
+
+.toast.error {
+    border-left-color: var(--error);
+}
+
+.toast.warning {
+    border-left-color: var(--warning);
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============ SIDEBAR: DARK MODE (primary color is light mode only) ============ */
+:root[data-theme="dark"] .shell .sidebar {
+    border-right: 1px solid var(--border);
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    scrollbar-color: var(--border) transparent;
+}
+
+:root[data-theme="dark"] .shell .sidebar .logo {
+    border-bottom-color: var(--border);
+}
+
+:root[data-theme="dark"] .shell .sidebar .logo h1 {
+    color: var(--primary-text);
+}
+
+:root[data-theme="dark"] .shell .sidebar .logo h1 span {
+    color: var(--secondary);
+}
+
+:root[data-theme="dark"] .shell .nav a {
+    color: var(--secondary-text);
+}
+
+:root[data-theme="dark"] .shell .nav a:hover {
+    background-color: color-mix(in srgb, var(--secondary) 10%, var(--surface-card));
+    color: var(--primary-text);
+}
+
+:root[data-theme="dark"] .shell .nav a:focus-visible,
+:root[data-theme="dark"] .shell .nav-logout:focus-visible {
+    outline-color: var(--primary-color);
+}
+
+:root[data-theme="dark"] .shell .nav a.active,
+:root[data-theme="dark"] .shell .nav a[aria-current="page"] {
+    border-color: color-mix(in srgb, var(--primary-color) 35%, transparent);
+    background-color: color-mix(in srgb, var(--primary-color) 12%, var(--surface-card));
+    color: var(--primary-color);
+}
+
+:root[data-theme="dark"] .shell .nav-logout {
+    border-color: var(--border);
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+}
+
+:root[data-theme="dark"] .shell .nav-logout:hover {
+    border-color: var(--error);
+    background-color: color-mix(in srgb, var(--error) 8%, var(--surface-card));
+    color: var(--error);
+}
+
+@media (max-width: 900px) {
+    :root[data-theme="dark"] .shell .sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+}
+
+/* ============ THEME TRANSITION ============ */
+.shell,
+.shell .sidebar,
+.shell .topbar,
+.shell .chip,
+.shell .search input {
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 1100px) {
+    .shell {
+        --sidebar-w: 230px;
+    }
+
+    .shell .topbar {
+        padding: 0 var(--space-md, 20px);
+    }
+}
+
+/* Sidebar becomes a top bar with horizontally scrolling nav */
+@media (max-width: 900px) {
+    .shell {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .shell .sidebar {
+        position: sticky;
+        top: 0;
+        height: auto;
+        flex-direction: row;
+        align-items: center;
+        gap: var(--space-sm, 12px);
+        padding: var(--space-xs, 8px) var(--space-md, 20px);
+        overflow: visible;
+        border-right: none;
+        border-bottom: 1px solid var(--primary-hover);
+    }
+
+    .shell .sidebar .logo {
+        flex-shrink: 0;
+        padding: 0;
+        border-bottom: none;
+    }
+
+    .shell .nav {
+        flex-direction: row;
+        flex: 1;
+        min-width: 0;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .shell .nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .shell .nav a {
+        padding: var(--space-xs, 8px) var(--space-sm, 12px);
+        font-size: var(--fs-sm, 0.9rem);
+    }
+
+    .shell .nav-logout {
+        flex-shrink: 0;
+        padding: var(--space-xs, 8px) var(--space-sm, 12px);
+        font-size: var(--fs-sm, 0.9rem);
+    }
+
+    /* Topbar scrolls with the page so the two sticky bars don't stack */
+    .shell .topbar {
+        position: static;
+    }
+}
+
+@media (max-width: 600px) {
+    .shell .topbar {
+        height: auto;
+        padding: var(--space-sm, 12px) 16px;
+    }
+
+    .shell .topbar-right {
+        gap: var(--space-xs, 8px);
+    }
+
+    .shell .chip #todayLabel {
+        display: none;
+    }
+
+    .shell .chip {
+        padding: 6px;
+    }
+
+    .shell .avatar {
+        width: 38px;
+        height: 38px;
+    }
+
+    .shell .sidebar .logo-image {
+        display: none;
+    }
+
+    .toast {
+        right: 16px;
+        bottom: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shell *,
+    .toast {
+        transition: none !important;
+        animation: none !important;
+    }
+}

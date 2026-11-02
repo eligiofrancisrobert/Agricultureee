@@ -1,15 +1,16 @@
 import { supabase } from '../connection.js';
 import { h, toast } from '../admin/ui.js';
 
+
 const FARM_MANAGER_ROLE_ID = 1;
 const ACTIVE_STATUS_ID = 1;
 
 const TITLES = {
     dashboard: 'Dashboard',
     farms: 'My farms',
-    farmers: 'Farmers',
+    workers: 'Workers',
     'farm-actions': 'Farm Actions',
-    'plant-now': 'Plant Now',
+    'plant-now': 'Plant Now',   
     crops: 'Crops',
     harvest: 'Harvest Dashboard',
     reports: 'Reports',

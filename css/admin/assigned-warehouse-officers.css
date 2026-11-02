@@ -1,0 +1,241 @@
+/* ============ FARM ASSIGNMENT DIALOG ============ */
+#farmAssignmentDialog {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+
+    box-sizing: border-box;
+    width: min(500px, calc(100% - 32px));
+    max-width: 500px;
+    max-height: min(85vh, 760px);
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-family: "Poppins", sans-serif;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+}
+
+#farmAssignmentDialog::backdrop {
+    background: rgba(20, 17, 14, 0.62);
+    backdrop-filter: blur(3px);
+}
+
+/* Optional wrapper: just passes through, the dialog itself is the card */
+#farmAssignmentDialog .dialog-content {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+}
+
+/* ---- Form layout ---- */
+#farmAssignmentDialog .staff-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md, 20px);
+    margin: 0;
+    padding: var(--space-lg, 32px);
+}
+
+#farmAssignmentDialog .section-heading {
+    padding: 0 0 var(--space-sm, 12px);
+}
+
+#farmAssignmentDialog .staff-form label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs, 8px);
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 500;
+}
+
+#farmAssignmentDialog .staff-buttons {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: var(--space-xs, 8px);
+    padding-top: var(--space-md, 20px);
+    border-top: 1px solid var(--border);
+}
+
+/* ---- Fields ---- */
+#farmAssignmentDialog .staff-form input,
+#farmAssignmentDialog .staff-form select {
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    outline: none;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-md, 0.95rem);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+#farmAssignmentDialog .staff-form input:focus,
+#farmAssignmentDialog .staff-form select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+#farmAssignmentDialog .staff-form input:user-invalid,
+#farmAssignmentDialog .staff-form select:user-invalid {
+    border-color: var(--error);
+}
+
+#farmAssignmentDialog input::placeholder {
+    color: var(--secondary-text);
+    opacity: 0.7;
+}
+
+#farmAssignmentDialog .staff-form select {
+    appearance: none;
+    cursor: pointer;
+    padding-right: 40px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23706860' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--space-md, 20px) center;
+}
+
+:root[data-theme="dark"] #farmAssignmentDialog .staff-form select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23B8AEA2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+}
+
+#farmAssignmentDialog select option {
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+}
+
+/* ---- Buttons ---- */
+#farmAssignmentDialog .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs, 8px);
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius, 10px);
+    background-color: var(--primary-color);
+    color: #FFFFFF;
+    font-family: inherit;
+    font-size: var(--fs-md, 0.95rem);
+    font-weight: 600;
+    line-height: 1.4;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
+}
+
+#farmAssignmentDialog .btn:hover {
+    border-color: var(--primary-hover);
+    background-color: var(--primary-hover);
+}
+
+#farmAssignmentDialog .btn:active {
+    transform: scale(0.98);
+}
+
+#farmAssignmentDialog .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#farmAssignmentDialog .btn.ghost {
+    border-color: var(--border);
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+}
+
+#farmAssignmentDialog .btn.ghost:hover {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 8%, var(--surface-card));
+}
+
+#farmAssignmentDialog .btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* ---- Assignment list container ---- */
+#farmAssignmentDialog .farm-assignment-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs, 8px);
+    max-height: 240px;
+    padding: var(--space-sm, 12px);
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    background-color: color-mix(in srgb, var(--secondary) 6%, var(--surface-card));
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+#farmAssignmentDialog .farm-assignment-list:empty::before {
+    content: "No farms assigned yet.";
+    padding: var(--space-md, 20px);
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    text-align: center;
+}
+
+.farm-assignment-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm, 12px);
+    margin-bottom: 0;
+    padding: var(--space-xs, 8px) var(--space-sm, 12px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+}
+
+.farm-assignment-item .btn {
+    flex-shrink: 0;
+}
+
+/* ---- Theme transition ---- */
+#farmAssignmentDialog,
+#farmAssignmentDialog .farm-assignment-list,
+.farm-assignment-item {
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 600px) {
+    #farmAssignmentDialog {
+        width: calc(100% - 24px);
+        max-height: 90vh;
+        border-radius: 16px;
+    }
+
+    #farmAssignmentDialog .staff-form {
+        gap: 16px;
+        padding: 20px;
+    }
+
+    #farmAssignmentDialog .staff-buttons {
+        flex-direction: column-reverse;
+    }
+
+    #farmAssignmentDialog .staff-buttons .btn {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #farmAssignmentDialog *,
+    .farm-assignment-item {
+        transition: none !important;
+    }
+}

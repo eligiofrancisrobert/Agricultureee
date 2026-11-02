@@ -1,12 +1,68 @@
 import { supabase } from "../connection.js";
 
+// ---------- THEME ----------
+// Same key as js/feature/theme.js ("theme"), shared by every farmer page.
+
+const THEME_KEY = "theme";
+
+function readSavedTheme() {
+    try {
+        return (
+            localStorage.getItem(THEME_KEY) ||
+            localStorage.getItem("tanikala-theme")
+        );
+    } catch {
+        return null;
+    }
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute(
+        "data-theme",
+        theme === "dark" ? "dark" : "light"
+    );
+}
+
+(function initializeTheme() {
+    applyTheme(readSavedTheme());
+
+    const toggle = document.getElementById("themeToggle");
+
+    if (toggle) {
+        toggle.addEventListener("click", event => {
+            // Stop any other theme handler on this button so the theme
+            // is never toggled twice by one click.
+            event.stopImmediatePropagation();
+
+            const next =
+                document.documentElement.getAttribute("data-theme") === "dark"
+                    ? "light"
+                    : "dark";
+
+            applyTheme(next);
+
+            try {
+                localStorage.setItem(THEME_KEY, next);
+            } catch {
+                // Ignore blocked storage.
+            }
+        });
+    }
+
+    // Keep other open pages in sync.
+    window.addEventListener("storage", event => {
+        if (event.key === THEME_KEY && event.newValue) {
+            applyTheme(event.newValue);
+        }
+    });
+})();
+
 const activityList = document.getElementById("activityList");
 const farmerName = document.getElementById("farmerName");
 const farmerAvatar = document.getElementById("farmerAvatar");
 const logoutButton = document.getElementById("logoutButton");
 const logoutLabel = document.getElementById("logoutLabel");
 const todayLabel = document.getElementById("todayLabel");
-const themeToggle = document.getElementById("themeToggle");
 
 let currentUser = null;
 let activitiesRealtimeChannel = null;
@@ -465,7 +521,6 @@ function createActivityCard(activity, planting, farm) {
         card.append(toggle);
     }
 
-    // --- Footer: accept / decline ---
     // --- Footer: actions and messages ---
     const message = createElement("p", "activity-card__message");
     message.hidden = true;
@@ -695,28 +750,6 @@ function cleanupActivitiesRealtime() {
     }
 }
 
-// ---------- THEME ----------
-
-function initializeTheme() {
-    if (!themeToggle) return;
-
-    const savedTheme = localStorage.getItem("tanikala-theme");
-
-    if (savedTheme) {
-        document.documentElement.setAttribute("data-theme", savedTheme);
-    }
-
-    themeToggle.addEventListener("click", () => {
-        const currentTheme =
-            document.documentElement.getAttribute("data-theme") || "light";
-
-        const newTheme = currentTheme === "dark" ? "light" : "dark";
-
-        document.documentElement.setAttribute("data-theme", newTheme);
-        localStorage.setItem("tanikala-theme", newTheme);
-    });
-}
-
 // ---------- LOGOUT ----------
 
 function initializeLogout() {
@@ -744,7 +777,6 @@ function initializeLogout() {
 
 async function initializeFarmerActivities() {
     try {
-        initializeTheme();
         initializeLogout();
 
         if (todayLabel) {

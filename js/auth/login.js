@@ -174,9 +174,9 @@ async function getApprovedDestination(userId) {
 
         const staffRolePages = {
             "Farm Manager": "./pages/farm-manager/farm-manager-dashboard.html",
-            "Warehouse Officer": "./pages/warehouse-officer-dashboard.html",
-            "Agricultural Technician": "./pages/agricultural-technician-dashboard.html",
-            "Accountant": "./pages/accountant-dashboard.html",
+            "Warehouse Officer": "./pages/warehouse-officer/warehouse-officer-dashboard.html",
+            "Agricultural Technician": "./pages/agricultural-technician/agricultural-technician-dashboard.html",
+            "Accountant": "./pages/accountant/accountant-dashboard.html",
             "Admin": "./pages/admin/admin-dashboard.html"
         };
 

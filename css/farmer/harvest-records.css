@@ -1,0 +1,367 @@
+/* ============ FARMER: HARVEST RECORDS PAGE ============ */
+/* Save as css/farmer/harvest-records.css
+   Uses the shared tokens from style.css, same as the dashboard. */
+
+.harvest-page {
+    display: grid;
+    gap: var(--space-lg, 32px);
+}
+
+/* ============ CARD ============ */
+.harvest-card {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    box-shadow: 0 0 10px rgba(140, 95, 40, 0.12);
+}
+
+:root[data-theme="dark"] .harvest-card {
+    box-shadow: none;
+}
+
+/* Heading inside the card (same look as the admin .section-heading) */
+.harvest-card .section-heading {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm, 12px);
+    margin: 0;
+    padding: var(--space-md, 20px) var(--space-lg, 32px);
+    border-bottom: 1px solid var(--border);
+}
+
+.harvest-card .section-heading h2 {
+    margin: 0;
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-lg, 1.1rem);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.harvest-card .section-heading p {
+    margin: 2px 0 0;
+    font-size: var(--fs-xs, 0.8rem);
+    color: var(--secondary-text);
+}
+
+/* ============ FORM ============ */
+.harvest-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-md, 20px);
+    padding: var(--space-lg, 32px);
+}
+
+.harvest-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs, 8px);
+    min-width: 0;
+}
+
+.harvest-field.full-width {
+    grid-column: 1 / -1;
+}
+
+.harvest-field label {
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 500;
+}
+
+.harvest-field input,
+.harvest-field select,
+.harvest-field textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    outline: none;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-md, 0.95rem);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.harvest-field input::placeholder,
+.harvest-field textarea::placeholder {
+    color: var(--secondary-text);
+    opacity: 0.7;
+}
+
+.harvest-field input:focus,
+.harvest-field select:focus,
+.harvest-field textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+.harvest-field input:user-invalid,
+.harvest-field select:user-invalid,
+.harvest-field textarea:user-invalid {
+    border-color: var(--error);
+}
+
+.harvest-field textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+/* Custom dropdown arrow, same as the admin forms */
+.harvest-field select {
+    appearance: none;
+    cursor: pointer;
+    padding-right: 40px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23706860' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--space-md, 20px) center;
+}
+
+:root[data-theme="dark"] .harvest-field select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23B8AEA2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+}
+
+.harvest-field select option {
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+}
+
+/* ---- Submit button ---- */
+.harvest-submit {
+    grid-column: 1 / -1;
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-sm, 12px) var(--space-lg, 32px);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius, 10px);
+    background-color: var(--primary-color);
+    color: #FFFFFF;
+    font-family: inherit;
+    font-size: var(--fs-md, 0.95rem);
+    font-weight: 600;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
+}
+
+.harvest-submit:hover {
+    border-color: var(--primary-hover);
+    background-color: var(--primary-hover);
+}
+
+.harvest-submit:active {
+    transform: scale(0.98);
+}
+
+.harvest-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.harvest-submit:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* ---- Message ---- */
+.harvest-message {
+    display: none;
+    grid-column: 1 / -1;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    background-color: var(--surface-card);
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+}
+
+.harvest-message.show {
+    display: block;
+}
+
+.harvest-message.success {
+    border-color: var(--success);
+    background-color: color-mix(in srgb, var(--success) 10%, var(--surface-card));
+    color: var(--success);
+}
+
+.harvest-message.error {
+    border-color: var(--error);
+    background-color: color-mix(in srgb, var(--error) 10%, var(--surface-card));
+    color: var(--error);
+}
+
+/* ============ TABLE ============ */
+.harvest-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.harvest-table {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: separate;
+    border-spacing: 0;
+    text-align: left;
+}
+
+.harvest-table thead {
+    background-color: color-mix(in srgb, var(--secondary) 10%, var(--surface-card));
+}
+
+.harvest-table th {
+    padding: 15px 18px;
+    border-bottom: 1px solid var(--border);
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.harvest-table td {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    line-height: 1.6;
+    vertical-align: top;
+}
+
+.harvest-table tbody tr {
+    background-color: var(--surface-card);
+    transition: background-color 0.3s ease;
+}
+
+.harvest-table tbody tr:hover {
+    background-color: color-mix(in srgb, var(--secondary) 10%, var(--surface-card));
+}
+
+.harvest-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Loading / empty row */
+.harvest-empty {
+    padding: 40px 20px !important;
+    color: var(--secondary-text) !important;
+    font-size: var(--fs-sm, 0.9rem);
+    text-align: center;
+}
+
+.harvest-note {
+    display: block;
+    max-width: 240px;
+    margin-top: 4px;
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    white-space: normal;
+}
+
+/* ============ STATUS BADGES ============ */
+.harvest-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background-color: var(--surface-card);
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.status-pending {
+    border-color: var(--warning);
+    background-color: color-mix(in srgb, var(--warning) 12%, var(--surface-card));
+    color: var(--warning);
+}
+
+.status-in_progress {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 12%, var(--surface-card));
+    color: var(--primary-color);
+}
+
+.status-confirmed {
+    border-color: var(--success);
+    background-color: color-mix(in srgb, var(--success) 12%, var(--surface-card));
+    color: var(--success);
+}
+
+.status-rejected {
+    border-color: var(--error);
+    background-color: color-mix(in srgb, var(--error) 12%, var(--surface-card));
+    color: var(--error);
+}
+
+/* ============ THEME TRANSITION ============ */
+.harvest-card,
+.harvest-field input,
+.harvest-field select,
+.harvest-field textarea {
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.harvest-resubmit-btn {
+    display: inline-block;
+    margin-left: 150px;
+    margin-top: 0;
+    vertical-align: middle;
+    padding: 7px 12px;
+    border: none;
+    border-radius: 6px;
+    background: var(--primary, #c65d3a);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.harvest-resubmit-btn:hover {
+    opacity: 0.85;
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 700px) {
+    .harvest-card {
+        border-radius: 16px;
+    }
+
+    .harvest-card .section-heading {
+        padding: var(--space-sm, 12px) var(--space-md, 20px);
+    }
+
+    .harvest-form {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+        padding: var(--space-md, 20px);
+    }
+
+    .harvest-field.full-width,
+    .harvest-submit,
+    .harvest-message {
+        grid-column: auto;
+    }
+
+    .harvest-submit {
+        justify-self: stretch;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .harvest-card,
+    .harvest-card * {
+        transition: none !important;
+    }
+}

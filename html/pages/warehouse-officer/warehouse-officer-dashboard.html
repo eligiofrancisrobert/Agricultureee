@@ -1,0 +1,235 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <style>
+        /* Hidden until Warehouse Officer authorization passes.
+           UX protection only; database RLS is the actual security. */
+        html:not(.wo-authorized) body {
+            display: none !important;
+        }
+    </style>
+
+    <title>Warehouse Officer | Tanikala</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600&family=Poppins:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Shared styles -->
+    <link rel="stylesheet" href="../../../css/feature/style.css">
+    <link rel="stylesheet" href="../../../css/admin/staff.css">
+
+    <!-- Warehouse Officer styles -->
+    <link rel="stylesheet" href="../../../css/warehouse-officer/dashboard.css">
+    <link rel="stylesheet" href="../../../css/warehouse-officer/warehouse.css">
+    <link rel="stylesheet" href="../../../css/warehouse-officer/harvest-records.css">
+    <link rel="stylesheet" href="../../../css/warehouse-officer/equipment.css">
+    <link rel="stylesheet" href="../../../css/warehouse-officer/settings.css">
+
+    <script>
+        document.documentElement.dataset.theme =
+            localStorage.getItem('theme') || 'light';
+    </script>
+</head>
+
+<body>
+    <div class="shell">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+
+            <div class="logo">
+                <h1>T<span>ani</span>kala</h1>
+                <img
+                    src="../../../assets/logo.png"
+                    alt="Tanikala Logo"
+                    class="logo-image">
+            </div>
+
+            <nav class="nav" aria-label="Warehouse Officer sections">
+
+                <!-- Dashboard -->
+                <a href="#dashboard" data-view="dashboard">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="3" width="7" height="9" rx="1.5" />
+                        <rect x="14" y="3" width="7" height="5" rx="1.5" />
+                        <rect x="14" y="12" width="7" height="9" rx="1.5" />
+                        <rect x="3" y="16" width="7" height="5" rx="1.5" />
+                    </svg>
+                    Dashboard
+                </a>
+
+                <!-- Harvest Records -->
+                <a href="#harvest-records" data-view="harvest-records">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7 3h10l4 4v14H3V3h4Z" />
+                        <path d="M14 3v5h7" />
+                        <path d="M7 13h10M7 17h10" />
+                    </svg>
+                    Harvest Records
+                </a>
+
+                <!-- Fertilizer Inventory -->
+                <a href="#fertilizer-inventory" data-view="fertilizer-inventory">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 22V12" />
+                        <path d="M12 12C6 12 4 8 4 4c5 0 8 3 8 8Z" />
+                        <path d="M12 16c0-5 3-8 8-8 0 5-3 8-8 8Z" />
+                    </svg>
+                    Fertilizer Inventory
+                </a>
+
+                <!-- Pesticide Inventory -->
+                <a href="#pesticide-inventory" data-view="pesticide-inventory">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9 3h6" />
+                        <path d="M10 3v5l-5 9a3 3 0 0 0 3 4h8a3 3 0 0 0 3-4l-5-9V3" />
+                        <path d="M8 14h8" />
+                    </svg>
+                    Pesticide Inventory
+                </a>
+
+                <!-- Equipment -->
+                <a href="#equipment" data-view="equipment">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M14.7 6.3a5 5 0 0 0-6.4 6.4L3 18l3 3 5.3-5.3a5 5 0 0 0 6.4-6.4l-3 3-3-3 3-3Z" />
+                    </svg>
+                    Equipment
+                </a>
+
+                <!-- Harvest Inventory -->
+                <a href="#harvest-inventory" data-view="harvest-inventory">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M3 10h18l-1.5 10H4.5L3 10Z" />
+                        <path d="M7 10V7a5 5 0 0 1 10 0v3" />
+                        <path d="M9 14v3M15 14v3" />
+                    </svg>
+                    Harvest Inventory
+                </a>
+
+                <!-- Settings -->
+                <a href="#settings" data-view="settings">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+                        <circle cx="15" cy="7" r="2" />
+                        <circle cx="9" cy="17" r="2" />
+                    </svg>
+                    Settings
+                </a>
+
+            </nav>
+
+            <button
+                type="button"
+                id="logoutButton"
+                class="nav-logout">
+                Log out
+            </button>
+
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main">
+
+            <!-- TOPBAR -->
+            <header class="topbar">
+
+                <label class="search">
+                    <svg
+                        viewBox="0 0 24 24"
+                        width="20"
+                        height="20"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        aria-hidden="true">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="m20 20-3.5-3.5" />
+                    </svg>
+
+                    <input
+                        id="woSearch"
+                        type="search"
+                        placeholder="Search harvest records, inventory, or equipment..."
+                        aria-label="Search warehouse records"
+                        autocomplete="off">
+                </label>
+
+                <div class="topbar-right">
+
+                    <div class="chip">
+                        <span id="todayLabel"></span>
+
+                        <button
+                            type="button"
+                            id="themeToggle"
+                            class="icon-btn"
+                            aria-label="Switch theme">
+
+                            <svg
+                                viewBox="0 0 24 24"
+                                width="18"
+                                height="18"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true">
+                                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+                            </svg>
+
+                        </button>
+                    </div>
+
+                    <span
+                        class="avatar"
+                        id="woAvatar"
+                        aria-hidden="true">
+                        WO
+                    </span>
+
+                </div>
+
+            </header>
+
+            <!-- DYNAMIC PAGE CONTENT -->
+            <div
+                id="view"
+                role="region"
+                aria-live="polite">
+            </div>
+
+        </main>
+
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div
+        id="toast"
+        class="toast"
+        role="status"
+        hidden>
+    </div>
+
+    <!-- WAREHOUSE OFFICER ENTRY POINT -->
+    <script
+        type="module"
+        src="../../../js/warehouse-officer/main.js">
+    </script>
+
+</body>
+</html>

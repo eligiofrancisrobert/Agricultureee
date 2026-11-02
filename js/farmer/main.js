@@ -1,29 +1,78 @@
 import { supabase } from "../connection.js";
 
+// ---------- THEME ----------
+// Same key as js/feature/theme.js ("theme"), shared by every farmer page.
+
+const THEME_KEY = "theme";
+
+function readSavedTheme() {
+    try {
+        return (
+            localStorage.getItem(THEME_KEY) ||
+            localStorage.getItem("tanikala-theme")
+        );
+    } catch {
+        return null;
+    }
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute(
+        "data-theme",
+        theme === "dark" ? "dark" : "light"
+    );
+}
+
+(function initializeTheme() {
+    applyTheme(readSavedTheme());
+
+    const toggle = document.getElementById("themeToggle");
+
+    if (toggle) {
+        toggle.addEventListener("click", event => {
+            // Stop any other theme handler on this button so the theme
+            // is never toggled twice by one click.
+            event.stopImmediatePropagation();
+
+            const next =
+                document.documentElement.getAttribute("data-theme") === "dark"
+                    ? "light"
+                    : "dark";
+
+            applyTheme(next);
+
+            try {
+                localStorage.setItem(THEME_KEY, next);
+            } catch {
+                // Ignore blocked storage.
+            }
+        });
+    }
+
+    // Keep other open pages in sync.
+    window.addEventListener("storage", event => {
+        if (event.key === THEME_KEY && event.newValue) {
+            applyTheme(event.newValue);
+        }
+    });
+})();
+
 const farmerName = document.getElementById("farmerName");
 const welcomeName = document.getElementById("welcomeName");
 const farmerAvatar = document.getElementById("farmerAvatar");
 const logoutButton = document.getElementById("logoutButton");
-const themeToggle = document.getElementById("themeToggle");
 const todayLabel = document.getElementById("todayLabel");
 
 const logoutDefaultHTML = logoutButton.innerHTML;
 
 let currentUser = null;
 
-/* ============ THEME + DATE (same behavior as Farm Manager) ============ */
+/* ============ DATE (theme is handled by js/feature/theme.js) ============ */
+
 todayLabel.textContent = new Date().toLocaleDateString("en-PH", {
     weekday: "short",
     month: "short",
     day: "numeric"
-});
-
-themeToggle.addEventListener("click", () => {
-    const next =
-        document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-
-    document.documentElement.dataset.theme = next;
-    localStorage.setItem("theme", next);
 });
 
 /* ============ DASHBOARD ============ */
