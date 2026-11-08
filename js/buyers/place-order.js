@@ -6,13 +6,14 @@ const TABLE_PRICES = 'farm_produce_prices';
 
 const STORAGE_BUCKET = 'warehouse-inventory-photos';
 const SIGNED_URL_EXPIRY = 3600;
-
+const CHECKOUT_KEY = 'tanikala_checkout_items';
 const CHECKOUT_RPC = 'buyer_checkout_cart';
 
 const state = {
   buyerId: null,
   cartItems: [],
   isCheckingOut: false,
+  selectedCartItemIds: [],
 };
 
 const el = {
@@ -316,7 +317,6 @@ function renderCheckout() {
   }
 }
 
-/** Load cart rows with current stock and prices for checkout validation. */
 async function loadCheckoutItems() {
   el.checkoutLoading.hidden = false;
   el.checkoutLayout.hidden = true;
@@ -324,37 +324,71 @@ async function loadCheckoutItems() {
   hideError();
 
   try {
+    // Retrieve selected cart item IDs from the Cart page.
+    let selectedIds = [];
+
+    try {
+      const storedSelection = sessionStorage.getItem(CHECKOUT_KEY);
+      selectedIds = storedSelection
+        ? JSON.parse(storedSelection)
+        : [];
+    } catch {
+      selectedIds = [];
+    }
+
+    if (
+      !Array.isArray(selectedIds) ||
+      selectedIds.length === 0
+    ) {
+      state.cartItems = [];
+      state.selectedCartItemIds = [];
+      renderCheckout();
+
+      showError(
+        'No selected items found. Please return to your cart and select products for checkout.'
+      );
+
+      return;
+    }
+
+    state.selectedCartItemIds = selectedIds;
+
+    // Fetch only the selected cart items belonging to this buyer.
     const { data: cartRows, error: cartError } = await supabase
       .from(TABLE_CART)
       .select('cart_item_id, buyer_id, produce_id, quantity, created_at')
       .eq('buyer_id', state.buyerId)
+      .in('cart_item_id', selectedIds)
       .order('created_at', { ascending: false });
 
     if (cartError) throw cartError;
 
-    if (!cartRows?.length) {
-      state.cartItems = [];
-      renderCheckout();
-      await loadCartCount();
-      return;
+    // Prevent checkout if some selected items are missing.
+    if (
+      !cartRows?.length ||
+      cartRows.length !== selectedIds.length
+    ) {
+      throw new Error(
+        'Some selected cart items are no longer available. Please return to your cart and review your selection.'
+      );
     }
 
-    const produceIds = [...new Set(
-      cartRows.map((row) => row.produce_id)
-    )];
+    const produceIds = [
+      ...new Set(cartRows.map(row => row.produce_id))
+    ];
 
     const [inventoryResult, pricesResult] = await Promise.all([
       supabase
         .from(TABLE_INVENTORY)
         .select(`
-          produce_id,
-          farm_id,
-          crop_name,
-          photo_path,
-          available_quantity,
-          unit,
-          produce_status
-        `)
+                    produce_id,
+                    farm_id,
+                    crop_name,
+                    photo_path,
+                    available_quantity,
+                    unit,
+                    produce_status
+                `)
         .in('produce_id', produceIds),
 
       supabase
@@ -366,7 +400,7 @@ async function loadCheckoutItems() {
     if (pricesResult.error) throw pricesResult.error;
 
     const inventoryMap = new Map(
-      (inventoryResult.data || []).map((item) => [
+      (inventoryResult.data || []).map(item => [
         item.produce_id,
         item,
       ])
@@ -375,11 +409,14 @@ async function loadCheckoutItems() {
     const priceMap = new Map();
 
     for (const price of pricesResult.data || []) {
-      priceMap.set(priceKey(price), Number(price.unit_price));
+      priceMap.set(
+        priceKey(price),
+        Number(price.unit_price)
+      );
     }
 
     state.cartItems = await Promise.all(
-      cartRows.map(async (row) => {
+      cartRows.map(async row => {
         const inventory = inventoryMap.get(row.produce_id);
 
         if (!inventory) {
@@ -397,14 +434,17 @@ async function loadCheckoutItems() {
         }
 
         const unitPrice = priceMap.get(priceKey(inventory));
-        const photoUrl = await resolvePhotoUrl(inventory.photo_path);
+        const photoUrl = await resolvePhotoUrl(
+          inventory.photo_path
+        );
 
         return {
           ...row,
           product: {
             ...inventory,
             unit_price:
-              unitPrice !== undefined && Number.isFinite(unitPrice)
+              unitPrice !== undefined &&
+                Number.isFinite(unitPrice)
                 ? unitPrice
                 : null,
             photo_url: photoUrl,
@@ -419,17 +459,19 @@ async function loadCheckoutItems() {
   } catch (error) {
     console.error('Checkout summary loading failed:', error);
 
+    state.cartItems = [];
+
     el.checkoutLoading.hidden = true;
     el.checkoutLayout.hidden = true;
     el.checkoutEmpty.hidden = true;
 
     showError(
-      error?.message || 'Unable to prepare your order summary.'
+      error?.message ||
+      'Unable to prepare your order summary.'
     );
   }
 }
 
-/** Validate checkout items and submit the selected order through the sale RPC. */
 async function placeOrder() {
   if (state.isCheckingOut) return;
 
@@ -466,7 +508,9 @@ async function placeOrder() {
   hideError();
 
   try {
-    const { data, error } = await supabase.rpc(CHECKOUT_RPC);
+    const { data, error } = await supabase.rpc(CHECKOUT_RPC, {
+      p_cart_item_ids: state.selectedCartItemIds,
+    });
 
     if (error) throw error;
 
