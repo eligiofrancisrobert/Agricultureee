@@ -30,8 +30,6 @@ function applyTheme(theme) {
 
     if (toggle) {
         toggle.addEventListener("click", event => {
-            // Stop any other theme handler on this button so the theme
-            // is never toggled twice by one click.
             event.stopImmediatePropagation();
 
             const next =
@@ -49,7 +47,6 @@ function applyTheme(theme) {
         });
     }
 
-    // Keep other open pages in sync.
     window.addEventListener("storage", event => {
         if (event.key === THEME_KEY && event.newValue) {
             applyTheme(event.newValue);
@@ -69,6 +66,45 @@ let plantingActivityStatuses = [];
 let cropStatuses = [];
 let plantingRealtimeChannel = null;
 let plantingReloadTimer = null;
+
+// Pagination state
+const PAGE_SIZE = 6;
+let currentPage = 1;
+let allPlantings = [];
+let fieldsMap = new Map();
+let farmsMap = new Map();
+
+// Pagination controls
+const paginationNav = document.createElement("nav");
+paginationNav.className = "pagination";
+paginationNav.setAttribute("aria-label", "Planting records pages");
+plantingList.after(paginationNav);
+
+const paginationStyle = document.createElement("style");
+paginationStyle.textContent = `
+    .pagination {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        margin: 1.25rem 0;
+    }
+    .pagination:empty { display: none; }
+    .pagination-info { font-size: 0.9rem; opacity: 0.8; }
+    .pagination-button {
+        padding: 0.45rem 0.9rem;
+        border: 1px solid currentColor;
+        border-radius: 0.5rem;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+    }
+    .pagination-button:hover:not(:disabled) { opacity: 0.75; }
+    .pagination-button:disabled { opacity: 0.4; cursor: not-allowed; }
+`;
+document.head.append(paginationStyle);
 
 // ---------- HELPERS ----------
 
@@ -106,6 +142,8 @@ function formatDate(dateValue) {
 }
 
 function displayMessage(message, className = "empty-state") {
+    paginationNav.replaceChildren();
+
     plantingList.replaceChildren(
         createElement("div", className, message)
     );
@@ -243,7 +281,7 @@ async function loadPlantings(plantingIds) {
             crop_status
         `)
         .in("id", uniquePlantingIds)
-        .order("sowing_date", { ascending: false });
+        .order("sowing_date", { ascending: true });
 
     if (error) {
         console.error("Plantings loading error:", error);
@@ -486,6 +524,7 @@ async function loadMyPlantings() {
     );
 
     // 1. Get planting records assigned directly to this Farmer.
+    //    Oldest planting date first before status sorting.
     const { data: plantings, error } = await supabase
         .from("farm_plantings")
         .select(`
@@ -502,7 +541,7 @@ async function loadMyPlantings() {
             crop_status
         `)
         .eq("farmer_id", currentUser.id)
-        .order("sowing_date", { ascending: false });
+        .order("sowing_date", { ascending: true, nullsFirst: false });
 
     if (error) {
         console.error("Assigned plantings loading error:", error);
@@ -516,6 +555,9 @@ async function loadMyPlantings() {
     }
 
     if (!plantings || plantings.length === 0) {
+        allPlantings = [];
+        currentPage = 1;
+
         displayMessage(
             "You currently have no planting records assigned to you."
         );
@@ -543,7 +585,7 @@ async function loadMyPlantings() {
         return;
     }
 
-    const fieldsMap = new Map(
+    fieldsMap = new Map(
         (fields || []).map(field => [field.id, field])
     );
 
@@ -552,12 +594,58 @@ async function loadMyPlantings() {
         ...new Set((fields || []).map(field => field.farm_id).filter(Boolean))
     ];
 
-    const farmsMap = await loadFarms(farmIds);
+    farmsMap = await loadFarms(farmIds);
 
-    // 4. Display planting cards.
+    // 4. Sort by Planting Activity Status display order.
+    //    Same-status plantings retain oldest planting date first.
+    const activityStatusOrder = new Map(
+        plantingActivityStatuses.map((status, index) => [
+            status.code,
+            index
+        ])
+    );
+
+    plantings.sort((a, b) => {
+        const orderA =
+            activityStatusOrder.get(a.activity_status) ?? Infinity;
+
+        const orderB =
+            activityStatusOrder.get(b.activity_status) ?? Infinity;
+
+        return orderA - orderB;
+    });
+
+    // 5. Store the sorted records and display the first page.
+    allPlantings = plantings;
+    currentPage = 1;
+
+    renderPlantingsPage();
+}
+
+// ---------- PAGINATION ----------
+
+function getTotalPages() {
+    return Math.max(1, Math.ceil(allPlantings.length / PAGE_SIZE));
+}
+
+function goToPage(page) {
+    currentPage = page;
+    renderPlantingsPage();
+
+    plantingList.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderPlantingsPage() {
+    const totalPages = getTotalPages();
+
+    currentPage = Math.min(Math.max(currentPage, 1), totalPages);
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageItems = allPlantings.slice(start, start + PAGE_SIZE);
+
     plantingList.replaceChildren();
 
-    plantings.forEach(planting => {
+    pageItems.forEach(planting => {
         const field = fieldsMap.get(planting.field_id);
         const farm = field
             ? farmsMap.get(field.farm_id)
@@ -573,12 +661,46 @@ async function loadMyPlantings() {
             createPlantingCard(planting, activity, farm)
         );
     });
+
+    renderPagination(start, pageItems.length, totalPages);
+}
+
+function renderPagination(start, shownCount, totalPages) {
+    paginationNav.replaceChildren();
+
+    if (totalPages <= 1) return;
+
+    const previousButton = createElement(
+        "button",
+        "pagination-button",
+        "Previous"
+    );
+    previousButton.type = "button";
+    previousButton.disabled = currentPage === 1;
+    previousButton.addEventListener("click", () => goToPage(currentPage - 1));
+
+    const nextButton = createElement(
+        "button",
+        "pagination-button",
+        "Next"
+    );
+    nextButton.type = "button";
+    nextButton.disabled = currentPage === totalPages;
+    nextButton.addEventListener("click", () => goToPage(currentPage + 1));
+
+    const info = createElement(
+        "span",
+        "pagination-info",
+        `Page ${currentPage} of ${totalPages} ` +
+        `(showing ${start + 1}-${start + shownCount} of ${allPlantings.length})`
+    );
+
+    paginationNav.append(previousButton, info, nextButton);
 }
 
 // ---------- SUPABASE REALTIME ----------
 
 function schedulePlantingsReload() {
-    // Combine rapid database events into one reload.
     clearTimeout(plantingReloadTimer);
 
     plantingReloadTimer = setTimeout(async () => {

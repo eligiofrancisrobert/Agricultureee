@@ -26,123 +26,165 @@ const statusBadge = (a) => {
 
 function openForm({ account, roles, statuses, isDuplicate, onSave }) {
     const editing = Boolean(account);
-    const nameIn = h('input', { type: 'text', name: 'name', value: account?.name ?? '', autocomplete: 'off', 'aria-required': 'true' });
-    const emailIn = h('input', { type: 'email', name: 'email', value: account?.email ?? '', autocomplete: 'off', 'aria-required': 'true' });
 
-    const passwordIn = h("input", {
-        type: "password",
-        name: "password",
-        autocomplete: "new-password",
-        "aria-required": "true"
+    const nameIn = h('input', {
+        type: 'text',
+        name: 'name',
+        value: account?.name ?? '',
+        autocomplete: 'off',
+        'aria-required': 'true'
     });
 
-    const passwordToggle = h(
-        "button",
-        {
-            type: "button",
-            class: "password-toggle",
-            "aria-label": "Show password",
-            "aria-pressed": "false",
-            onclick: () => {
-                const showPassword = passwordIn.type === "password";
+    const emailIn = h('input', {
+        type: 'email',
+        name: 'email',
+        value: account?.email ?? '',
+        autocomplete: 'off',
+        'aria-required': 'true'
+    });
 
-                passwordIn.type = showPassword ? "text" : "password";
-                passwordToggle.textContent = showPassword ? "Hide" : "Show";
+    const passwordIn = h('input', {
+        type: 'password',
+        name: 'password',
+        autocomplete: 'new-password',
+        'aria-required': 'true'
+    });
 
-                passwordToggle.setAttribute(
-                    "aria-label",
-                    showPassword ? "Hide password" : "Show password"
-                );
+    const passwordToggle = h('button', {
+        type: 'button',
+        class: 'password-toggle',
+        'aria-label': 'Show password',
+        'aria-pressed': 'false',
+        onclick: () => {
+            const showPassword = passwordIn.type === 'password';
 
-                passwordToggle.setAttribute(
-                    "aria-pressed",
-                    String(showPassword)
-                );
-            }
-        },
-        "Show"
-    );
+            passwordIn.type = showPassword ? 'text' : 'password';
+            passwordToggle.textContent = showPassword ? 'Hide' : 'Show';
+            passwordToggle.setAttribute(
+                'aria-label',
+                showPassword ? 'Hide password' : 'Show password'
+            );
+            passwordToggle.setAttribute('aria-pressed', String(showPassword));
+        }
+    }, 'Show');
 
     const passwordControl = h(
-        "div",
-        { class: "password-field" },
+        'div',
+        { class: 'password-field' },
         passwordIn,
         passwordToggle
     );
-    const roleSel = h('select', { name: 'role', 'aria-required': 'true' },
-        h('option', { value: '', selected: !account }, 'Select a role'),
-        roles.map((r) => h('option', { value: String(r.id), selected: r.id === account?.roleId }, r.name)));
-    const defaultStatus = account?.statusId ?? statuses.find((s) => s.name.toLowerCase() === 'active')?.id;
-    const statusSel = h('select', { name: 'status' },
-        statuses.map((s) => h('option', { value: String(s.id), selected: s.id === defaultStatus }, s.name)));
 
-    // Password only exists on the Add form
+    const roleSel = h('select', {
+        name: 'role',
+        'aria-required': 'true'
+    },
+        h('option', { value: '', selected: !account }, 'Select a role'),
+        roles.map((r) => h('option', {
+            value: String(r.id),
+            selected: r.id === account?.roleId
+        }, r.name))
+    );
+
+    const defaultStatus = account?.statusId ??
+        statuses.find((s) => s.name.toLowerCase() === 'active')?.id;
+
+    const statusSel = h('select', { name: 'status' },
+        statuses.map((s) => h('option', {
+            value: String(s.id),
+            selected: s.id === defaultStatus
+        }, s.name))
+    );
+
     const fields = {
         name: nameIn,
         email: emailIn,
-        ...(editing ? {} : { password: passwordIn }),
-        role: roleSel,
+        ...(!editing ? {
+            password: passwordIn,
+            role: roleSel
+        } : {}),
         status: statusSel,
     };
-    const errEls = Object.fromEntries(Object.keys(fields).map((k) => [k, h('small', { class: 'err', hidden: true })]));
-    const formError = h('p', { class: 'msg error', role: 'alert', hidden: true });
+
+    const errEls = Object.fromEntries(
+        Object.keys(fields).map((k) => [
+            k,
+            h('small', { class: 'err', hidden: true })
+        ])
+    );
+
+    const formError = h('p', {
+        class: 'msg error',
+        role: 'alert',
+        hidden: true
+    });
 
     const field = (key, label) =>
-        h(
-            "label",
-            {},
+        h('label', {},
             label,
-            key === "password" ? passwordControl : fields[key],
+            key === 'password' ? passwordControl : fields[key],
             errEls[key]
         );
-
 
     const showErrors = (errors, summary) => {
         for (const k of Object.keys(fields)) {
             const msg = errors[k];
+
             errEls[k].textContent = msg ?? '';
             errEls[k].hidden = !msg;
             fields[k].setAttribute('aria-invalid', String(Boolean(msg)));
         }
-        const text = summary ?? (Object.keys(errors).length ? 'Please fix the highlighted fields and try again.' : '');
+
+        const text = summary ??
+            (Object.keys(errors).length
+                ? 'Please fix the highlighted fields and try again.'
+                : '');
+
         formError.textContent = text;
         formError.hidden = !text;
     };
 
     const validate = (v) => {
         const errors = {};
-        if (!v.name) errors.name = 'Full name is required.';
-        else if (v.name.length < 2) errors.name = 'Full name must be at least 2 characters.';
 
-        if (!v.email) errors.email = 'Email address is required.';
-        else if (!EMAIL_RE.test(v.email)) errors.email = 'Enter a valid email address, like name@example.com.';
-        else if (isDuplicate(v.email, account?.id)) errors.email = 'Another staff account already uses this email.';
+        if (!v.name) {
+            errors.name = 'Full name is required.';
+        } else if (v.name.length < 2) {
+            errors.name = 'Full name must be at least 2 characters.';
+        }
 
+        if (!v.email) {
+            errors.email = 'Email address is required.';
+        } else if (!EMAIL_RE.test(v.email)) {
+            errors.email = 'Enter a valid email address, like name@example.com.';
+        } else if (isDuplicate(v.email, account?.id)) {
+            errors.email = 'Another staff account already uses this email.';
+        }
 
         if (!editing) {
             if (!v.password) {
-                errors.password = "Password is required.";
+                errors.password = 'Password is required.';
             } else {
                 const passwordPolicy = [
                     {
                         test: v.password.length >= 12,
-                        message: "Password must be at least 12 characters long."
+                        message: 'Password must be at least 12 characters long.'
                     },
                     {
                         test: /[a-z]/.test(v.password),
-                        message: "Password must contain at least one lowercase letter."
+                        message: 'Password must contain at least one lowercase letter.'
                     },
                     {
                         test: /[A-Z]/.test(v.password),
-                        message: "Password must contain at least one uppercase letter."
+                        message: 'Password must contain at least one uppercase letter.'
                     },
                     {
                         test: /\d/.test(v.password),
-                        message: "Password must contain at least one number."
+                        message: 'Password must contain at least one number.'
                     },
                     {
                         test: /[^A-Za-z0-9]/.test(v.password),
-                        message: "Password must contain at least one special character."
+                        message: 'Password must contain at least one special character.'
                     }
                 ];
 
@@ -152,34 +194,49 @@ function openForm({ account, roles, statuses, isDuplicate, onSave }) {
                     errors.password = failedRule.message;
                 }
             }
+
+            if (!v.roleId) {
+                errors.role = 'Please choose a role.';
+            } else if (!roles.some((r) => r.id === v.roleId)) {
+                errors.role = 'Choose one of the listed roles.';
+            }
         }
 
+        if (!statuses.some((s) => s.id === v.statusId)) {
+            errors.status = 'Choose a valid status.';
+        }
 
-        if (!v.roleId) errors.role = 'Please choose a role.';
-        else if (!roles.some((r) => r.id === v.roleId)) errors.role = 'Choose one of the listed roles.';
-
-        if (!statuses.some((s) => s.id === v.statusId)) errors.status = 'Choose a valid status.';
         return errors;
     };
 
-    const submit = h('button', { class: 'btn', type: 'submit' }, editing ? 'Save changes' : 'Add account');
+    const submit = h('button', {
+        class: 'btn',
+        type: 'submit'
+    }, editing ? 'Save changes' : 'Add account');
 
     const form = h('form', {
         novalidate: true,
         class: 'staff-form',
+
         onsubmit: async (e) => {
             e.preventDefault();
+
             if (submit.disabled) return;
+
             const values = {
                 name: nameIn.value.trim().replace(/\s+/g, ' '),
                 email: emailIn.value.trim().toLowerCase(),
-                roleId: Number(roleSel.value) || null,
                 statusId: Number(statusSel.value) || null,
+                ...(!editing ? {
+                    roleId: Number(roleSel.value) || null,
+                    password: passwordIn.value
+                } : {})
             };
-            if (!editing) values.password = passwordIn.value; // never trimmed
 
             const errors = validate(values);
+
             showErrors(errors);
+
             if (Object.keys(errors).length) {
                 toast('Could not save. Check the form for errors.');
                 fields[Object.keys(errors)[0]].focus();
@@ -188,35 +245,51 @@ function openForm({ account, roles, statuses, isDuplicate, onSave }) {
 
             submit.disabled = true;
             submit.textContent = 'Saving...';
+
             try {
                 await onSave(values);
                 dialog.close();
             } catch (err) {
                 console.error('Saving staff account failed:', err);
+
                 const msg = friendlyError(err);
+
                 showErrors({}, msg);
                 toast(msg);
+
                 submit.disabled = false;
                 submit.textContent = editing ? 'Save changes' : 'Add account';
             }
-        },
+        }
     },
         formError,
         field('name', 'Full name'),
         field('email', 'Email address'),
-        ...(editing ? [] : [field('password', 'Password (min. 15 characters)')]),
-        field('role', 'Role'),
+        ...(!editing ? [
+            field('password', 'Password (min. 15 characters)'),
+            field('role', 'Role')
+        ] : []),
         field('status', 'Account status'),
         h('div', { class: 'staff-buttons' },
-            h('button', { class: 'btn ghost', type: 'button', onclick: () => dialog.close() }, 'Cancel'),
-            submit));
+            h('button', {
+                class: 'btn ghost',
+                type: 'button',
+                onclick: () => dialog.close()
+            }, 'Cancel'),
+            submit)
+    );
 
-    const dialog = openModal('staffFormDialog', editing ? 'Edit staff account' : 'Add staff account',
-        h('div', { class: 'card-head' }, h('h2', {}, editing ? 'Edit staff account' : 'Add staff account')),
-        form);
+    const dialog = openModal(
+        'staffFormDialog',
+        editing ? 'Edit staff account' : 'Add staff account',
+        h('div', { class: 'card-head' },
+            h('h2', {}, editing ? 'Edit staff account' : 'Add staff account')
+        ),
+        form
+    );
+
     nameIn.focus();
 }
-
 function confirmDelete(account, onConfirm) {
     const confirmBtn = h('button', { class: 'btn danger', type: 'button' }, 'Delete account');
     const dialog = openModal('staffDeleteDialog', 'Confirm delete',
@@ -293,21 +366,11 @@ export async function render(root, ctx) {
                     : a.status === filter.status) &&
             `${a.name} ${a.email}`.toLowerCase().includes(q));
 
-        const roleCell = (a) => h('select', {
-            class: 'staff-inline-role', 'aria-label': `Role for ${a.name}`,
-            onchange: async (e) => {
-                const select_ = e.target;
-                select_.disabled = true;
-                try {
-                    replace(await updateStaff(a.id, { roleId: Number(select_.value) }));
-                    toast(`${a.name} is now ${accounts.find((x) => x.id === a.id).role}.`);
-                } catch (err) {
-                    console.error('Role change failed:', err);
-                    toast(friendlyError(err));
-                }
-                draw();
-            },
-        }, lookups.roles.map((r) => h('option', { value: String(r.id), selected: r.id === a.roleId }, r.name)));
+        const roleCell = (a) => h(
+            'span',
+            { class: 'staff-role' },
+            a.role || 'Unassigned'
+        );;
 
         const assignMunicipalityBtn = h(
             'button',
@@ -425,6 +488,16 @@ export async function render(root, ctx) {
 
     assignFarmLocationBtn.hidden = true;
 
+    const assignAccountantFarmBtn = h('button', {
+        class: 'btn',
+        type: 'button',
+        onclick: () => {
+            window.location.href = './assigned-accountants.html';
+        }
+    }, 'Assign Farm Location');
+
+    assignAccountantFarmBtn.hidden = true;
+
 
 
     const load = async () => {
@@ -448,11 +521,10 @@ export async function render(root, ctx) {
 
                         const roleName = selectedRole?.name?.toLowerCase().trim();
 
-                        assignMunicipalityBtn.hidden =
-                            roleName !== 'farm manager';
+                        assignMunicipalityBtn.hidden = roleName !== 'farm manager';
+                        assignFarmLocationBtn.hidden = roleName !== 'warehouse officer';
+                        assignAccountantFarmBtn.hidden = roleName !== 'accountant';
 
-                        assignFarmLocationBtn.hidden =
-                            roleName !== 'warehouse officer';
 
                         draw();
                     },
@@ -475,7 +547,8 @@ export async function render(root, ctx) {
                     'Filter by status'
                 ),
                 assignMunicipalityBtn,
-                assignFarmLocationBtn
+                assignFarmLocationBtn,
+                assignAccountantFarmBtn
             );
             addBtn.disabled = false;
             draw();

@@ -1,0 +1,914 @@
+/* =========================================================
+   ACCOUNTANT - PRODUCE RECORDS  (fixed + responsive tables)
+   Load AFTER style.css and accountant-module.css.
+   Uses the same tokens, radius, shadows and button styles as the
+   rest of the Accountant module. No hard-coded colors, so dark
+   mode works.
+
+   RESPONSIVE TABLE NOTE
+   On screens <= 760px the table turns into stacked cards.
+   Each <td> needs a data-label so the column name shows up:
+
+     <td class="produce-name"   data-label="Produce">Tomato</td>
+     <td class="produce-unit"   data-label="Unit">kg</td>
+     <td class="produce-price"  data-label="Price">₱120.00</td>
+     <td class="produce-actions" data-label="Actions">...</td>
+
+   Message rows (loading / no results) keep colspan and need no label:
+     <tr><td class="table-message" colspan="4">Loading...</td></tr>
+   ========================================================= */
+
+.produce-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md, 20px);
+    min-width: 0;
+}
+
+/* ============ TOOLBAR ============ */
+.produce-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-md, 20px);
+}
+
+.produce-toolbar > div:first-child {
+    min-width: 0;
+}
+
+.produce-toolbar h2 {
+    margin: 0 0 4px;
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.produce-toolbar p {
+    margin: 0;
+    font-size: var(--fs-sm);
+    color: var(--secondary-text);
+}
+
+.produce-toolbar-actions {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(180px, 290px) auto;
+    align-items: center;
+    justify-content: end;
+    gap: var(--space-sm, 12px);
+}
+
+/* Search box */
+.produce-search {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm, 12px);
+    padding: 0 var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    background-color: var(--surface-card);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.produce-search svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: var(--secondary-text);
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.produce-search input {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+}
+
+.produce-search input::placeholder {
+    color: var(--secondary-text);
+    opacity: 0.7;
+}
+
+.produce-search:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+/* Primary buttons (same as .btn-approve) */
+.add-price-btn,
+.save-price-btn {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs, 8px);
+    padding: 0 var(--space-md, 20px);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius, 10px);
+    background-color: var(--primary-color);
+    color: #FFFFFF;
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+.add-price-btn svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.add-price-btn:hover:not(:disabled),
+.save-price-btn:hover:not(:disabled) {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.add-price-btn:active:not(:disabled),
+.save-price-btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.add-price-btn:disabled,
+.save-price-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ============ TABLE ============ */
+.produce-table-wrap {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background-color: var(--surface-card);
+    box-shadow: 0 2px 10px rgba(101, 53, 40, .09);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.produce-table {
+    width: 100%;
+    min-width: 560px;
+    border-collapse: collapse;
+}
+
+.produce-table th,
+.produce-table td {
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border);
+}
+
+.produce-table th {
+    background-color: color-mix(in srgb, var(--secondary) 6%, var(--surface-card));
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.produce-table td {
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    overflow-wrap: anywhere;
+}
+
+.produce-table tbody tr {
+    transition: background-color 0.3s ease;
+}
+
+.produce-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.produce-table tbody tr:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 6%, transparent);
+}
+
+.produce-table .produce-name {
+    font-weight: 600;
+}
+
+.produce-table .produce-unit {
+    color: var(--secondary-text);
+}
+
+.produce-table .produce-price {
+    color: var(--primary-color);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.produce-table .action-heading {
+    width: 130px;
+    text-align: center;
+}
+
+.produce-table .produce-actions {
+    text-align: center;
+}
+
+.produce-table .table-message {
+    padding: var(--space-lg, 32px) var(--space-md, 20px);
+    text-align: center;
+    color: var(--secondary-text);
+}
+
+.action-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs, 8px);
+}
+
+.table-action-btn {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background-color: var(--surface-card);
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.table-action-btn:active {
+    transform: scale(0.94);
+}
+
+.table-action-btn svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.edit-action {
+    color: var(--primary-color);
+}
+
+.edit-action:hover {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 10%, var(--surface-card));
+}
+
+.delete-action {
+    color: var(--error);
+}
+
+.delete-action:hover {
+    border-color: var(--error);
+    background-color: color-mix(in srgb, var(--error) 10%, var(--surface-card));
+}
+
+/* ============ EMPTY STATE ============ */
+.produce-empty {
+    padding: var(--space-xl, 48px) var(--space-md, 20px);
+    text-align: center;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background-color: var(--surface-card);
+    box-shadow: 0 2px 10px rgba(101, 53, 40, .09);
+}
+
+.produce-empty[hidden] {
+    display: none !important;
+}
+
+.empty-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto var(--space-sm, 12px);
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    background-color: color-mix(in srgb, var(--primary-color) 12%, var(--surface-card));
+}
+
+.empty-icon svg {
+    width: 25px;
+    height: 25px;
+    fill: none;
+    stroke: var(--primary-color);
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.produce-empty h3 {
+    margin: 0 0 var(--space-xs, 8px);
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.produce-empty p {
+    margin: 0;
+    font-size: var(--fs-sm);
+    color: var(--secondary-text);
+}
+
+/* ============ ERRORS ============ */
+.produce-error,
+.modal-error {
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid color-mix(in srgb, var(--error) 40%, var(--border));
+    border-radius: var(--radius, 10px);
+    background-color: color-mix(in srgb, var(--error) 10%, var(--surface-card));
+    color: var(--error);
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+.modal-error {
+    margin: 4px 0 var(--space-md, 20px);
+}
+
+.produce-error[hidden],
+.modal-error[hidden] {
+    display: none !important;
+}
+
+/* ============ MODALS ============ */
+body.modal-open {
+    overflow: hidden;
+}
+
+.produce-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: grid;
+    place-items: center;
+    padding: var(--space-md, 20px);
+    overflow-y: auto;
+}
+
+.produce-modal[hidden] {
+    display: none !important;
+}
+
+.produce-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(3px);
+}
+
+.produce-modal-card {
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box;
+    width: min(100%, 470px);
+    max-height: calc(100vh - 40px);
+    max-height: calc(100dvh - 40px);
+    overflow-y: auto;
+    padding: var(--space-lg, 32px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.2);
+    animation: modalEnter 0.2s ease;
+}
+
+@keyframes modalEnter {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-md, 20px);
+    margin-bottom: var(--space-lg, 32px);
+}
+
+.modal-eyebrow {
+    margin: 0 0 6px;
+    color: var(--primary-color);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    letter-spacing: 0.045em;
+}
+
+.modal-header h2 {
+    margin: 0 0 6px;
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.modal-header p:last-child {
+    margin: 0;
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+    color: var(--secondary-text);
+}
+
+.modal-close-btn {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background-color: var(--surface-card);
+    color: var(--secondary-text);
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+}
+
+.modal-close-btn:hover {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 8%, var(--surface-card));
+    color: var(--primary-text);
+}
+
+/* ---- Form ---- */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs, 8px);
+    margin-bottom: var(--space-md, 20px);
+}
+
+.form-group label {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--primary-text);
+}
+
+.form-group select,
+.form-group input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 44px;
+    padding: 0 var(--space-sm, 12px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    outline: none;
+    background-color: var(--background);
+    color: var(--primary-text);
+    font-family: inherit;
+    /* 16px minimum stops iOS Safari from zooming into the field on focus */
+    font-size: max(var(--fs-sm), 16px);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-group select:hover,
+.form-group input:hover {
+    border-color: var(--secondary);
+}
+
+.form-group select:focus,
+.form-group input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+.form-group select:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.form-group small {
+    font-size: var(--fs-xs);
+    color: var(--secondary-text);
+}
+
+.price-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.price-input-wrap span {
+    position: absolute;
+    left: var(--space-sm, 12px);
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    pointer-events: none;
+}
+
+.price-input-wrap input {
+    padding-left: 32px;
+}
+
+/* ---- Modal buttons ---- */
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-sm, 12px);
+    margin-top: var(--space-lg, 32px);
+}
+
+.cancel-btn,
+.delete-confirm-btn {
+    min-height: 42px;
+    padding: 0 var(--space-md, 20px);
+    border-radius: var(--radius, 10px);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+.cancel-btn:active,
+.delete-confirm-btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+/* Same as .btn-outline */
+.cancel-btn {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--primary-text);
+}
+
+.cancel-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.delete-confirm-btn {
+    border: 1px solid var(--error);
+    background-color: var(--error);
+    color: #FFFFFF;
+}
+
+.delete-confirm-btn:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--error) 85%, #000);
+    border-color: color-mix(in srgb, var(--error) 85%, #000);
+}
+
+.delete-confirm-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ---- Delete modal ---- */
+.delete-modal-card {
+    width: min(100%, 400px);
+    padding: var(--space-lg, 32px) var(--space-lg, 32px) var(--space-md, 20px);
+    text-align: center;
+}
+
+.delete-icon {
+    width: 54px;
+    height: 54px;
+    display: grid;
+    place-items: center;
+    margin: 0 auto var(--space-md, 20px);
+    border-radius: 50%;
+    background-color: color-mix(in srgb, var(--error) 12%, var(--surface-card));
+    color: var(--error);
+}
+
+.delete-icon svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.delete-modal-card h2 {
+    margin: 0 0 var(--space-xs, 8px);
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.delete-modal-card > p {
+    margin: 0;
+    font-size: var(--fs-sm);
+    line-height: 1.6;
+    color: var(--secondary-text);
+    overflow-wrap: anywhere;
+}
+
+.delete-modal-card .modal-actions {
+    justify-content: center;
+}
+
+/* ============ TOAST ============
+   Same stack position and look as .toast in accountant-module.css */
+.toast-stack {
+    position: fixed;
+    right: var(--space-lg, 32px);
+    bottom: var(--space-lg, 32px);
+    z-index: 10000;
+    display: grid;
+    gap: var(--space-sm, 12px);
+    max-width: min(380px, calc(100% - 32px));
+    pointer-events: none;
+}
+
+.produce-toast {
+    box-sizing: border-box;
+    min-width: 240px;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--success);
+    border-radius: var(--radius, 10px);
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.produce-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.produce-toast.success { border-left-color: var(--success); }
+.produce-toast.error { border-left-color: var(--error); }
+.produce-toast.warning { border-left-color: var(--warning); }
+
+/* ============ FOCUS ============ */
+.add-price-btn:focus-visible,
+.save-price-btn:focus-visible,
+.cancel-btn:focus-visible,
+.delete-confirm-btn:focus-visible,
+.table-action-btn:focus-visible,
+.modal-close-btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* ============ DARK MODE ============ */
+:root[data-theme="dark"] .produce-table-wrap,
+:root[data-theme="dark"] .produce-empty {
+    box-shadow: none;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+/* ---- Tablet: tighter cells, smaller min-width ---- */
+@media (max-width: 1024px) {
+    .produce-table {
+        min-width: 520px;
+    }
+
+    .produce-table th,
+    .produce-table td {
+        padding: var(--space-sm, 12px) 14px;
+    }
+}
+
+/* ---- Toolbar stacks ---- */
+@media (max-width: 760px) {
+    .produce-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .produce-toolbar-actions {
+        width: 100%;
+        flex: none;
+        grid-template-columns: minmax(0, 1fr) auto;
+        justify-content: stretch;
+    }
+}
+
+/* ---- Table becomes stacked cards (needs data-label on each td) ---- */
+@media (max-width: 760px) {
+    .produce-table-wrap {
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .produce-table,
+    .produce-table tbody {
+        display: block;
+        min-width: 0;
+        width: 100%;
+    }
+
+    /* Header row is hidden visually but stays available to screen readers */
+    .produce-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .produce-table tbody tr {
+        display: block;
+        margin-bottom: var(--space-sm, 12px);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background-color: var(--surface-card);
+        box-shadow: 0 2px 10px rgba(101, 53, 40, .09);
+        overflow: hidden;
+    }
+
+    .produce-table tbody tr:last-child {
+        margin-bottom: 0;
+    }
+
+    .produce-table tbody tr:hover {
+        background-color: var(--surface-card);
+        border-color: var(--primary-color);
+    }
+
+    .produce-table tbody tr:last-child td {
+        border-bottom: 1px solid var(--border);
+    }
+
+    .produce-table td {
+        display: grid;
+        grid-template-columns: minmax(84px, 36%) minmax(0, 1fr);
+        align-items: center;
+        gap: var(--space-sm, 12px);
+        padding: 12px 16px;
+        text-align: right;
+    }
+
+    .produce-table td:last-child,
+    .produce-table tbody tr:last-child td:last-child {
+        border-bottom: 0;
+    }
+
+    .produce-table td::before {
+        content: attr(data-label);
+        color: var(--secondary-text);
+        font-size: var(--fs-xs);
+        font-weight: 600;
+        letter-spacing: 0.045em;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    /* Cells without a label use the full width */
+    .produce-table td:not([data-label]) {
+        display: block;
+        text-align: left;
+    }
+
+    .produce-table td:not([data-label])::before {
+        display: none;
+    }
+
+    /* Actions row sits at the bottom of the card */
+    .produce-table .produce-actions {
+        background-color: color-mix(in srgb, var(--secondary) 6%, var(--surface-card));
+        text-align: right;
+    }
+
+    .produce-table .action-buttons {
+        justify-content: flex-end;
+    }
+
+    /* Loading / no-results message row (colspan) */
+    .produce-table td.table-message {
+        display: block;
+        padding: var(--space-lg, 32px) var(--space-md, 20px);
+        text-align: center;
+    }
+
+    .produce-table td.table-message::before {
+        display: none;
+    }
+
+    /* Touch-friendly action buttons */
+    .table-action-btn {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* ---- Phones ---- */
+@media (max-width: 600px) {
+    .produce-toolbar-actions {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .add-price-btn {
+        width: 100%;
+    }
+
+    .produce-search {
+        padding: 0 var(--space-sm, 12px);
+    }
+
+    .produce-modal {
+        padding: var(--space-sm, 12px);
+    }
+
+    .produce-modal-card {
+        padding: var(--space-md, 20px);
+    }
+
+    .modal-header {
+        margin-bottom: var(--space-md, 20px);
+    }
+
+    .toast-stack {
+        right: 16px;
+        bottom: 16px;
+        left: 16px;
+        max-width: none;
+    }
+
+    .produce-toast {
+        min-width: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .produce-modal-card .modal-actions {
+        flex-direction: column-reverse;
+    }
+
+    .produce-modal-card .modal-actions button {
+        width: 100%;
+    }
+
+    .produce-table td {
+        grid-template-columns: minmax(76px, 34%) minmax(0, 1fr);
+        padding: 12px 14px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .produce-modal-card,
+    .produce-toast,
+    .add-price-btn,
+    .save-price-btn,
+    .table-action-btn {
+        transition: none !important;
+        animation: none !important;
+    }
+}

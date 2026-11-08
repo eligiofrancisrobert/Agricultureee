@@ -1,0 +1,410 @@
+/* =========================================================
+   SHELL: RESPONSIVE + MOBILE MENU BAR
+
+   IMPORTANT: paste this at the very BOTTOM of your main shell /
+   admin stylesheet (after every existing @media block), or link it
+   after that file. It overrides the old 800px "stacked sidebar"
+   layout. Needs sidebar-menu.js, which builds the menu bar.
+
+   Small screens (800px and below):
+     - the sidebar becomes a slide-in drawer
+     - a fixed menu bar (hamburger + logo) sits at the top
+========================================================= */
+
+/* Hidden on desktop. The script creates them, small screens show them. */
+.menu-bar,
+.menu-backdrop {
+    display: none;
+}
+
+/* ---------- Large screens: keep content readable ---------- */
+@media (min-width: 1600px) {
+    .main {
+        width: 100%;
+        max-width: 1600px;
+        margin-inline: auto;
+    }
+}
+
+/* ---------- Small laptops / tablets landscape ---------- */
+@media (max-width: 1024px) {
+    .fm-grid-main,
+    .fm-grid-bottom {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* =========================================================
+   MENU BAR + DRAWER (800px and below)
+========================================================= */
+@media (max-width: 800px) {
+    :root {
+        --menubar-h: 60px;
+        --menubar-total: calc(var(--menubar-h) + env(safe-area-inset-top, 0px));
+    }
+
+    html.has-menu-bar {
+        scroll-padding-top: calc(var(--menubar-total) + 12px);
+    }
+
+    body.menu-open {
+        overflow: hidden;
+    }
+
+    /* ---------- Menu bar ---------- */
+    .menu-bar {
+        position: fixed;
+        top: 0;
+        right: 0;
+        left: 0;
+        z-index: 1001;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: var(--menubar-total);
+        padding: env(safe-area-inset-top, 0px) 14px 0;
+        background: var(--primary-color);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+        color: #fff;
+        transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+
+    :root[data-theme="dark"] .menu-bar {
+        background: var(--side);
+        border-bottom-color: var(--border);
+        color: var(--primary-text);
+    }
+
+    .menu-bar .brand,
+    .menu-bar .logo {
+        flex: 1 1 auto;
+        min-width: 0;
+        margin: 0;
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .menu-bar .brand small {
+        display: none;
+    }
+
+    .menu-bar .logo h1 {
+        margin: 0;
+        color: #fff;
+        font-size: 1.35rem;
+        text-shadow: none;
+    }
+
+    .menu-bar .logo h1 span {
+        color: color-mix(in srgb, #fff 70%, var(--primary-color));
+    }
+
+    :root[data-theme="dark"] .menu-bar .logo h1 {
+        color: var(--primary-text);
+    }
+
+    :root[data-theme="dark"] .menu-bar .logo h1 span {
+        color: var(--secondary);
+    }
+
+    .menu-bar .logo-image {
+        height: 30px;
+    }
+
+    /* ---------- Hamburger button ---------- */
+    .menu-toggle {
+        display: inline-grid;
+        place-content: center;
+        gap: 5px;
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        border-radius: 12px;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .menu-toggle:hover {
+        background: rgba(255, 255, 255, 0.14);
+    }
+
+    :root[data-theme="dark"] .menu-toggle {
+        border-color: var(--border);
+    }
+
+    :root[data-theme="dark"] .menu-toggle:hover {
+        background: var(--card);
+    }
+
+    .menu-toggle:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+    }
+
+    .menu-toggle-bar {
+        display: block;
+        width: 20px;
+        height: 2px;
+        border-radius: 2px;
+        background: currentColor;
+        transition: transform 0.25s ease, opacity 0.2s ease;
+    }
+
+    .menu-toggle[aria-expanded="true"] .menu-toggle-bar:nth-child(1) {
+        transform: translateY(7px) rotate(45deg);
+    }
+
+    .menu-toggle[aria-expanded="true"] .menu-toggle-bar:nth-child(2) {
+        opacity: 0;
+    }
+
+    .menu-toggle[aria-expanded="true"] .menu-toggle-bar:nth-child(3) {
+        transform: translateY(-7px) rotate(-45deg);
+    }
+
+    /* ---------- Backdrop ---------- */
+    .menu-backdrop {
+        position: fixed;
+        top: var(--menubar-total);
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 999;
+        display: block;
+        background: rgba(20, 17, 14, 0.55);
+        -webkit-backdrop-filter: blur(2px);
+        backdrop-filter: blur(2px);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+    }
+
+    .menu-backdrop.is-visible {
+        opacity: 1;
+        visibility: visible;
+        transition-delay: 0s;
+    }
+
+    /* ---------- Page layout ---------- */
+    .has-menu-bar .shell {
+        grid-template-columns: minmax(0, 1fr);
+        padding-top: var(--menubar-total);
+    }
+
+    /* Sticky page toolbars sit below the fixed menu bar */
+    .has-menu-bar .topbar {
+        top: var(--menubar-total);
+    }
+
+    /* ---------- Sidebar drawer ---------- */
+    .has-menu-bar .sidebar {
+        position: fixed;
+        top: var(--menubar-total);
+        bottom: 0;
+        left: 0;
+        z-index: 1000;
+        width: min(300px, 85vw);
+        height: auto;
+        gap: 20px;
+        padding: 20px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        border-right: 0;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+        transform: translateX(-100%);
+        visibility: hidden;
+        transition:
+            transform 0.3s ease,
+            visibility 0s linear 0.3s,
+            background-color 0.3s ease;
+    }
+
+    :root[data-theme="dark"].has-menu-bar .sidebar {
+        border-bottom: 0;
+        border-right: 1px solid var(--border);
+    }
+
+    .has-menu-bar .sidebar.is-open {
+        transform: none;
+        visibility: visible;
+        transition:
+            transform 0.3s ease,
+            visibility 0s,
+            background-color 0.3s ease;
+    }
+
+    /* The logo already lives in the menu bar */
+    .has-menu-bar .sidebar .brand,
+    .has-menu-bar .sidebar .logo {
+        display: none;
+    }
+
+    /* Menu links stack vertically inside the drawer */
+    .has-menu-bar .nav {
+        flex-direction: column;
+        flex-wrap: nowrap;
+        gap: 10px;
+        order: 0;
+        width: 100%;
+    }
+
+    .has-menu-bar .nav>a,
+    .has-menu-bar .nav-parent {
+        width: 100%;
+        min-height: 46px;
+        padding: 11px 16px;
+    }
+
+    .has-menu-bar .nav-group {
+        flex: none;
+    }
+
+    .has-menu-bar .submenu {
+        flex-direction: column;
+        flex-wrap: nowrap;
+        gap: 2px;
+        margin-left: 24px;
+        padding: 4px 0 0 12px;
+        border-left: 2px solid rgba(255, 255, 255, 0.35);
+    }
+
+    .has-menu-bar .submenu a {
+        min-height: 42px;
+        padding: 10px 12px;
+    }
+
+    /* User card and log out stay at the bottom */
+    .has-menu-bar .fm-user {
+        margin-top: auto;
+    }
+
+    .has-menu-bar .nav-logout {
+        width: 100%;
+        min-height: 46px;
+        margin: auto 0 0;
+        padding: 11px 16px;
+    }
+
+    .has-menu-bar .fm-user+.nav-logout {
+        margin-top: 0;
+    }
+
+    /* ---------- Content ---------- */
+    .main {
+        padding: 22px 18px 36px;
+    }
+
+    .page-head .btn,
+    .page-head .page-actions {
+        max-width: 100%;
+    }
+
+    .audit-detail-dialog,
+    .details {
+        max-height: 90dvh;
+    }
+}
+
+/* ---------- Phones ---------- */
+@media (max-width: 560px) {
+    :root {
+        --menubar-h: 56px;
+    }
+
+    .menu-bar {
+        gap: 10px;
+        padding-right: 12px;
+        padding-left: 12px;
+    }
+
+    .menu-bar .logo h1 {
+        font-size: 1.2rem;
+    }
+
+    .menu-bar .logo-image {
+        height: 28px;
+    }
+
+    .main {
+        padding: 18px 12px 28px;
+    }
+
+    /* 16px stops iOS from zooming into fields */
+    input,
+    select,
+    textarea {
+        font-size: 16px;
+    }
+
+    .fm-dash-stats {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tabs button {
+        min-height: 44px;
+    }
+
+    .settings-list li {
+        align-items: flex-start;
+        gap: 14px;
+    }
+
+    .delete-modal-actions {
+        flex-direction: column-reverse;
+    }
+
+    .delete-modal-actions .btn {
+        flex: none;
+        width: 100%;
+    }
+}
+
+@media (max-width: 360px) {
+    .menu-bar .logo h1 {
+        font-size: 1.1rem;
+    }
+
+    .has-menu-bar .sidebar {
+        width: 88vw;
+    }
+}
+
+/* ---------- Short landscape phones ---------- */
+@media (max-width: 900px) and (max-height: 500px) and (orientation: landscape) {
+    :root {
+        --menubar-h: 48px;
+    }
+
+    .menu-toggle {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* ---------- Touch devices: bigger tap targets ---------- */
+@media (pointer: coarse) {
+    .btn,
+    .icon-btn,
+    .toolbar select,
+    .field select {
+        min-height: 44px;
+    }
+
+    .submenu a {
+        min-height: 42px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .has-menu-bar .sidebar,
+    .menu-backdrop,
+    .menu-toggle,
+    .menu-toggle-bar {
+        transition: none !important;
+    }
+}

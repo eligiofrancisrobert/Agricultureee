@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -32,11 +31,13 @@
     <link rel="stylesheet" href="../../../css/admin/staff.css">
 
     <!-- Warehouse Officer styles -->
+    <link rel="stylesheet" href="../../../css/warehouse-officer/inventory.css">
     <link rel="stylesheet" href="../../../css/warehouse-officer/dashboard.css">
     <link rel="stylesheet" href="../../../css/warehouse-officer/warehouse.css">
     <link rel="stylesheet" href="../../../css/warehouse-officer/harvest-records.css">
     <link rel="stylesheet" href="../../../css/warehouse-officer/equipment.css">
     <link rel="stylesheet" href="../../../css/warehouse-officer/settings.css">
+    <link rel="stylesheet" href="../../../css/warehouse-officer/deliveries.css">
 
     <script>
         document.documentElement.dataset.theme =
@@ -52,10 +53,7 @@
 
             <div class="logo">
                 <h1>T<span>ani</span>kala</h1>
-                <img
-                    src="../../../assets/logo.png"
-                    alt="Tanikala Logo"
-                    class="logo-image">
+                <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
             </div>
 
             <nav class="nav" aria-label="Warehouse Officer sections">
@@ -119,6 +117,17 @@
                     Harvest Inventory
                 </a>
 
+                <!-- Deliveries -->
+                <a href="#deliveries" data-view="deliveries">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M3 7h11v11H3z" />
+                        <path d="M14 11h4l3 4v3h-7z" />
+                        <circle cx="7.5" cy="19" r="1.5" />
+                        <circle cx="17.5" cy="19" r="1.5" />
+                    </svg>
+                    Deliveries
+                </a>
+
                 <!-- Settings -->
                 <a href="#settings" data-view="settings">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -131,10 +140,7 @@
 
             </nav>
 
-            <button
-                type="button"
-                id="logoutButton"
-                class="nav-logout">
+            <button type="button" id="logoutButton" class="nav-logout">
                 Log out
             </button>
 
@@ -147,25 +153,14 @@
             <header class="topbar">
 
                 <label class="search">
-                    <svg
-                        viewBox="0 0 24 24"
-                        width="20"
-                        height="20"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" aria-hidden="true">
                         <circle cx="11" cy="11" r="7" />
                         <path d="m20 20-3.5-3.5" />
                     </svg>
 
-                    <input
-                        id="woSearch"
-                        type="search"
-                        placeholder="Search harvest records, inventory, or equipment..."
-                        aria-label="Search warehouse records"
-                        autocomplete="off">
+                    <input id="woSearch" type="search" placeholder="Search harvest records, inventory, or equipment..."
+                        aria-label="Search warehouse records" autocomplete="off">
                 </label>
 
                 <div class="topbar-right">
@@ -173,32 +168,17 @@
                     <div class="chip">
                         <span id="todayLabel"></span>
 
-                        <button
-                            type="button"
-                            id="themeToggle"
-                            class="icon-btn"
-                            aria-label="Switch theme">
+                        <button type="button" id="themeToggle" class="icon-btn" aria-label="Switch theme">
 
-                            <svg
-                                viewBox="0 0 24 24"
-                                width="18"
-                                height="18"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
                             </svg>
 
                         </button>
                     </div>
 
-                    <span
-                        class="avatar"
-                        id="woAvatar"
-                        aria-hidden="true">
+                    <span class="avatar" id="woAvatar" aria-hidden="true">
                         WO
                     </span>
 
@@ -207,10 +187,7 @@
             </header>
 
             <!-- DYNAMIC PAGE CONTENT -->
-            <div
-                id="view"
-                role="region"
-                aria-live="polite">
+            <div id="view" role="region" aria-live="polite">
             </div>
 
         </main>
@@ -218,18 +195,13 @@
     </div>
 
     <!-- TOAST NOTIFICATION -->
-    <div
-        id="toast"
-        class="toast"
-        role="status"
-        hidden>
+    <div id="toast" class="toast" role="status" hidden>
     </div>
 
     <!-- WAREHOUSE OFFICER ENTRY POINT -->
-    <script
-        type="module"
-        src="../../../js/warehouse-officer/main.js">
+    <script type="module" src="../../../js/warehouse-officer/main.js">
     </script>
 
 </body>
+
 </html>

@@ -1,0 +1,240 @@
+/* ============================================================
+   TANIKALA - ACCOUNTANT REPORTS
+   File: css/accountant/accountant-reports.css
+
+   NOTE: js/accountant/reports.js builds this page with .ar-* classes
+   and injects its own <style id="ar-styles"> AFTER this file. So every
+   rule below is prefixed with .dashboard-content (higher specificity)
+   to win without needing !important.
+   ============================================================ */
+
+/* ---------- 1. Containment: stop the page from stretching ---------- */
+
+.main-content {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.dashboard-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);   /* the key fix: column may shrink */
+    gap: 24px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.dashboard-content .ar-dash {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.dashboard-content .ar-dash > *,
+.dashboard-content .ar-panel,
+.dashboard-content .ar-stat,
+.dashboard-content .ar-stat-body,
+.dashboard-content .ar-chart,
+.dashboard-content .ar-chart-wrap {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* ---------- 2. Filter bar ---------- */
+
+.dashboard-content .ar-filters {
+    gap: 14px;
+}
+
+.dashboard-content .ar-field {
+    flex: 1 1 160px;
+    max-width: 240px;
+    min-width: 0;
+}
+
+.dashboard-content .ar-field select,
+.dashboard-content .ar-field input,
+.dashboard-content .ar-search {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* ---------- 3. Stat cards (Sales Revenue, Total Orders, ...) ---------- */
+
+.dashboard-content .ar-stats {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+    gap: 18px;
+    width: 100%;
+}
+
+.dashboard-content .ar-stat-value {
+    overflow-wrap: anywhere;
+}
+
+/* ---------- 4. Report cards (Sales / Delivery / Best-Selling / ...) ---------- */
+
+.dashboard-content .ar-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    gap: 18px;
+    width: 100%;
+}
+
+.dashboard-content .ar-card-actions {
+    gap: 10px;
+}
+
+.dashboard-content .ar-card-actions .ar-btn {
+    white-space: nowrap;
+}
+
+/* ---------- 5. Preview panel (title, Print button, chips) ---------- */
+
+.dashboard-content .ar-preview-head > div:first-child {
+    flex: 1 1 280px;
+    min-width: 0;
+}
+
+.dashboard-content .ar-head-actions {
+    flex: 0 1 auto;
+}
+
+.dashboard-content .ar-pill {
+    white-space: nowrap;
+}
+
+.dashboard-content .ar-summary {
+    gap: 8px;
+}
+
+/* ---------- 6. Charts (canvas must not force the column wider) ---------- */
+
+.dashboard-content .ar-charts {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    gap: 20px;
+    width: 100%;
+}
+
+.dashboard-content .ar-chart-wrap {
+    width: 100%;
+    height: 260px;
+    overflow: hidden;
+}
+
+.dashboard-content .ar-chart-wrap canvas {
+    display: block;
+    max-width: 100%;
+}
+
+/* ---------- 7. Table ---------- */
+
+.dashboard-content .ar-table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.dashboard-content .ar-table {
+    min-width: 760px;
+}
+
+.dashboard-content .ar-pager {
+    gap: 12px;
+}
+
+/* ---------- 8. Responsive ---------- */
+
+@media (max-width: 900px) {
+    .dashboard-content .ar-field {
+        max-width: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .dashboard-content,
+    .dashboard-content .ar-dash {
+        gap: 16px;
+    }
+
+    .dashboard-content .ar-field {
+        flex: 1 1 100%;
+    }
+
+    .dashboard-content .ar-stats,
+    .dashboard-content .ar-grid {
+        gap: 12px;
+    }
+
+    .dashboard-content .ar-chart-wrap {
+        height: 220px;
+    }
+
+    .dashboard-content .ar-card-actions .ar-btn {
+        flex: 1 1 100%;
+        justify-content: center;
+    }
+
+    .dashboard-content .ar-pager,
+    .dashboard-content .ar-pager-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+/* ---------- 9. Reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}
+
+/* ---------- 10. Print (browser print of the page itself) ---------- */
+
+@media print {
+    @page {
+        size: landscape;
+        margin: 12mm;
+    }
+
+    body {
+        background: #fff !important;
+        color: #111 !important;
+    }
+
+    .sidebar,
+    .topbar,
+    .welcome-section,
+    .toast-stack {
+        display: none !important;
+    }
+
+    .app-layout,
+    .main-content,
+    .dashboard-content,
+    .dashboard-content .ar-dash {
+        display: block !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    .dashboard-content .ar-table-wrap {
+        overflow: visible !important;
+    }
+
+    .dashboard-content .ar-table {
+        min-width: 0 !important;
+    }
+}

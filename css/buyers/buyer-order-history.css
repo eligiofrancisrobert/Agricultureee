@@ -1,0 +1,1012 @@
+/* ============================================================
+   TANIKALA - BUYER ORDER HISTORY
+   Same design language as buyer-orders.css, add-to-cart.css and
+   place-order.css: theme tokens only (no hard-coded colors),
+   15px cards, pill buttons, bordered tiles, 650px modal.
+   Load after:
+   1. css/feature/style.css
+   2. css/buyers/buyers.css  (Buyer Shell)
+   3. css/buyers/buyer-order-history.css
+   Class names are unchanged, so the HTML and JS need no edits.
+   Dark mode works through the tokens (no separate dark block).
+   ============================================================ */
+
+[hidden] {
+    display: none !important;
+}
+
+.order-history-section {
+    display: grid;
+    gap: 22px;
+    min-width: 0;
+    padding-bottom: 35px;
+}
+
+/* ============ TOOLBAR (same as .orders-toolbar) ============ */
+.history-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.history-toolbar h2 {
+    margin: 0 0 5px;
+    font-family: 'Outfit', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    color: var(--primary-text);
+}
+
+.history-toolbar p {
+    margin: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+}
+
+/* Pill buttons (same as .empty-state a) */
+.history-shop-link,
+.history-empty-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 22px;
+    border-radius: 999px;
+    background: var(--primary-color);
+    color: #FFFFFF;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: filter .2s ease, transform .2s ease;
+}
+
+.history-shop-link:hover,
+.history-empty-button:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+}
+
+/* ============ SUMMARY CARDS (same as .orders-stat-card) ============ */
+.history-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.history-summary-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    padding: 18px 20px;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: var(--surface-card);
+    transition: border-color .2s ease, transform .2s ease;
+}
+
+.history-summary-card:hover {
+    border-color: var(--secondary);
+    transform: translateY(-2px);
+}
+
+.history-summary-icon {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+}
+
+.history-summary-icon svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.orders-icon {
+    background: color-mix(in srgb, var(--primary-color) 12%, var(--surface-card));
+    color: var(--primary-color);
+}
+
+.products-icon {
+    background: color-mix(in srgb, var(--secondary) 14%, var(--surface-card));
+    color: var(--secondary);
+}
+
+.spent-icon {
+    background: color-mix(in srgb, var(--success) 14%, var(--surface-card));
+    color: var(--success);
+}
+
+.history-summary-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.history-summary-info span {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+    font-weight: 500;
+}
+
+.history-summary-info strong {
+    margin-top: 2px;
+    color: var(--primary-text);
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 600;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+/* ============ FILTER PANEL ============ */
+.history-filter-panel {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: var(--surface-card);
+}
+
+.history-search {
+    box-sizing: border-box;
+    flex: 1;
+    min-width: 180px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    background: var(--surface-card);
+    transition: border-color .3s ease, box-shadow .3s ease;
+}
+
+.history-search svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: var(--secondary-text);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+}
+
+.history-search input {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+}
+
+.history-search input::placeholder {
+    color: var(--secondary-text);
+    opacity: .7;
+}
+
+.history-date-filter,
+.history-sort {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.history-date-filter label,
+.history-sort label {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+}
+
+.history-date-filter input,
+.history-sort select {
+    box-sizing: border-box;
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    outline: none;
+    background: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    transition: border-color .3s ease, box-shadow .3s ease;
+}
+
+:root[data-theme="dark"] .history-date-filter input {
+    color-scheme: dark;
+}
+
+.history-search:focus-within,
+.history-date-filter input:focus,
+.history-sort select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 18%, transparent);
+}
+
+/* Reset = same as .refresh-btn */
+.history-reset-button {
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: border-color .2s ease, color .2s ease;
+}
+
+.history-reset-button:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* ============ RESULTS HEADER ============ */
+.history-results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 4px;
+}
+
+.history-results-header h3 {
+    margin: 0 0 4px;
+    color: var(--primary-text);
+    font-family: 'Outfit', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 600;
+}
+
+.history-results-header p {
+    margin: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+}
+
+/* ============ ORDER CARDS (same as .order-card) ============ */
+.history-orders-list {
+    display: grid;
+    gap: 14px;
+}
+
+.history-order-card {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: var(--surface-card);
+    transition: border-color .2s ease;
+}
+
+.history-order-card:hover {
+    border-color: var(--secondary);
+}
+
+.history-order-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--secondary) 6%, var(--surface-card));
+}
+
+.history-order-reference {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.history-order-reference strong {
+    color: var(--primary-color);
+    font-family: 'Outfit', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.history-order-reference span {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+/* Same as .status-badge.status-completed */
+.history-completed-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border: 1px solid var(--success);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--success) 12%, var(--surface-card));
+    color: var(--success);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.history-completed-badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+}
+
+.history-order-body {
+    padding: 16px 20px;
+}
+
+.history-order-items {
+    display: grid;
+    gap: 13px;
+}
+
+.history-order-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.history-item-information {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.history-item-image {
+    width: 52px;
+    height: 52px;
+    flex: 0 0 52px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--background);
+    color: var(--secondary-text);
+}
+
+.history-item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.history-item-placeholder {
+    font-size: 1.4rem;
+}
+
+.history-item-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.history-item-text strong {
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.history-item-text span {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+.history-item-total {
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.history-more-items {
+    padding-top: 8px;
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+.history-order-divider {
+    height: 1px;
+    margin: 16px 0;
+    background: var(--border);
+}
+
+.history-order-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.history-payment-information {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.history-payment-information span {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+.history-payment-information strong {
+    color: var(--success);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+/* Same as .order-total */
+.history-order-total {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+}
+
+.history-order-total span {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+.history-order-total strong {
+    color: var(--primary-color);
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.history-order-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 20px 16px;
+}
+
+/* Same as .view-details-btn */
+.history-view-details {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 18px;
+    border: 1px solid var(--primary-color);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--primary-color);
+    font-family: inherit;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color .2s ease, color .2s ease;
+}
+
+.history-view-details:hover {
+    background: var(--primary-color);
+    color: #FFFFFF;
+}
+
+/* ============ STATES (same as buyer orders) ============ */
+.history-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 55px 20px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-card);
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+}
+
+.history-loader {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: historySpin .7s linear infinite;
+}
+
+@keyframes historySpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.history-error {
+    padding: 14px 16px;
+    border: 1px solid color-mix(in srgb, var(--error) 35%, transparent);
+    border-left: 4px solid var(--error);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--error) 7%, var(--surface-card));
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    line-height: 1.6;
+}
+
+.history-empty {
+    padding: 55px 20px;
+    text-align: center;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-card);
+}
+
+.history-empty-icon {
+    width: 66px;
+    height: 66px;
+    display: grid;
+    place-items: center;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--primary-color) 10%, var(--surface-card));
+    color: var(--primary-color);
+}
+
+.history-empty-icon svg {
+    width: 32px;
+    height: 32px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.history-empty h3 {
+    margin: 0 0 8px;
+    color: var(--primary-text);
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.2rem;
+}
+
+.history-empty p {
+    max-width: 400px;
+    margin: 0 auto 22px;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+    line-height: 1.6;
+}
+
+/* ============ ORDER DETAILS MODAL (same as .order-modal) ============ */
+.history-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, .55);
+    animation: historyFadeIn .2s ease;
+}
+
+@keyframes historyFadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.history-modal {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 650px;
+    max-height: 90vh;
+    max-height: 90dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-card);
+    color: var(--primary-text);
+    box-shadow: 0 15px 45px rgba(0, 0, 0, .25);
+    animation: historyModalEnter .25s ease;
+}
+
+@keyframes historyModalEnter {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.history-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 24px 26px 18px;
+    border-bottom: 1px solid var(--border);
+}
+
+.history-modal-header p {
+    margin: 0 0 6px;
+    color: var(--primary-color);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    letter-spacing: .045em;
+    overflow-wrap: anywhere;
+}
+
+.history-modal-header h2 {
+    margin: 0;
+    font-family: 'Outfit', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 600;
+}
+
+.history-modal-close {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--surface-card);
+    color: var(--secondary-text);
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: border-color .3s ease, color .3s ease;
+}
+
+.history-modal-close:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-text);
+}
+
+.history-modal-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 22px 26px;
+    color: var(--primary-text);
+}
+
+.history-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 16px 26px 22px;
+    border-top: 1px solid var(--border);
+}
+
+/* Same as .close-modal-btn */
+.history-modal-done {
+    min-height: 42px;
+    padding: 0 26px;
+    border: 1px solid var(--primary-color);
+    border-radius: 999px;
+    background: var(--primary-color);
+    color: #FFFFFF;
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter .2s ease;
+}
+
+.history-modal-done:hover {
+    filter: brightness(1.08);
+}
+
+/* Modal content components (same as .detail-section / .detail-field) */
+.history-detail-section {
+    margin-bottom: 22px;
+}
+
+.history-detail-section:last-child {
+    margin-bottom: 0;
+}
+
+.history-detail-section h3 {
+    margin: 0 0 12px;
+    color: var(--primary-text);
+    font-family: 'Outfit', sans-serif;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+}
+
+.history-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.history-detail-field {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--background);
+}
+
+.history-detail-field span {
+    margin-bottom: 4px;
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+.history-detail-field strong {
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.history-detail-items {
+    display: grid;
+    gap: 10px;
+}
+
+.history-detail-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.history-detail-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.history-detail-item-info strong {
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.history-detail-item-info span {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+.history-detail-item-total {
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Same as .modal-total */
+.history-detail-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--primary-color) 10%, var(--surface-card));
+}
+
+.history-detail-total span {
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+}
+
+.history-detail-total strong {
+    color: var(--primary-color);
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.25rem;
+}
+
+/* ============ RESPONSIVE (same breakpoints as buyer orders) ============ */
+@media (max-width: 1100px) {
+    .history-filter-panel {
+        flex-wrap: wrap;
+    }
+
+    .history-search {
+        flex-basis: 100%;
+    }
+}
+
+@media (max-width: 760px) {
+    .history-filter-panel {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .history-search,
+    .history-reset-button {
+        grid-column: 1 / -1;
+    }
+
+    .history-date-filter {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .history-date-filter input {
+        width: 100%;
+    }
+
+    .history-results-header {
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 560px) {
+    .history-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .history-shop-link {
+        width: 100%;
+    }
+
+    /* 2 columns on mobile, last card spans the full row */
+    .history-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .history-summary-card:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .history-summary-card {
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .history-summary-icon {
+        width: 36px;
+        height: 36px;
+        flex-basis: 36px;
+    }
+
+    .history-summary-icon svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .history-summary-info strong {
+        font-size: 1.3rem;
+    }
+
+    .history-filter-panel {
+        padding: 12px;
+    }
+
+    .history-results-header {
+        flex-direction: column;
+    }
+
+    .history-sort {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .history-sort select {
+        flex: 1;
+        max-width: 200px;
+    }
+
+    .history-order-header,
+    .history-order-body {
+        padding: 14px;
+    }
+
+    .history-order-actions {
+        padding: 0 14px 14px;
+    }
+
+    .history-order-footer {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .history-order-total {
+        align-items: flex-start;
+    }
+
+    .history-view-details {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .history-item-image {
+        width: 44px;
+        height: 44px;
+        flex-basis: 44px;
+    }
+
+    .history-modal-overlay {
+        padding: 10px;
+    }
+
+    .history-modal-header,
+    .history-modal-content,
+    .history-modal-footer {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .history-modal-done {
+        width: 100%;
+    }
+}
+
+@media (max-width: 380px) {
+    .history-order-item {
+        align-items: flex-start;
+    }
+
+    .history-completed-badge {
+        padding: 3px 9px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .history-summary-card,
+    .history-order-card,
+    .history-modal-overlay,
+    .history-modal,
+    .history-loader {
+        transition: none !important;
+        animation: none !important;
+    }
+
+    .history-summary-card:hover {
+        transform: none;
+    }
+}

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profile | Tanikala</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Poppins:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="../../../css/feature/style.css">
+  <link rel="stylesheet" href="../../../css/buyers/buyers.css">
+  <link rel="stylesheet" href="../../../css/buyers/buyer-profile.css">
+
+  <script>
+    document.documentElement.dataset.theme = localStorage.getItem('theme') || 'light';
+  </script>
+</head>
+
+<body>
+  <div class="app-layout">
+
+    <aside class="sidebar">
+      <div class="logo">
+        <h1>T<span>ani</span>kala</h1>
+        <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
+      </div>
+
+      <nav class="navigation" aria-label="Buyer navigation">
+
+        <a href="browse-produce.html" class="nav-link">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 22V12" />
+            <path d="M12 12C5 12 3 8 3 4c6 0 9 3 9 8" />
+            <path d="M12 15c0-5 3-8 9-8 0 5-3 8-9 8" />
+          </svg>
+          Browse Produce
+        </a>
+
+        <a href="add-to-cart.html" class="nav-link">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.9a2 2 0 0 0 2-1.6L22 7H6" />
+            <circle cx="10" cy="20" r="1" />
+            <circle cx="18" cy="20" r="1" />
+          </svg>
+          Shopping Cart
+          <span class="cart-count-badge" id="cartCount" hidden>0</span>
+        </a>
+
+        <a href="buyer-orders.html" class="nav-link">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.9a2 2 0 0 0 2-1.6L22 7H6" />
+            <circle cx="10" cy="20" r="1" />
+            <circle cx="18" cy="20" r="1" />
+          </svg>
+          My Orders
+        </a>
+
+        <a href="buyer-order-history.html" class="nav-link">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+            <path d="M3 3v5h5" />
+            <path d="M12 7v5l3 2" />
+          </svg>
+          Order History
+        </a>
+
+        <a href="buyer-profile.html" class="nav-link active" aria-current="page">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21c0-4 4-6 8-6s8 2 8 6" />
+          </svg>
+          Profile
+        </a>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <button type="button" class="logout-button" id="logoutBtn">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <path d="M16 17l5-5-5-5" />
+            <path d="M21 12H9" />
+          </svg>
+          Log out
+        </button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+
+      <header class="topbar">
+        <div>
+          <h2>Profile</h2>
+        </div>
+
+        <div class="topbar-right">
+          <div class="chip">
+            <span id="todayLabel"></span>
+
+            <button type="button" class="icon-btn" id="themeToggle"
+              aria-label="Toggle light/dark theme">
+
+              <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+              </svg>
+
+              <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="profile">
+            <div class="avatar" id="userInitial">B</div>
+            <div>
+              <p id="userName">Buyer</p>
+              <span>Buyer</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section class="welcome-section">
+        <div>
+          <p class="welcome-label">YOUR ACCOUNT</p>
+          <h1>My Profile</h1>
+          <p>Keep your contact details and delivery address up to date so your orders reach you without delays.</p>
+        </div>
+
+        <div class="welcome-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21c0-4 4-6 8-6s8 2 8 6" />
+          </svg>
+        </div>
+      </section>
+
+      <section class="profile-section">
+
+        <div class="profile-toolbar">
+          <div>
+            <h2>Your account</h2>
+            <p>Manage your account details and delivery address.</p>
+          </div>
+        </div>
+
+        <div class="profile-error" id="profileError" role="alert" hidden></div>
+
+        <div class="profile-loading" id="profileLoading" role="status">
+          <span class="profile-loader" aria-hidden="true"></span>
+          Loading your profile...
+        </div>
+
+        <div class="profile-layout" id="profileLayout" hidden>
+
+          <!-- Identity card -->
+          <aside class="profile-card" aria-label="Account summary">
+            <div class="profile-avatar" id="profileAvatar">B</div>
+            <h3 id="profileName">Buyer</h3>
+            <span class="profile-card-email" id="profileEmailText">—</span>
+            <span class="profile-type-badge" id="profileTypeBadge">Individual</span>
+            <span class="profile-card-meta" id="profileSince"></span>
+          </aside>
+
+          <div class="profile-forms">
+
+            <!-- Account details -->
+            <form class="profile-panel" id="detailsForm" novalidate>
+              <div class="profile-panel-header">
+                <h3>Account details</h3>
+                <p>This information is used for your orders and deliveries.</p>
+              </div>
+
+              <div class="profile-grid">
+                <div class="profile-field profile-field-full">
+                  <label for="fullName">Full name</label>
+                  <input type="text" id="fullName" name="fullName" autocomplete="name" required>
+                </div>
+
+                <div class="profile-field profile-field-full">
+                  <label for="email">Email</label>
+                  <input type="email" id="email" name="email" autocomplete="email" readonly>
+                  <small class="profile-hint">Your email is your login and cannot be changed here.</small>
+                </div>
+
+                <div class="profile-field">
+                  <label for="phone">Phone number</label>
+                  <input type="tel" id="phone" name="phone" autocomplete="tel" placeholder="09123456789">
+                </div>
+
+                <div class="profile-field">
+                  <label for="buyerType">Buyer type</label>
+                  <select id="buyerType" name="buyerType">
+                    <option value="individual">Individual</option>
+                    <option value="business">Business</option>
+                  </select>
+                </div>
+
+                <div class="profile-field profile-field-full" id="businessField" hidden>
+                  <label for="businessName">Business name</label>
+                  <input type="text" id="businessName" name="businessName" autocomplete="organization">
+                </div>
+
+                <div class="profile-field profile-field-full">
+                  <label for="deliveryAddress">Delivery address</label>
+                  <textarea id="deliveryAddress" name="deliveryAddress" rows="3" autocomplete="street-address"
+                    placeholder="House / building, street, barangay, city, province"></textarea>
+                </div>
+              </div>
+
+              <div class="profile-actions">
+                <button type="submit" class="profile-save-btn" id="saveDetailsBtn">Save changes</button>
+              </div>
+            </form>
+
+            <!-- Password -->
+            <form class="profile-panel" id="passwordForm" novalidate>
+              <div class="profile-panel-header">
+                <h3>Change password</h3>
+                <p>Use at least 8 characters.</p>
+              </div>
+
+              <div class="profile-grid">
+                <div class="profile-field">
+                  <label for="newPassword">New password</label>
+                  <input type="password" id="newPassword" name="newPassword" autocomplete="new-password"
+                    minlength="8">
+                </div>
+
+                <div class="profile-field">
+                  <label for="confirmPassword">Confirm password</label>
+                  <input type="password" id="confirmPassword" name="confirmPassword" autocomplete="new-password"
+                    minlength="8">
+                </div>
+              </div>
+
+              <div class="profile-actions">
+                <button type="submit" class="profile-save-btn" id="savePasswordBtn">Update password</button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+  <script type="module" src="../../../js/buyers/buyer-profile.js"></script>
+  <script type="module" src="../../../js/feature/theme.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,347 @@
+/* ============================================================
+   TANIKALA - BUYER PROFILE
+   Same design language as buyer-orders.css and add-to-cart.css:
+   theme tokens only, 15px cards, 44px inputs, pill buttons.
+   Load after: style.css, buyers.css
+   ============================================================ */
+
+[hidden] {
+    display: none !important;
+}
+
+.profile-section {
+    display: grid;
+    gap: 22px;
+    min-width: 0;
+    padding-bottom: 35px;
+}
+
+/* ============ TOOLBAR ============ */
+.profile-toolbar h2 {
+    margin: 0 0 5px;
+    font-family: 'Outfit', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    color: var(--primary-text);
+}
+
+.profile-toolbar p {
+    margin: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+}
+
+/* ============ LAYOUT ============ */
+.profile-layout {
+    display: grid;
+    grid-template-columns: 290px minmax(0, 1fr);
+    align-items: start;
+    gap: 20px;
+}
+
+.profile-forms {
+    display: grid;
+    gap: 20px;
+    min-width: 0;
+}
+
+/* ============ IDENTITY CARD ============ */
+.profile-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 28px 22px;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: var(--surface-card);
+    text-align: center;
+}
+
+.profile-avatar {
+    width: 88px;
+    height: 88px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 6px;
+    border: 2px solid var(--primary-color);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--primary-color) 12%, var(--surface-card));
+    color: var(--primary-color);
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 600;
+}
+
+.profile-card h3 {
+    margin: 0;
+    max-width: 100%;
+    color: var(--primary-text);
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.profile-card-email {
+    max-width: 100%;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+    overflow-wrap: anywhere;
+}
+
+/* Same as .status-badge */
+.profile-type-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 4px;
+    padding: 4px 12px;
+    border: 1px solid var(--primary-color);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary-color) 12%, var(--surface-card));
+    color: var(--primary-color);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.profile-card-meta {
+    margin-top: 10px;
+    padding-top: 14px;
+    width: 100%;
+    border-top: 1px solid var(--border);
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+/* ============ FORM PANELS ============ */
+.profile-panel {
+    padding: 22px 24px;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: var(--surface-card);
+}
+
+.profile-panel-header {
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.profile-panel-header h3 {
+    margin: 0 0 4px;
+    color: var(--primary-text);
+    font-family: 'Outfit', sans-serif;
+    font-size: var(--fs-md, 1rem);
+    font-weight: 600;
+}
+
+.profile-panel-header p {
+    margin: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+.profile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 14px;
+}
+
+.profile-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.profile-field-full {
+    grid-column: 1 / -1;
+}
+
+.profile-field label {
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+}
+
+.profile-field input,
+.profile-field select,
+.profile-field textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    outline: none;
+    background: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    transition: border-color .3s ease, box-shadow .3s ease;
+}
+
+.profile-field input,
+.profile-field select {
+    height: 44px;
+}
+
+.profile-field textarea {
+    min-height: 90px;
+    padding: 12px 14px;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+.profile-field input::placeholder,
+.profile-field textarea::placeholder {
+    color: var(--secondary-text);
+    opacity: .7;
+}
+
+.profile-field input:focus,
+.profile-field select:focus,
+.profile-field textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 18%, transparent);
+}
+
+.profile-field input[readonly] {
+    background: var(--background);
+    color: var(--secondary-text);
+    cursor: not-allowed;
+}
+
+.profile-field [aria-invalid="true"] {
+    border-color: var(--error);
+}
+
+.profile-field [aria-invalid="true"]:focus {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--error) 18%, transparent);
+}
+
+.profile-field select option {
+    background: var(--surface-card);
+    color: var(--primary-text);
+}
+
+.profile-hint {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+}
+
+/* ============ BUTTONS (same as .close-modal-btn) ============ */
+.profile-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.profile-save-btn {
+    min-height: 42px;
+    padding: 0 26px;
+    border: 1px solid var(--primary-color);
+    border-radius: 999px;
+    background: var(--primary-color);
+    color: #FFFFFF;
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter .2s ease;
+}
+
+.profile-save-btn:hover:not(:disabled) {
+    filter: brightness(1.08);
+}
+
+.profile-save-btn:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+.profile-save-btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* ============ STATES ============ */
+.profile-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 55px 20px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-card);
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+}
+
+.profile-loader {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: profile-spin .7s linear infinite;
+}
+
+@keyframes profile-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.profile-error {
+    padding: 14px 16px;
+    border: 1px solid color-mix(in srgb, var(--error) 35%, transparent);
+    border-left: 4px solid var(--error);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--error) 7%, var(--surface-card));
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    line-height: 1.6;
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 900px) {
+    .profile-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .profile-card {
+        padding: 22px 18px;
+    }
+}
+
+@media (max-width: 560px) {
+    .profile-panel {
+        padding: 16px;
+    }
+
+    /* Keep 2 columns for short fields; long ones already span the row */
+    .profile-grid {
+        gap: 14px 10px;
+    }
+
+    .profile-save-btn {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .profile-loader {
+        animation: none !important;
+    }
+
+    .profile-field input,
+    .profile-field select,
+    .profile-field textarea,
+    .profile-save-btn {
+        transition: none !important;
+    }
+}

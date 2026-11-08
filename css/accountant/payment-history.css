@@ -1,0 +1,348 @@
+/* =========================================================
+   ACCOUNTANT - PAYMENT HISTORY
+   Same design as Produce Records: same cards, table, search box,
+   toolbar, radius, shadows and mobile stacked cards.
+
+   Load order:
+     style.css -> accountant.css -> accountant-shared.css
+     -> accountant-payment-history.css
+
+   Status badges, pagination, order-id, amount-cell, state messages
+   and buttons come from accountant-shared.css.
+
+   RESPONSIVE TABLE NOTE
+   On screens <= 760px the table turns into stacked cards.
+   Each <td> rendered by JS needs a data-label:
+
+     <td class="order-id"    data-label="Order ID">...</td>
+     <td data-label="Buyer">...</td>
+     <td data-label="Payment Type">...</td>
+     <td class="amount-cell" data-label="Amount Paid">...</td>
+     <td data-label="Payment Date">...</td>
+     <td data-label="Status"><span class="status-badge status-badge--paid">Paid</span></td>
+
+   Message rows (loading / no results / error) keep colspan, no label:
+     <tr><td class="state-message" colspan="6">Loading...</td></tr>
+   ========================================================= */
+
+/* ============ PAGE INTRO ============ */
+.page-intro {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-md, 20px);
+    margin-bottom: var(--space-md, 20px);
+}
+
+.page-intro > div {
+    min-width: 0;
+}
+
+.page-intro h2 {
+    margin: 0 0 4px;
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.page-intro p {
+    margin: 0;
+    font-size: var(--fs-sm);
+    color: var(--secondary-text);
+}
+
+/* ============ TOOLBAR ============ */
+.payment-toolbar {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) 210px 210px;
+    align-items: center;
+    gap: var(--space-sm, 12px);
+    margin: 0 0 var(--space-md, 20px);
+}
+
+/* Search box: same look as .produce-search */
+.payment-toolbar .search-wrapper {
+    position: relative;
+    min-width: 0;
+}
+
+.payment-toolbar .search-wrapper svg,
+.payment-toolbar .search-wrapper i {
+    position: absolute;
+    top: 50%;
+    left: var(--space-md, 20px);
+    width: 18px;
+    height: 18px;
+    transform: translateY(-50%);
+    fill: none;
+    stroke: var(--secondary-text);
+    stroke-width: 2;
+    stroke-linecap: round;
+    color: var(--secondary-text);
+    pointer-events: none;
+}
+
+.payment-toolbar .search-wrapper:has(svg, i) input {
+    padding-left: 46px;
+}
+
+.payment-toolbar input,
+.payment-toolbar select {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 42px;
+    padding: 0 var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    outline: none;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    /* 16px minimum stops iOS Safari from zooming on focus */
+    font-size: max(var(--fs-sm), 16px);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.payment-toolbar select {
+    padding: 0 var(--space-sm, 12px);
+    cursor: pointer;
+}
+
+.payment-toolbar input::placeholder {
+    color: var(--secondary-text);
+    opacity: 0.7;
+}
+
+.payment-toolbar input:hover,
+.payment-toolbar select:hover {
+    border-color: var(--secondary);
+}
+
+.payment-toolbar input:focus,
+.payment-toolbar select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+/* ============ TABLE ============ */
+.table-wrap {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background-color: var(--surface-card);
+    box-shadow: 0 2px 10px rgba(101, 53, 40, .09);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.data-table {
+    width: 100%;
+    min-width: 720px;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border);
+}
+
+.data-table th {
+    background-color: color-mix(in srgb, var(--secondary) 6%, var(--surface-card));
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.data-table td {
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    overflow-wrap: anywhere;
+}
+
+.data-table tbody tr {
+    transition: background-color 0.3s ease;
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.data-table tbody tr:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 6%, transparent);
+}
+
+.data-table .amount-cell {
+    color: var(--primary-color);
+}
+
+/* ============ PAGINATION SPACING ============ */
+.payment-pagination {
+    padding-top: var(--space-md, 20px);
+}
+
+/* ============ DARK MODE ============ */
+:root[data-theme="dark"] .table-wrap {
+    box-shadow: none;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+@media (max-width: 1024px) {
+    .data-table {
+        min-width: 680px;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: var(--space-sm, 12px) 14px;
+    }
+}
+
+@media (max-width: 900px) {
+    .payment-toolbar {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .payment-toolbar .search-wrapper {
+        grid-column: 1 / -1;
+    }
+}
+
+/* ---- Table becomes stacked cards (needs data-label on each td) ---- */
+@media (max-width: 760px) {
+    .table-wrap {
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .data-table,
+    .data-table tbody {
+        display: block;
+        min-width: 0;
+        width: 100%;
+    }
+
+    /* Header row is hidden visually but stays available to screen readers */
+    .data-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .data-table tbody tr {
+        display: block;
+        margin-bottom: var(--space-sm, 12px);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background-color: var(--surface-card);
+        box-shadow: 0 2px 10px rgba(101, 53, 40, .09);
+        overflow: hidden;
+    }
+
+    .data-table tbody tr:last-child {
+        margin-bottom: 0;
+    }
+
+    .data-table tbody tr:hover {
+        background-color: var(--surface-card);
+        border-color: var(--primary-color);
+    }
+
+    .data-table td {
+        display: grid;
+        grid-template-columns: minmax(96px, 38%) minmax(0, 1fr);
+        align-items: center;
+        gap: var(--space-sm, 12px);
+        padding: 12px 16px;
+        text-align: right;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .data-table td:last-child,
+    .data-table tbody tr:last-child td:last-child {
+        border-bottom: 0;
+    }
+
+    .data-table td::before {
+        content: attr(data-label);
+        color: var(--secondary-text);
+        font-size: var(--fs-xs);
+        font-weight: 600;
+        letter-spacing: 0.045em;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    /* Badge sits on the right edge of its row */
+    .data-table td .status-badge {
+        justify-self: end;
+    }
+
+    /* Cells without a label, and message rows, use the full width */
+    .data-table td:not([data-label]),
+    .data-table td.state-message {
+        display: block;
+        padding: var(--space-lg, 32px) var(--space-md, 20px);
+        text-align: center;
+    }
+
+    .data-table td:not([data-label])::before,
+    .data-table td.state-message::before {
+        display: none;
+    }
+}
+
+@media (max-width: 600px) {
+    .page-intro {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .payment-toolbar {
+        grid-template-columns: 1fr;
+    }
+
+    .payment-toolbar .search-wrapper {
+        grid-column: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .data-table td {
+        grid-template-columns: minmax(84px, 36%) minmax(0, 1fr);
+        padding: 12px 14px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .table-wrap,
+    .data-table tbody tr,
+    .payment-toolbar input,
+    .payment-toolbar select {
+        transition: none !important;
+    }
+}

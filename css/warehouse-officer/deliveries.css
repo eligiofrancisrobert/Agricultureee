@@ -1,0 +1,1157 @@
+/* ============================================================
+   TANIKALA - WAREHOUSE OFFICER DELIVERIES
+   Same design language as Harvest Records (harvest-records.css):
+   page wrapper, 20px cards, toolbar card, card header / details /
+   tinted footer, custom select chevron, dashed empty state.
+   Uses theme tokens only (light + dark mode). Class names are
+   unchanged, so the HTML and JS need no edits.
+   Load after: style.css and the Warehouse Officer shell CSS.
+   ============================================================ */
+
+[hidden] { display: none !important; }
+
+/* ============ PAGE WRAPPER (same as .wo-harvest-records) ============ */
+.deliveries-page {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 1500px;
+    min-height: calc(100vh - var(--topbar-h, 72px));
+    margin: 0 auto;
+    padding: var(--space-xl, 48px) var(--space-lg, 32px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md, 20px);
+    min-width: 0;
+    background: var(--background);
+    color: var(--primary-text);
+    font-family: "Poppins", sans-serif;
+    font-size: var(--fs-md, 0.95rem);
+    line-height: 1.5;
+}
+
+/* ============ HEADING ============ */
+.deliveries-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-md, 20px);
+}
+
+.deliveries-eyebrow {
+    color: var(--primary-color);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    letter-spacing: 0.045em;
+}
+
+.deliveries-heading h2 {
+    margin: var(--space-xs, 8px) 0 4px;
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-xl);
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--primary-text);
+}
+
+.deliveries-heading p,
+.delivery-content-heading p {
+    margin: 0;
+    font-size: var(--fs-sm, 0.9rem);
+    color: var(--secondary-text);
+}
+
+/* ============ FARM BANNER (same pill idea as .wo-assigned-farm-context) ============ */
+.delivery-farm-banner {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm, 12px);
+    max-width: 100%;
+    padding: 8px var(--space-md, 20px) 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background-color: color-mix(in srgb, var(--primary-color) 10%, var(--surface-card));
+    box-sizing: border-box;
+}
+
+.delivery-farm-icon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background-color: color-mix(in srgb, var(--success) 16%, var(--surface-card));
+    font-size: 1.05rem;
+}
+
+.delivery-farm-banner div:last-child {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.delivery-farm-banner span {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    line-height: 1.3;
+}
+
+.delivery-farm-banner strong {
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+/* ============ STAT CARDS ============ */
+.delivery-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-md, 20px);
+}
+
+.delivery-stat-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    padding: var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background-color: var(--surface-card);
+    box-shadow: 0 0 10px rgba(140, 95, 40, 0.12);
+    transition: border-color 0.3s ease, background-color 0.3s ease, transform 0.2s ease;
+}
+
+.delivery-stat-card:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.delivery-stat-label {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+}
+
+.delivery-stat-card strong {
+    color: var(--primary-text);
+    font-family: "Outfit", sans-serif;
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+.delivery-stat-description {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+}
+
+/* ============ CONTENT (heading + toolbar card + list) ============ */
+.delivery-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md, 20px);
+    min-width: 0;
+}
+
+.delivery-content-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-sm, 12px);
+}
+
+.delivery-content-heading h3 {
+    margin: 0 0 4px;
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-lg, 1.1rem);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+/* ---- Buttons (same as .wo-button) ---- */
+.delivery-refresh-button,
+.delivery-view-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs, 8px);
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius, 10px);
+    background-color: var(--primary-color);
+    color: #FFFFFF;
+    font-family: inherit;
+    font-size: var(--fs-md, 0.95rem);
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, transform 0.2s ease;
+}
+
+.delivery-refresh-button:hover:not(:disabled) {
+    border-color: var(--primary-hover);
+    background-color: var(--primary-hover);
+}
+
+.delivery-refresh-button:active:not(:disabled),
+.delivery-view-button:active { transform: scale(0.98); }
+
+.delivery-refresh-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* View button = .wo-button-secondary */
+.delivery-view-button {
+    border-color: var(--border);
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+}
+
+.delivery-view-button:hover {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 8%, var(--surface-card));
+    color: var(--primary-text);
+}
+
+.delivery-refresh-button:focus-visible,
+.delivery-view-button:focus-visible,
+.delivery-modal-close:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* ============ TOOLBAR (own card, same as .wo-harvest-toolbar) ============ */
+.delivery-toolbar {
+    display: grid;
+    grid-template-columns: minmax(200px, 1fr) minmax(150px, 240px) minmax(150px, 240px);
+    align-items: center;
+    gap: var(--space-sm, 12px);
+    padding: var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background-color: var(--surface-card);
+    box-shadow: 0 0 10px rgba(140, 95, 40, 0.12);
+}
+
+/* ---- Inputs (same as .wo-form-input) ---- */
+.delivery-search,
+.delivery-filter {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    outline: none;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-md, 0.95rem);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.delivery-search::placeholder {
+    color: var(--secondary-text);
+    opacity: 0.7;
+}
+
+.delivery-search:focus,
+.delivery-filter:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+select.delivery-filter {
+    appearance: none;
+    cursor: pointer;
+    padding-right: 40px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23706860' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--space-md, 20px) center;
+}
+
+:root[data-theme="dark"] select.delivery-filter {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23B8AEA2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+}
+
+select.delivery-filter option {
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+}
+
+.delivery-results-count {
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+}
+
+/* ============ ORDER LIST (card grid, same as .wo-harvest-list) ============ */
+.delivery-order-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    align-items: start;
+    gap: var(--space-md, 20px);
+}
+
+/* Loading / error / empty messages take the full row */
+.delivery-order-list > .delivery-loading,
+.delivery-order-list > .delivery-empty-state,
+.delivery-order-list > .delivery-error {
+    grid-column: 1 / -1;
+}
+
+/* ============ ORDER CARD (header / details / tinted footer) ============ */
+.delivery-order-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
+    overflow: hidden;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    box-shadow: 0 0 10px rgba(140, 95, 40, 0.12);
+    transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+.delivery-order-card:hover { border-color: var(--primary-color); }
+
+/* Header */
+.delivery-order-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-sm, 12px);
+    padding: var(--space-md, 20px);
+    border-bottom: 1px solid var(--border);
+}
+
+.delivery-order-top > div { min-width: 0; }
+
+.delivery-order-reference {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    overflow-wrap: anywhere;
+}
+
+.delivery-order-top h3 {
+    margin: 2px 0 0;
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-lg, 1.1rem);
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--primary-text);
+    overflow-wrap: anywhere;
+}
+
+.delivery-order-date {
+    display: block;
+    margin-top: 2px;
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+}
+
+/* Status badges (same as .wo-harvest-status) */
+.delivery-status {
+    --status-color: var(--secondary-text);
+    flex-shrink: 0;
+    padding: 4px 12px;
+    border: 1px solid var(--status-color);
+    border-radius: 999px;
+    background-color: color-mix(in srgb, var(--status-color) 12%, var(--surface-card));
+    color: var(--status-color);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+    text-transform: capitalize;
+}
+
+.delivery-status-pending    { --status-color: var(--warning); }
+.delivery-status-confirmed  { --status-color: var(--success); }
+.delivery-status-processing { --status-color: var(--primary-color); }
+.delivery-status-delivered  { --status-color: var(--success); }
+.delivery-status-completed  { --status-color: var(--success); }
+.delivery-status-cancelled  { --status-color: var(--error); }
+
+/* Details (same as .wo-harvest-details-grid) */
+.delivery-order-info {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-sm, 12px);
+    padding: var(--space-md, 20px);
+    border: 0;
+}
+
+.delivery-order-info > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.delivery-info-label {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+}
+
+.delivery-order-info strong {
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.delivery-order-products {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: 0 var(--space-md, 20px) var(--space-md, 20px);
+}
+
+.delivery-order-products p {
+    margin: 0;
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+/* Footer (same as .wo-harvest-card-footer) */
+.delivery-order-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm, 12px);
+    margin-top: auto;
+    padding: var(--space-md, 20px);
+    border-top: 1px solid var(--border);
+    background-color: color-mix(in srgb, var(--secondary) 6%, var(--surface-card));
+}
+
+.delivery-order-bottom > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.delivery-order-total {
+    color: var(--primary-color);
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-lg, 1.1rem);
+    font-weight: 600;
+}
+
+/* ============ STATES ============ */
+.delivery-loading {
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    background-color: var(--surface-card);
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    text-align: center;
+}
+
+.delivery-empty-state {
+    padding: 48px 20px;
+    border: 1px dashed var(--border);
+    border-radius: 20px;
+    background-color: var(--surface-card);
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    text-align: center;
+}
+
+.delivery-empty-icon {
+    width: 56px;
+    height: 56px;
+    display: grid;
+    place-items: center;
+    margin: 0 auto var(--space-sm, 12px);
+    border-radius: 50%;
+    background-color: color-mix(in srgb, var(--primary-color) 10%, var(--surface-card));
+    font-size: 1.6rem;
+}
+
+.delivery-empty-state h3 {
+    margin: 0 0 var(--space-xs, 8px);
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-lg, 1.1rem);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.delivery-empty-state p {
+    margin: 0;
+    font-size: var(--fs-sm, 0.9rem);
+}
+
+/* Same as .wo-harvest-records .msg.error */
+.delivery-error {
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--error);
+    border-radius: var(--radius, 10px);
+    background-color: color-mix(in srgb, var(--error) 8%, var(--surface-card));
+    color: var(--error);
+    font-size: var(--fs-sm, 0.9rem);
+}
+
+/* ============ ORDER DETAILS MODAL ============ */
+.delivery-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--space-md, 20px);
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(3px);
+}
+
+.delivery-modal {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    width: min(850px, 100%);
+    max-height: 90vh;
+    max-height: 90dvh;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.25);
+}
+
+.delivery-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-md, 20px);
+    padding: var(--space-md, 20px) var(--space-lg, 32px);
+    border-bottom: 1px solid var(--border);
+}
+
+.delivery-modal-header h2 {
+    margin: 6px 0 0;
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-lg, 1.1rem);
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.delivery-modal-close {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background-color: var(--surface-card);
+    color: var(--secondary-text);
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+}
+
+.delivery-modal-close:hover {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 8%, var(--surface-card));
+    color: var(--primary-text);
+}
+
+.delivery-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md, 20px);
+    padding: var(--space-md, 20px) var(--space-lg, 32px);
+    overflow-y: auto;
+}
+
+.delivery-detail-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm, 12px);
+}
+
+.delivery-detail-section h3 {
+    margin: 0;
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-md, 0.95rem);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.delivery-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-sm, 12px);
+}
+
+.delivery-detail-grid > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.delivery-detail-grid span {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+}
+
+.delivery-detail-grid strong {
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.delivery-detail-full { grid-column: 1 / -1; }
+
+/* Table scrolls inside its wrapper on small screens */
+.delivery-items-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+}
+
+.delivery-items-table {
+    width: 100%;
+    min-width: 480px;
+    border-collapse: collapse;
+    font-size: var(--fs-sm, 0.9rem);
+}
+
+.delivery-items-table th,
+.delivery-items-table td {
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.delivery-items-table tbody tr:last-child td { border-bottom: 0; }
+
+.delivery-items-table th {
+    background-color: color-mix(in srgb, var(--secondary) 6%, var(--surface-card));
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+}
+
+.delivery-items-table td { color: var(--primary-text); }
+
+.delivery-modal-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-md, 20px);
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    background-color: color-mix(in srgb, var(--primary-color) 10%, var(--surface-card));
+}
+
+.delivery-modal-total span {
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+}
+
+.delivery-modal-total strong {
+    color: var(--primary-color);
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-lg, 1.1rem);
+    font-weight: 600;
+}
+
+/* ============ BUYER INFORMATION (modal) ============
+   Simple, light styling. Buyer Information is the 2nd modal section. Field order assumed: Buyer Name,
+   Business Name, Email, Phone, Delivery Address, Buyer Type.
+   ============================================================ */
+.delivery-modal-body > .delivery-detail-section:nth-child(2) {
+    padding: var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background-color: color-mix(in srgb, var(--secondary) 4%, var(--surface-card));
+}
+
+.delivery-modal-body > .delivery-detail-section:nth-child(2) .delivery-detail-grid {
+    gap: var(--space-md, 20px) var(--space-sm, 12px);
+}
+
+/* Name + business name stand out a bit */
+.delivery-modal-body > .delivery-detail-section:nth-child(2) .delivery-detail-grid > div:nth-child(-n+2) strong {
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-lg, 1.1rem);
+    font-weight: 500;
+}
+
+/* Delivery address spans full width */
+.delivery-modal-body > .delivery-detail-section:nth-child(2) .delivery-detail-grid > div:nth-child(5) {
+    grid-column: 1 / -1;
+}
+
+/* Buyer type = small pill */
+.delivery-modal-body > .delivery-detail-section:nth-child(2) .delivery-detail-grid > div:last-child strong {
+    align-self: flex-start;
+    padding: 2px 12px;
+    border: 1px solid var(--primary-color);
+    border-radius: 999px;
+    background-color: color-mix(in srgb, var(--primary-color) 10%, var(--surface-card));
+    color: var(--primary-color);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+}
+
+/* ============ ORDER STATUS WORKFLOW (modal) ============ */
+.delivery-current-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-sm, 12px);
+}
+
+.delivery-current-status > span {
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+}
+
+.delivery-status-control {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 9px;
+    padding: var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background-color: color-mix(in srgb, var(--secondary) 4%, var(--surface-card));
+}
+
+.delivery-status-control label,
+.delivery-shipment-field label {
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+}
+
+.delivery-status-select,
+.delivery-shipment-input {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    outline: none;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.delivery-status-select {
+    max-width: 340px;
+    padding-right: 40px;
+    appearance: none;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23706860' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+}
+
+:root[data-theme="dark"] .delivery-status-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23B8AEA2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+}
+
+.delivery-status-select:focus,
+.delivery-shipment-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+.delivery-status-select:disabled,
+.delivery-shipment-input:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.delivery-status-select option {
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+}
+
+.delivery-status-hint {
+    margin: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+}
+
+.delivery-no-cancel-note {
+    margin: 0;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--warning);
+    border-radius: var(--radius, 10px);
+    background-color: color-mix(in srgb, var(--warning) 10%, var(--surface-card));
+    color: var(--primary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    line-height: 1.6;
+}
+
+/* Cash payment confirmation */
+.delivery-cash-payment-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md, 20px);
+    padding: var(--space-md, 20px);
+    border: 1px solid color-mix(in srgb, var(--success) 35%, var(--border));
+    border-radius: 16px;
+    background-color: color-mix(in srgb, var(--success) 8%, var(--surface-card));
+}
+
+.delivery-cash-payment-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.delivery-cash-payment-info h4 {
+    margin: 0;
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-md, 0.95rem);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.delivery-cash-payment-info p {
+    margin: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    line-height: 1.5;
+}
+
+.delivery-cash-payment-amount {
+    color: var(--primary-color);
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-lg, 1.1rem);
+    font-weight: 600;
+}
+
+/* ============ SCHEDULE SHIPMENT (modal) ============
+   Same panel / input / button language as the order modal
+   and the status workflow above.
+   ============================================================ */
+.delivery-shipment-modal {
+    width: min(520px, 100%);
+}
+
+.delivery-shipment-intro {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+}
+
+.delivery-shipment-icon {
+    width: 56px;
+    height: 56px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background-color: color-mix(in srgb, var(--primary-color) 10%, var(--surface-card));
+    font-size: 1.6rem;
+}
+
+.delivery-shipment-intro h3 {
+    margin: 0;
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-lg, 1.1rem);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.delivery-shipment-intro p {
+    margin: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+}
+
+/* Buyer + address summary (same panel as Buyer Information) */
+.delivery-shipment-buyer {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background-color: color-mix(in srgb, var(--secondary) 4%, var(--surface-card));
+}
+
+.delivery-shipment-buyer .delivery-info-label:not(:first-child) {
+    margin-top: var(--space-sm, 12px);
+}
+
+.delivery-shipment-buyer strong {
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* Date + time inside one panel, like the status control */
+.delivery-shipment-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-sm, 12px);
+    padding: var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background-color: color-mix(in srgb, var(--secondary) 4%, var(--surface-card));
+}
+
+.delivery-shipment-field {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    min-width: 0;
+}
+
+:root[data-theme="dark"] .delivery-shipment-input {
+    color-scheme: dark;
+}
+
+.delivery-shipment-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-sm, 12px);
+    padding-top: var(--space-md, 20px);
+    border-top: 1px solid var(--border);
+}
+
+.delivery-shipment-cancel,
+.delivery-shipment-confirm,
+.delivery-payment-confirm-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs, 8px);
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius, 10px);
+    background-color: var(--primary-color);
+    color: #FFFFFF;
+    font-family: inherit;
+    font-size: var(--fs-md, 0.95rem);
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, transform 0.2s ease;
+}
+
+.delivery-shipment-confirm:hover:not(:disabled) {
+    border-color: var(--primary-hover);
+    background-color: var(--primary-hover);
+}
+
+.delivery-payment-confirm-button {
+    flex-shrink: 0;
+    border-color: var(--success);
+    background-color: var(--success);
+}
+
+.delivery-payment-confirm-button:hover:not(:disabled) {
+    filter: brightness(1.08);
+}
+
+/* Cancel = secondary button (same as View Details) */
+.delivery-shipment-cancel {
+    border-color: var(--border);
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+}
+
+.delivery-shipment-cancel:hover:not(:disabled) {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 8%, var(--surface-card));
+}
+
+.delivery-shipment-confirm:active:not(:disabled),
+.delivery-shipment-cancel:active:not(:disabled),
+.delivery-payment-confirm-button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.delivery-shipment-cancel:disabled,
+.delivery-shipment-confirm:disabled,
+.delivery-payment-confirm-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.delivery-shipment-cancel:focus-visible,
+.delivery-shipment-confirm:focus-visible,
+.delivery-payment-confirm-button:focus-visible,
+.delivery-status-select:focus-visible,
+.delivery-shipment-input:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* ============ DARK MODE ============ */
+:root[data-theme="dark"] .delivery-stat-card,
+:root[data-theme="dark"] .delivery-toolbar,
+:root[data-theme="dark"] .delivery-order-card {
+    box-shadow: none;
+}
+
+/* ============ THEME TRANSITION ============ */
+.delivery-toolbar,
+.delivery-order-bottom,
+.delivery-status {
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* ============ RESPONSIVE (same breakpoints as Harvest Records) ============ */
+@media (max-width: 1000px) {
+    .delivery-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    .delivery-toolbar { grid-template-columns: 1fr 1fr; }
+    .delivery-search { grid-column: 1 / -1; }
+}
+
+@media (max-width: 900px) {
+    .deliveries-page { padding: var(--space-lg, 32px) var(--space-md, 20px); }
+}
+
+@media (max-width: 600px) {
+    .deliveries-page { padding: 16px; }
+
+    .delivery-content-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .delivery-refresh-button { width: 100%; }
+
+    .delivery-stats { gap: 12px; }
+    .delivery-stat-card { padding: 14px; border-radius: 16px; }
+
+    .delivery-toolbar {
+        grid-template-columns: minmax(0, 1fr);
+        padding: 14px;
+        border-radius: 16px;
+    }
+    .delivery-search { grid-column: auto; }
+
+    .delivery-order-list { grid-template-columns: minmax(0, 1fr); }
+
+    .delivery-order-card { border-radius: 16px; }
+    .delivery-order-top { flex-direction: column; }
+    .delivery-order-info { grid-template-columns: minmax(0, 1fr); }
+
+    .delivery-order-bottom {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .delivery-view-button { width: 100%; }
+
+    .delivery-modal-overlay { padding: 10px; }
+    .delivery-modal { border-radius: 16px; max-height: 95vh; max-height: 95dvh; }
+
+    .delivery-modal-header,
+    .delivery-modal-body { padding: 16px; }
+
+    /* Keep 2 columns on mobile (fr, not a single column) */
+    .delivery-detail-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-sm, 12px);
+    }
+    .delivery-detail-full { grid-column: 1 / -1; }
+
+    /* Buyer Information (mobile) */
+    .delivery-modal-body > .delivery-detail-section:nth-child(2) {
+        padding: 14px;
+    }
+
+    .delivery-modal-body > .delivery-detail-section:nth-child(2) .delivery-detail-grid > div:nth-child(-n+2) strong {
+        font-size: var(--fs-md, 0.95rem);
+    }
+
+    /* Long values (email, address) take the full row */
+    .delivery-modal-body > .delivery-detail-section:nth-child(2) .delivery-detail-grid > div:nth-child(3),
+    .delivery-modal-body > .delivery-detail-section:nth-child(2) .delivery-detail-grid > div:nth-child(5) {
+        grid-column: 1 / -1;
+    }
+
+    /* Status management + Schedule Shipment (mobile) */
+    .delivery-cash-payment-box {
+        align-items: stretch;
+        flex-direction: column;
+        padding: 14px;
+    }
+
+    .delivery-payment-confirm-button { width: 100%; }
+
+    .delivery-status-select { max-width: 100%; }
+
+    .delivery-shipment-buyer,
+    .delivery-shipment-fields,
+    .delivery-status-control { padding: 14px; }
+
+    .delivery-shipment-input { padding: 10px 12px; }
+
+    .delivery-shipment-actions { flex-direction: column-reverse; }
+
+    .delivery-shipment-cancel,
+    .delivery-shipment-confirm { width: 100%; }
+}
+
+@media (max-width: 380px) {
+    .delivery-stats { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .deliveries-page *,
+    .deliveries-page {
+        transition: none !important;
+    }
+
+    .delivery-stat-card:hover { transform: none; }
+}

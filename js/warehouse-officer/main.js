@@ -12,7 +12,8 @@ const TITLES = {
     'pesticide-inventory': 'Pesticide Inventory',
     equipment: 'Equipment',
     'harvest-inventory': 'Harvest Inventory',
-    settings: 'Settings'
+    settings: 'Settings',
+    deliveries: 'Deliveries'
 };
 
 const root = document.getElementById('view');

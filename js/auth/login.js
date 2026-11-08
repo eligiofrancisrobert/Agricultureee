@@ -228,7 +228,7 @@ async function getApprovedDestination(userId) {
 
     const rolePages = {
         farmer: "./pages/farmer/farmer-dashboard.html",
-        buyer: "./pages/buyer-dashboard.html",
+        buyer: "./pages/buyers/browse-produce.html",
         supplier: "./pages/supplier-dashboard.html"
     };
 

@@ -1,12 +1,14 @@
+
 import {
     renderInventoryPage,
     cleanupInventoryPage
 } from './inventory-template.js';
 
-export function render(root) {
-    renderInventoryPage(root, {
+export async function render(root, ctx) {
+    await renderInventoryPage(root, {
+        type: 'harvest',
         title: 'Harvest Inventory',
-        description: 'View verified harvest records from your assigned farm.',
+        description: 'View verified harvest records and manage available warehouse produce.',
         icon: '🌾',
         sections: [
             { label: 'Crop Types' },
@@ -14,7 +16,7 @@ export function render(root) {
             { label: 'Available Stock' },
             { label: 'Verified Harvest Records' }
         ]
-    });
+    }, ctx);
 }
 
 export function cleanup() {

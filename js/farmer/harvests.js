@@ -269,6 +269,7 @@ async function loadAssignedPlantings() {
             activity_status
         `)
         .eq('farmer_id', currentUser.id)
+        .neq('crop_status', 'harvested')
         .order('expected_harvest_date', { ascending: true });
 
     if (error) {
@@ -290,7 +291,7 @@ async function loadAssignedPlantings() {
 
     if (assignedPlantings.length === 0) {
         plantingSelect.innerHTML = `
-            <option value="">No assigned plantings available</option>
+            <option value="">No eligible plantings available</option>
         `;
 
         plantingSelect.disabled = true;
@@ -588,9 +589,9 @@ async function loadHarvestHistory() {
 
                     <td>
                         ${escapeHTML(formatQuantity(
-                            record.harvest_quantity,
-                            record.harvest_unit
-                        ))}
+                record.harvest_quantity,
+                record.harvest_unit
+            ))}
                     </td>
 
                     <td>${escapeHTML(verifiedQuantity)}</td>
@@ -641,16 +642,16 @@ async function loadHarvestHistory() {
 
                 <td>
                     ${escapeHTML(formatQuantity(
-                        record.harvest_quantity,
-                        record.harvest_unit
-                    ))}
+            record.harvest_quantity,
+            record.harvest_unit
+        ))}
                 </td>
 
                 <td>
                     ${escapeHTML(
-                        record.verification_notes ||
-                        'No rejection remarks provided.'
-                    )}
+            record.verification_notes ||
+            'No rejection remarks provided.'
+        )}
                 </td>
 
                 <td>
@@ -706,9 +707,8 @@ async function loadHarvestHistory() {
                 submitHarvestButton.textContent = 'Resubmit Harvest';
 
                 showMessage(
-                    `Rejection Reason: ${
-                        rejectedRecord.verification_notes ||
-                        'No reason provided.'
+                    `Rejection Reason: ${rejectedRecord.verification_notes ||
+                    'No reason provided.'
                     } Please correct your details before resubmitting.`,
                     'error'
                 );

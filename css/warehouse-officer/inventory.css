@@ -1,0 +1,1393 @@
+/* =========================================================
+   WAREHOUSE OFFICER - INVENTORY
+   Uses the same design tokens as the Warehouse Officer shell
+   (--primary-color, --primary-text, --secondary-text, --border,
+   --surface-card, --background, --radius, --space-*, --fs-*,
+   --success, --warning, --error). Dark mode follows the shell via
+   :root[data-theme="dark"], so no hardcoded colors are needed.
+========================================================= */
+
+.wo-inventory-page {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg, 32px);
+    color: var(--primary-text);
+    font-family: "Poppins", sans-serif;
+    padding: var(--space-lg, 32px);
+}
+
+.wo-inventory-page *,
+.wo-inventory-page *::before,
+.wo-inventory-page *::after {
+    box-sizing: border-box;
+}
+
+/* =========================================================
+   PAGE HEADING
+========================================================= */
+
+.wo-page-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.wo-page-heading h1 {
+    margin: 0;
+    font-family: "Outfit", sans-serif;
+    font-size: 1.7rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--primary-text);
+}
+
+.wo-page-heading p {
+    margin: 0;
+    font-size: var(--fs-sm, 0.9rem);
+    line-height: 1.6;
+    color: var(--secondary-text);
+}
+
+/* =========================================================
+   TOOLBAR
+========================================================= */
+
+.wo-inventory-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--space-sm, 12px);
+}
+
+.wo-inventory-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs, 8px);
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid transparent;
+    border-radius: var(--radius, 10px);
+    background-color: var(--primary-color);
+    color: #FFFFFF;
+    font-family: inherit;
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
+}
+
+.wo-inventory-add:hover {
+    background-color: var(--primary-hover);
+}
+
+.wo-inventory-add:active {
+    transform: scale(0.98);
+}
+
+.wo-inventory-add:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* =========================================================
+   SUMMARY CARDS
+========================================================= */
+
+.wo-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-md, 20px);
+}
+
+.wo-stat-card {
+    min-width: 0;
+    padding: var(--space-md, 20px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs, 8px);
+    background-color: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+}
+
+.wo-stat-label {
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 500;
+    color: var(--secondary-text);
+}
+
+.wo-stat-value {
+    font-family: "Outfit", sans-serif;
+    font-size: 1.7rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--primary-text);
+    overflow-wrap: anywhere;
+}
+
+.wo-stat-description {
+    font-size: var(--fs-xs, 0.8rem);
+    line-height: 1.5;
+    color: var(--secondary-text);
+}
+
+/* =========================================================
+   INVENTORY CONTENT
+========================================================= */
+
+.wo-inventory-content,
+.wo-inventory-section {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-md, 20px);
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+}
+
+.wo-inventory-content h2,
+.wo-inventory-section h2 {
+    margin: 0;
+    font-family: "Outfit", sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--primary-text);
+}
+
+.wo-inventory-content p,
+.wo-inventory-section p {
+    margin: 0;
+}
+
+.wo-inventory-content .muted,
+.wo-inventory-section .muted {
+    font-size: var(--fs-sm, 0.9rem);
+    color: var(--secondary-text);
+}
+
+/* =========================================================
+   INVENTORY TABLE
+========================================================= */
+
+.wo-inventory-table-container {
+    width: 100%;
+    min-width: 0;
+}
+
+.wo-inventory-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    background-color: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+}
+
+.wo-inventory-table {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.wo-inventory-table thead {
+    background-color: color-mix(in srgb, var(--secondary-text) 8%, var(--surface-card));
+}
+
+.wo-inventory-table th {
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border-bottom: 1px solid var(--border);
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.wo-inventory-table td {
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border-bottom: 1px solid var(--border);
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    vertical-align: middle;
+}
+
+.wo-inventory-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.wo-inventory-table tbody tr {
+    transition: background-color 0.3s ease;
+}
+
+.wo-inventory-table tbody tr:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 5%, var(--surface-card));
+}
+
+.wo-inventory-empty {
+    padding: var(--space-lg, 32px) var(--space-md, 20px) !important;
+    text-align: center;
+    color: var(--secondary-text) !important;
+}
+
+/* =========================================================
+   INVENTORY PHOTOS
+========================================================= */
+
+.wo-inventory-photo-wrapper {
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background-color: color-mix(in srgb, var(--secondary-text) 8%, var(--surface-card));
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+}
+
+.wo-inventory-photo {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.wo-inventory-no-photo {
+    padding: 5px;
+    color: var(--secondary-text);
+    font-size: 0.65rem;
+    text-align: center;
+}
+
+/* =========================================================
+   STOCK STATUS
+========================================================= */
+
+.wo-stock-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px !important;
+    border-radius: 999px;
+    font-size: var(--fs-xs, 0.8rem) !important;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.wo-stock-status.available {
+    color: var(--success);
+    background-color: color-mix(in srgb, var(--success) 14%, transparent);
+}
+
+.wo-stock-status.low-stock {
+    color: var(--warning);
+    background-color: color-mix(in srgb, var(--warning) 14%, transparent);
+}
+
+.wo-stock-status.out-of-stock {
+    color: var(--error);
+    background-color: color-mix(in srgb, var(--error) 14%, transparent);
+}
+
+/* =========================================================
+   ACTION BUTTONS
+========================================================= */
+
+.wo-inventory-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs, 8px);
+    white-space: nowrap;
+}
+
+.wo-inventory-edit,
+.wo-inventory-delete {
+    padding: 7px var(--space-sm, 12px);
+    border: 1px solid transparent;
+    border-radius: var(--radius, 10px);
+    font-family: inherit;
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, transform 0.2s ease;
+}
+
+.wo-inventory-edit:active,
+.wo-inventory-delete:active {
+    transform: scale(0.97);
+}
+
+.wo-inventory-edit:focus-visible,
+.wo-inventory-delete:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.wo-inventory-edit {
+    color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 10%, var(--surface-card));
+    border-color: color-mix(in srgb, var(--primary-color) 25%, transparent);
+}
+
+.wo-inventory-edit:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 18%, var(--surface-card));
+}
+
+.wo-inventory-delete {
+    color: var(--error);
+    background-color: color-mix(in srgb, var(--error) 10%, var(--surface-card));
+    border-color: color-mix(in srgb, var(--error) 25%, transparent);
+}
+
+.wo-inventory-delete:hover {
+    background-color: color-mix(in srgb, var(--error) 18%, var(--surface-card));
+}
+
+/* =========================================================
+   INVENTORY FORM
+========================================================= */
+
+.wo-inventory-form-container:empty {
+    display: none;
+}
+
+.wo-inventory-form {
+    width: 100%;
+    max-width: 650px;
+    padding: var(--space-lg, 32px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md, 20px);
+    background-color: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+}
+
+.wo-inventory-form h3 {
+    margin: 0 0 4px;
+    font-family: "Outfit", sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--primary-text);
+}
+
+.wo-inventory-form > label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs, 8px);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.wo-inventory-form input:not([type="file"]),
+.wo-inventory-form select {
+    width: 100%;
+    min-height: 44px;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    color: var(--primary-text);
+    background-color: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    outline: none;
+    font-family: inherit;
+    font-size: var(--fs-sm, 0.9rem);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.wo-inventory-form input::placeholder {
+    color: var(--secondary-text);
+    opacity: 0.7;
+}
+
+.wo-inventory-form input:focus,
+.wo-inventory-form select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+/* =========================================================
+   PHOTO UPLOAD FIELD
+========================================================= */
+
+.wo-inventory-photo-input-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm, 12px);
+}
+
+.wo-inventory-photo-input-wrapper > label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs, 8px);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.wo-inventory-photo-input-wrapper input[type="file"] {
+    width: 100%;
+    padding: var(--space-sm, 12px);
+    color: var(--secondary-text);
+    background-color: color-mix(in srgb, var(--secondary-text) 6%, var(--surface-card));
+    border: 1px dashed var(--border);
+    border-radius: var(--radius, 10px);
+    font-family: inherit;
+    font-size: var(--fs-xs, 0.8rem);
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+}
+
+.wo-inventory-photo-input-wrapper input[type="file"]:hover,
+.wo-inventory-photo-input-wrapper input[type="file"]:focus-visible {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+.wo-inventory-photo-input-wrapper input[type="file"]::file-selector-button {
+    margin-right: var(--space-sm, 12px);
+    padding: 8px var(--space-sm, 12px);
+    color: #FFFFFF;
+    background-color: var(--primary-color);
+    border: none;
+    border-radius: var(--radius, 10px);
+    font-family: inherit;
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.wo-inventory-photo-input-wrapper input[type="file"]::file-selector-button:hover {
+    background-color: var(--primary-hover);
+}
+
+.wo-inventory-photo-hint {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+}
+
+.wo-inventory-photo-preview {
+    width: 150px;
+    height: 130px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background-color: color-mix(in srgb, var(--secondary-text) 8%, var(--surface-card));
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+}
+
+.wo-inventory-photo-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.wo-inventory-photo-preview .wo-inventory-no-photo {
+    font-size: var(--fs-xs, 0.8rem);
+}
+
+/* =========================================================
+   FORM ACTIONS
+========================================================= */
+
+.wo-inventory-form-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm, 12px);
+    margin-top: 4px;
+}
+
+.wo-inventory-save,
+.wo-inventory-cancel {
+    min-height: 42px;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid transparent;
+    border-radius: var(--radius, 10px);
+    font-family: inherit;
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, transform 0.2s ease;
+}
+
+.wo-inventory-save:active,
+.wo-inventory-cancel:active {
+    transform: scale(0.98);
+}
+
+.wo-inventory-save:focus-visible,
+.wo-inventory-cancel:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.wo-inventory-save {
+    color: #FFFFFF;
+    background-color: var(--primary-color);
+}
+
+.wo-inventory-save:hover {
+    background-color: var(--primary-hover);
+}
+
+.wo-inventory-cancel {
+    color: var(--primary-text);
+    background-color: var(--surface-card);
+    border-color: var(--border);
+}
+
+.wo-inventory-cancel:hover {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 8%, var(--surface-card));
+}
+
+.wo-inventory-save:disabled,
+.wo-inventory-add:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* =========================================================
+   MESSAGES
+========================================================= */
+
+.wo-inventory-message {
+    margin: 0;
+    padding: var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    font-size: var(--fs-sm, 0.9rem);
+    text-align: center;
+    color: var(--secondary-text);
+    background-color: var(--surface-card);
+}
+
+.wo-inventory-message.error {
+    color: var(--error);
+    border-color: color-mix(in srgb, var(--error) 30%, transparent);
+    background-color: color-mix(in srgb, var(--error) 8%, var(--surface-card));
+}
+
+.wo-inventory-form-message {
+    margin: 0;
+    font-size: var(--fs-xs, 0.8rem);
+    color: var(--secondary-text);
+}
+
+.wo-inventory-form-message.error {
+    color: var(--error);
+}
+
+/* =========================================================
+   THEME TRANSITION
+========================================================= */
+
+.wo-stat-card,
+.wo-inventory-table-wrapper,
+.wo-inventory-form,
+.wo-inventory-message {
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1100px) {
+    .wo-inventory-page {
+        padding: var(--space-md, 20px);
+    }
+
+    .wo-stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 600px) {
+    .wo-inventory-page {
+        gap: var(--space-md, 20px);
+        padding: 16px;
+    }
+
+    .wo-page-heading h1 {
+        font-size: 1.4rem;
+    }
+
+    .wo-inventory-toolbar {
+        justify-content: stretch;
+    }
+
+    .wo-inventory-toolbar .wo-inventory-add {
+        width: 100%;
+    }
+
+    .wo-stats-grid {
+        gap: var(--space-sm, 12px);
+    }
+
+    .wo-stat-card {
+        padding: var(--space-sm, 12px);
+    }
+
+    .wo-stat-value {
+        font-size: 1.4rem;
+    }
+
+    .wo-inventory-form {
+        padding: var(--space-md, 20px);
+    }
+
+    .wo-inventory-form-actions {
+        flex-wrap: wrap;
+    }
+
+    .wo-inventory-save,
+    .wo-inventory-cancel {
+        flex: 1;
+    }
+}
+
+@media (max-width: 380px) {
+    .wo-stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wo-inventory-page *,
+    .wo-inventory-page *::before,
+    .wo-inventory-page *::after {
+        transition: none !important;
+        animation: none !important;
+    }
+}
+
+/* =========================================================
+   INVENTORY CARDS (photo cards, shared by all inventory pages)
+========================================================= */
+
+.wo-inventory-card-grid {
+    width: 100%;
+    align-self: stretch;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-auto-rows: 1fr;
+    gap: var(--space-md, 20px);
+    min-width: 0;
+}
+
+.wo-inventory-card-grid > .wo-inventory-message {
+    grid-column: 1 / -1;
+}
+
+.wo-inventory-card {
+    position: relative;
+    min-width: 0;
+    height: 380px;
+    perspective: 1200px;
+}
+
+/* Both faces sit on top of each other; flipping rotates them */
+.wo-card-face {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1), border-color 0.3s ease;
+}
+
+.wo-card-front {
+    justify-content: flex-end;
+    cursor: pointer;
+    transform: rotateY(0deg);
+}
+
+.wo-card-front:hover {
+    border-color: color-mix(in srgb, var(--primary-color) 45%, var(--border));
+}
+
+.wo-card-front:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.wo-card-back {
+    gap: var(--space-sm, 12px);
+    padding: var(--space-md, 20px);
+    background-color: color-mix(in srgb, var(--primary-color) 4%, var(--surface-card));
+    transform: rotateY(-180deg);
+}
+
+.wo-inventory-card.is-flipped .wo-card-front {
+    transform: rotateY(180deg);
+}
+
+.wo-inventory-card.is-flipped .wo-card-back {
+    transform: rotateY(0deg);
+}
+
+/* ---------- Front: photo covers the whole card, glass strip on top ----------
+   The photo wrapper fills the card (absolute, inset 0) and the image is
+   absolutely positioned inside it with object-fit: cover, so the photo
+   always matches the card size and can never push the card larger. */
+.wo-card-front .wo-inventory-card-photo {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 0;
+    overflow: hidden;
+}
+
+.wo-card-front .wo-inventory-photo {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+.wo-card-front .wo-inventory-no-photo {
+    font-size: var(--fs-xs, 0.8rem);
+    /* keep the label in the visible area above the strip */
+    margin-bottom: 90px;
+}
+
+.wo-inventory-card-body {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs, 8px);
+    margin: var(--space-sm, 12px);
+    padding: var(--space-md, 20px);
+    border: 1px solid color-mix(in srgb, var(--primary-text) 14%, transparent);
+    border-radius: var(--radius, 10px);
+    background-color: color-mix(in srgb, var(--surface-card) 62%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(1.3);
+    backdrop-filter: blur(14px) saturate(1.3);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .wo-inventory-card-body {
+        background-color: color-mix(in srgb, var(--surface-card) 94%, transparent);
+    }
+}
+
+.wo-inventory-card-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-xs, 8px);
+}
+
+.wo-inventory-card-title {
+    margin: 0;
+    min-width: 0;
+    font-family: "Outfit", sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--primary-text);
+    overflow-wrap: anywhere;
+    /* Limit to two lines so every card keeps the same layout */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+}
+
+.wo-inventory-card-title-row .wo-stock-status {
+    flex-shrink: 0;
+}
+
+.wo-inventory-card-body .wo-inventory-card-detail strong {
+    color: var(--primary-text);
+    font-weight: 600;
+}
+
+.wo-inventory-card-body .wo-inventory-card-detail span {
+    color: var(--secondary-text);
+}
+
+.wo-card-front .wo-inventory-card-title {
+    min-height: 0;
+}
+
+.wo-card-flip-hint {
+    color: var(--primary-color);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+}
+
+/* ---------- Back: details + actions ---------- */
+.wo-card-back-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-xs, 8px);
+}
+
+.wo-card-back-title {
+    margin: 0;
+    min-width: 0;
+    font-family: "Outfit", sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--primary-text);
+    overflow-wrap: anywhere;
+}
+
+.wo-card-back-btn {
+    flex-shrink: 0;
+    padding: 6px var(--space-sm, 12px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.3s ease, background-color 0.3s ease, transform 0.2s ease;
+}
+
+.wo-card-back-btn:hover {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 8%, var(--surface-card));
+}
+
+.wo-card-back-btn:active {
+    transform: scale(0.96);
+}
+
+.wo-card-back-btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.wo-inventory-card-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    overflow-y: auto;
+}
+
+.wo-inventory-card-detail {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-sm, 12px);
+    font-size: var(--fs-sm, 0.9rem);
+}
+
+.wo-inventory-card-details .wo-inventory-card-detail {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.wo-inventory-card-details .wo-inventory-card-detail:last-child {
+    border-bottom: none;
+}
+
+.wo-inventory-card-detail dt {
+    flex-shrink: 0;
+    color: var(--secondary-text);
+}
+
+.wo-inventory-card-detail dd {
+    margin: 0;
+    min-width: 0;
+    font-weight: 600;
+    color: var(--primary-text);
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.wo-inventory-card-actions {
+    margin-top: auto;
+    padding-top: var(--space-xs, 8px);
+}
+
+/* Produce statuses (reuse the stock badge shape) */
+.wo-stock-status.reserved {
+    color: var(--warning);
+    background-color: color-mix(in srgb, var(--warning) 14%, transparent);
+}
+
+.wo-stock-status.released {
+    color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 14%, transparent);
+}
+
+.wo-stock-status.damaged {
+    color: var(--error);
+    background-color: color-mix(in srgb, var(--error) 14%, transparent);
+}
+
+@media (max-width: 600px) {
+    .wo-inventory-card-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: var(--space-sm, 12px);
+    }
+
+    .wo-inventory-card {
+        height: 340px;
+    }
+
+    .wo-card-front .wo-inventory-no-photo {
+        margin-bottom: 90px;
+    }
+
+    .wo-card-back {
+        padding: var(--space-sm, 12px);
+    }
+
+    .wo-inventory-card-body {
+        padding: var(--space-sm, 12px);
+    }
+}
+
+@media (max-width: 380px) {
+    .wo-inventory-card-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =========================================================
+   MODAL (add / edit forms)
+   The overlay is appended to <body>, so it does not depend on
+   .wo-inventory-page and defines its own font and box-sizing.
+========================================================= */
+
+body.wo-modal-open {
+    overflow: hidden;
+}
+
+.wo-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    display: grid;
+    place-items: center;
+    padding: var(--space-md, 20px);
+    overflow-y: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    color: var(--primary-text);
+    font-family: "Poppins", sans-serif;
+    animation: wo-modal-fade 0.2s ease;
+}
+
+.wo-modal-overlay *,
+.wo-modal-overlay *::before,
+.wo-modal-overlay *::after {
+    box-sizing: border-box;
+}
+
+.wo-modal {
+    position: relative;
+    width: 100%;
+    max-width: 520px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    background-color: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+    animation: wo-modal-in 0.25s ease;
+}
+
+.wo-modal-close {
+    position: absolute;
+    top: var(--space-sm, 12px);
+    right: var(--space-sm, 12px);
+    z-index: 1;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: 1.3rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: border-color 0.3s ease, background-color 0.3s ease, transform 0.2s ease;
+}
+
+.wo-modal-close:hover {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 8%, var(--surface-card));
+}
+
+.wo-modal-close:active {
+    transform: scale(0.94);
+}
+
+.wo-modal-close:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* The form loses its own card chrome inside the modal */
+.wo-modal .wo-inventory-form {
+    max-width: none;
+    padding: var(--space-lg, 32px);
+    border: none;
+    border-radius: 0;
+    background-color: transparent;
+}
+
+.wo-modal .wo-inventory-form h3 {
+    padding-right: 40px;
+}
+
+@keyframes wo-modal-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes wo-modal-in {
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (max-width: 600px) {
+    .wo-modal-overlay {
+        padding: 16px;
+    }
+
+    .wo-modal .wo-inventory-form {
+        padding: var(--space-md, 20px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wo-modal-overlay,
+    .wo-modal {
+        animation: none !important;
+    }
+}
+
+/* =========================================================
+   WORKFLOWS: borrowing, returns, incidents, usage records
+   (styles for the elements added by the transaction forms
+   and history tables)
+========================================================= */
+
+/* ---------- Section headings inside toolbars ---------- */
+.wo-inventory-toolbar {
+    flex-wrap: wrap;
+}
+
+.wo-inventory-toolbar > h2 {
+    margin: 0 auto 0 0;
+    font-family: "Outfit", sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--primary-text);
+}
+
+.wo-inventory-toolbar .muted,
+.wo-inventory-form .muted,
+.wo-inventory-card .muted {
+    margin: 0;
+    font-size: var(--fs-sm, 0.9rem);
+    color: var(--secondary-text);
+}
+
+/* ---------- History / transactions area ---------- */
+.wo-inventory-history {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg, 32px);
+}
+
+/* ---------- Action cards (Borrow / Record Usage) ----------
+   These reuse the .wo-inventory-card class but have no flip faces,
+   so they get a plain card layout instead of the 3D flip layout. */
+.wo-inventory-card:not(:has(.wo-card-face)) {
+    height: auto;
+    min-height: 0;
+    perspective: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm, 12px);
+    padding: var(--space-md, 20px);
+    background-color: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+.wo-inventory-card:not(:has(.wo-card-face)):hover {
+    border-color: color-mix(in srgb, var(--primary-color) 45%, var(--border));
+}
+
+.wo-inventory-card:not(:has(.wo-card-face)) > h3 {
+    margin: 0;
+    font-family: "Outfit", sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--primary-text);
+    overflow-wrap: anywhere;
+}
+
+.wo-inventory-card:not(:has(.wo-card-face)) > .wo-inventory-add {
+    width: 100%;
+    margin-top: auto;
+}
+
+/* ---------- Table action buttons ---------- */
+.wo-inventory-table td > button + button {
+    margin-left: var(--space-xs, 8px);
+}
+
+.wo-inventory-table td > button {
+    white-space: nowrap;
+}
+
+.wo-inventory-table td {
+    overflow-wrap: anywhere;
+}
+
+.wo-inventory-table .wo-inventory-add {
+    padding: 7px var(--space-sm, 12px);
+    font-size: var(--fs-xs, 0.8rem);
+}
+
+/* ---------- Form fields (createField) ---------- */
+.wo-inventory-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs, 8px);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.wo-inventory-form textarea {
+    width: 100%;
+    min-height: 90px;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    color: var(--primary-text);
+    background-color: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    outline: none;
+    font-family: inherit;
+    font-size: var(--fs-sm, 0.9rem);
+    line-height: 1.5;
+    resize: vertical;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.wo-inventory-form textarea::placeholder {
+    color: var(--secondary-text);
+    opacity: 0.7;
+}
+
+.wo-inventory-form textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+.wo-inventory-form input:disabled,
+.wo-inventory-form select:disabled,
+.wo-inventory-form textarea:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* A lone Close button appended directly to a form (load error state) */
+.wo-inventory-form > .wo-inventory-cancel {
+    align-self: flex-start;
+}
+
+/* Long forms (usage, returns, incidents) scroll inside the modal */
+.wo-modal {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+/* Native date / time pickers follow the shell's dark mode */
+:root[data-theme="dark"] .wo-modal,
+:root[data-theme="dark"] .wo-inventory-form {
+    color-scheme: dark;
+}
+
+
+/* =========================================================
+   HARVEST CONTRIBUTIONS
+   Uses existing Warehouse Officer design tokens
+========================================================= */
+
+.wo-inventory-page .harvest-contributions-section {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md, 20px);
+    padding: var(--space-md, 20px);
+    background-color: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+}
+
+.wo-inventory-page .harvest-contributions-title {
+    margin: 0;
+    font-family: "Outfit", sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--primary-text);
+}
+
+.wo-inventory-page .harvest-contributions-description {
+    margin: -10px 0 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    line-height: 1.6;
+}
+
+/* ---------- Table wrapper ---------- */
+
+.wo-inventory-page .harvest-contributions-table-wrapper {
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    background-color: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+}
+
+/* ---------- Table ---------- */
+
+.wo-inventory-page .harvest-contributions-table {
+    width: 100%;
+    min-width: 620px;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.wo-inventory-page .harvest-contributions-table thead {
+    background-color: color-mix(
+        in srgb,
+        var(--secondary-text) 8%,
+        var(--surface-card)
+    );
+}
+
+.wo-inventory-page .harvest-contributions-table th {
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    color: var(--secondary-text);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.wo-inventory-page .harvest-contributions-table td {
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    color: var(--primary-text);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--fs-sm, 0.9rem);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.wo-inventory-page .harvest-contributions-table tbody tr {
+    background-color: var(--surface-card);
+    transition: background-color 0.2s ease;
+}
+
+.wo-inventory-page .harvest-contributions-table tbody tr:hover {
+    background-color: color-mix(
+        in srgb,
+        var(--primary-color) 5%,
+        var(--surface-card)
+    );
+}
+
+.wo-inventory-page .harvest-contributions-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ---------- Cumulative quantity ---------- */
+
+.wo-inventory-page .harvest-contributions-total {
+    color: var(--primary-color) !important;
+    font-weight: 700;
+}
+
+/* ---------- Empty and loading states ---------- */
+
+.wo-inventory-page .harvest-contributions-empty {
+    padding: var(--space-lg, 32px) var(--space-md, 20px) !important;
+    color: var(--secondary-text) !important;
+    text-align: center;
+    font-size: var(--fs-sm, 0.9rem);
+}
+
+@media (max-width: 600px) {
+    .wo-inventory-history {
+        gap: var(--space-md, 20px);
+    }
+
+    .wo-inventory-toolbar > h2 {
+        flex: 1 1 100%;
+    }
+    .wo-inventory-page .harvest-contributions-section {
+        padding: var(--space-sm, 12px);
+        gap: var(--space-sm, 12px);
+    }
+
+    .wo-inventory-page .harvest-contributions-title {
+        font-size: 1.1rem;
+    }
+
+    .wo-inventory-page .harvest-contributions-description {
+        font-size: var(--fs-xs, 0.8rem);
+    }
+
+    .wo-inventory-page .harvest-contributions-table {
+        min-width: 580px;
+    }
+}
