@@ -196,6 +196,7 @@ function toCsv(columns, rows) {
     ].join('\r\n');
 }
 
+/** Download the selected report rows as a CSV file. */
 function downloadCsv(report) {
     const csv = toCsv(report.columns, report.csvRows ?? report.rows);
     const blob = new Blob(['\ufeff', csv], { type: 'text/csv;charset=utf-8' });
@@ -784,6 +785,7 @@ function skeleton() {
 }
 
 /* ---------- Page ---------- */
+/** Load report data and render filters, previews, pagination, and CSV export. */
 export async function render(root) {
     const holder = h('div');
 

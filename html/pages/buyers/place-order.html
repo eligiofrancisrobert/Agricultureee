@@ -11,10 +11,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Poppins:wght@400;500;600;700&display=swap"
     rel="stylesheet">
 
+  <!-- Shared and page-specific stylesheets. -->
   <link rel="stylesheet" href="../../../css/feature/style.css">
   <link rel="stylesheet" href="../../../css/buyers/buyers.css">
   <link rel="stylesheet" href="../../../css/buyers/place-order.css">
 
+  <!-- Restore the saved theme before page content renders. -->
   <script>
     document.documentElement.dataset.theme = localStorage.getItem('theme') || 'light';
   </script>
@@ -23,12 +25,14 @@
 <body>
   <div class="app-layout">
 
+    <!-- Role navigation and account actions -->
     <aside class="sidebar">
       <div class="logo">
         <h1>T<span>ani</span>kala</h1>
         <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
       </div>
 
+      <!-- Buyer navigation -->
       <nav class="navigation" aria-label="Buyer navigation">
 
         <a href="browse-produce.html" class="nav-link">
@@ -90,8 +94,10 @@
       </div>
     </aside>
 
+    <!-- Main page content -->
     <main class="main-content">
 
+      <!-- Page header and account controls -->
       <header class="topbar">
         <div>
           <h2>Place Order</h2>
@@ -129,6 +135,7 @@
         </div>
       </header>
 
+      <!-- Place Your Order section -->
       <section class="welcome-section">
         <div>
           <p class="welcome-label">FINALIZE YOUR PURCHASE</p>
@@ -147,6 +154,7 @@
         </div>
       </section>
 
+      <!-- Order Confirmation section -->
       <section class="place-order-section">
 
         <div class="checkout-toolbar">
@@ -160,12 +168,15 @@
           </a>
         </div>
 
+        <!-- Request feedback displayed by page scripts. -->
         <div class="checkout-error" id="checkoutError" role="alert" hidden></div>
 
+        <!-- Loading state toggled while page data is retrieved. -->
         <div class="checkout-loading" id="checkoutLoading" role="status">
           Loading your order details...
         </div>
 
+        <!-- Page content updated by page scripts. -->
         <div class="checkout-layout" id="checkoutLayout" hidden>
 
           <div class="checkout-items-panel">
@@ -176,9 +187,11 @@
               </div>
             </div>
 
+            <!-- Dynamic checkout items list populated by page scripts. -->
             <div class="checkout-items-list" id="checkoutItemsList"></div>
           </div>
 
+          <!-- Order summary -->
           <aside class="checkout-summary">
 
             <h3>Order Summary</h3>
@@ -231,6 +244,7 @@
 
         </div>
 
+        <!-- Empty state shown when no matching records are available. -->
         <div class="checkout-empty" id="checkoutEmpty" hidden>
           <div class="checkout-empty-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24">
@@ -253,8 +267,10 @@
     </main>
   </div>
 
+  <!-- Transient notifications inserted by page scripts. -->
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
+  <!-- Page-specific behavior scripts. -->
   <script type="module" src="../../../js/buyers/place-order.js"></script>
   <script type="module" src="../../../js/feature/theme.js"></script>
 </body>

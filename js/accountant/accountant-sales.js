@@ -114,6 +114,7 @@ function formatDate(value) {
     });
 }
 
+/** Format a date/time value for the accountant's transaction display. */
 function formatDateTime(value) {
     if (!value) return '—';
 
@@ -176,6 +177,7 @@ function getSaleItems(saleId) {
     return state.items.filter(item => item.sale_id === saleId);
 }
 
+/** Resolve the buyer label from the current buyer lookup and sale ID. */
 function getBuyerName(sale) {
     const buyer = state.buyers.find(
         item => item.user_id === sale.buyer_id
@@ -303,6 +305,7 @@ async function fetchSales() {
    REPORTING PERIOD
    ========================================================= */
 
+/** Return the start/end boundaries selected by the reporting-period control. */
 function getPeriodRange() {
     const now = new Date();
 
@@ -446,6 +449,7 @@ function renderSummary() {
    TRANSACTION TABLE
    ========================================================= */
 
+/** Filter and draw transactions for the selected reporting period. */
 function renderTransactions() {
     const filtered = state.filteredSales;
 
@@ -676,6 +680,7 @@ function closeSaleDetails() {
    CHART UTILITIES
    ========================================================= */
 
+/** Destroy a named chart instance before replacing its visualization. */
 function destroyChart(name) {
     if (state.charts[name]) {
         state.charts[name].destroy();

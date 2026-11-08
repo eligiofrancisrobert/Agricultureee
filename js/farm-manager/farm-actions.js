@@ -753,6 +753,7 @@ async function loadSubmissionDetails(actionList) {
     }
 }
 
+/** Review a farmer submission and invoke onReviewed after a successful decision. */
 async function openSubmissionReview(action, completion, onReviewed) {
     if (!completion) {
         toast('No completion submission was found for this action.');
@@ -1082,6 +1083,7 @@ export function cleanup() {
     viewRoot = null;
 }
 
+/** Render assigned-farm actions and subscribe to their live record changes. */
 export async function render(root, ctx) {
     viewRoot = root;
     actions = [];

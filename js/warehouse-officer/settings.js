@@ -4,6 +4,7 @@ import { h, toast } from '../admin/ui.js';
 const MIN_PASSWORD_LENGTH = 8;
 
 /* ---------- Data ---------- */
+/** Read the current Supabase Auth email and account timestamps. */
 async function loadAccount() {
     const {
         data: { user },
@@ -55,6 +56,7 @@ const formatDateTime = (value) => {
 };
 
 // Advisory only: it never blocks saving a password that meets the minimum.
+/** Calculate the advisory password meter score and presentation values. */
 function passwordStrength(password) {
     const points = [
         password.length >= MIN_PASSWORD_LENGTH,
@@ -284,6 +286,7 @@ function securityPanel() {
         h('div', { class: 'wo-settings-actions' }, submit)
     );
 
+    /** Validate and submit the new password with Supabase Auth. */
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         message.hidden = true;
@@ -389,6 +392,7 @@ function sessionsPanel() {
 }
 
 /* ---------- Page ---------- */
+/** Render profile, appearance, security, and session settings panels. */
 export async function render(root, ctx) {
     const page = h('section', { class: 'wo-settings' });
 

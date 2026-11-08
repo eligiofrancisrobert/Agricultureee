@@ -59,6 +59,7 @@ EXPECTED_UNAUTHENTICATED_LOGS = {
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
+    """Register an option for testing a site already running outside pytest."""
     parser.addoption(
         "--base-url",
         action="store",
@@ -69,6 +70,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[object]):
+    """Attach each phase result to its test item for teardown fixtures to inspect."""
     outcome = yield
     report = outcome.get_result()
     setattr(item, f"rep_{report.when}", report)
@@ -76,6 +78,7 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[object]):
 
 @pytest.fixture(scope="session")
 def base_url(pytestconfig: pytest.Config) -> Iterator[str]:
+    """Use a validated external URL or provide a server owned by this test session."""
     configured_url = pytestconfig.getoption("--base-url")
     if configured_url:
         url = normalize_base_url(configured_url)
@@ -93,6 +96,7 @@ def base_url(pytestconfig: pytest.Config) -> Iterator[str]:
 
 @pytest.fixture(scope="session")
 def browser() -> Iterator[Browser]:
+    """Launch one headless Chromium process for the pytest session."""
     with sync_playwright() as playwright:
         instance = playwright.chromium.launch(headless=True)
         yield instance
@@ -101,6 +105,12 @@ def browser() -> Iterator[Browser]:
 
 @pytest.fixture
 def context(browser: Browser, base_url: str) -> Iterator[BrowserContext]:
+    """Create an isolated browser context and stub all third-party network traffic.
+
+    Only requests to the tested application origin reach the local/deployed
+    site. Supabase and Font Awesome receive minimal test doubles; other external
+    resources are fulfilled empty to keep tests deterministic and offline.
+    """
     context = browser.new_context(
         base_url=base_url,
         viewport={"width": 1366, "height": 768},
@@ -132,6 +142,7 @@ def context(browser: Browser, base_url: str) -> Iterator[BrowserContext]:
 
 @pytest.fixture
 def page(context: BrowserContext, request: pytest.FixtureRequest) -> Iterator[Page]:
+    """Provide a fresh page and save a full-page screenshot after call failures."""
     page = context.new_page()
     yield page
     report = getattr(request.node, "rep_call", None)
@@ -147,4 +158,5 @@ def page(context: BrowserContext, request: pytest.FixtureRequest) -> Iterator[Pa
 
 @pytest.fixture
 def expected_unauthenticated_logs() -> dict[str, str]:
+    """List known authorization errors caused by intentionally anonymous tests."""
     return EXPECTED_UNAUTHENTICATED_LOGS

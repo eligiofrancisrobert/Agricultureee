@@ -200,6 +200,7 @@ async function initializeBuyer() {
    LOAD COMPLETED ORDERS
    ========================================================= */
 
+/** Load completed sales with their items and refresh history summaries/filters. */
 async function loadOrders() {
     if (!state.buyer) return;
 
@@ -295,6 +296,7 @@ function calculateSummary() {
    FILTER AND SORT
    ========================================================= */
 
+/** Apply the current search, completion date, and sort to loaded orders. */
 function applyFilters() {
     let filtered = [...state.orders];
 
@@ -839,6 +841,7 @@ window.addEventListener('pagehide', () => {
    INITIALIZATION
    ========================================================= */
 
+/** Load the buyer identity before setting up the completed-order history page. */
 async function initializeOrderHistory() {
     try {
         initializeHeader();

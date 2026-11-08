@@ -20,6 +20,7 @@ let otpSubmitting = false;
 let otpCancelled = false;
 let verifiedSession = null;
 
+/** Clear credentials whenever this login page is entered or left. */
 function clearLoginCredentials() {
     if (passwordInput) passwordInput.value = "";
     if (emailInput) emailInput.value = "";
@@ -31,12 +32,14 @@ clearLoginCredentials();
 window.addEventListener("pageshow", clearLoginCredentials);
 window.addEventListener("pagehide", clearLoginCredentials);
 
+/** Display login feedback and mark error messages for styling. */
 function showMessage(text, isError = false) {
     message.hidden = false;
     message.textContent = text;
     message.classList.toggle("error", isError);
 }
 
+/** Reset and open the one-time-code dialog for the submitted email. */
 function openOtpModal(email) {
     otpEmail.textContent = email;
     otpError.hidden = true;
@@ -48,6 +51,7 @@ function openOtpModal(email) {
     requestAnimationFrame(() => otpDigits[0].focus());
 }
 
+/** Close the OTP dialog unless verification is currently being submitted. */
 function closeOtpModal() {
     if (otpSubmitting) return;
 
@@ -55,6 +59,7 @@ function closeOtpModal() {
     otpModal.hidden = true;
 }
 
+/** Combine the individual OTP inputs into the value sent for verification. */
 function getOtpValue() {
     return otpDigits.map(input => input.value).join("");
 }
@@ -121,6 +126,11 @@ otpModal.addEventListener("click", event => {
     if (event.target === otpModal) closeOtpModal();
 });
 
+/**
+ * Resolve the landing page after checking admin, staff, and profile access.
+ * @param {string} userId Supabase Auth user ID.
+ * @returns {Promise<string>} The destination for the account's role.
+ */
 async function getApprovedDestination(userId) {
     // 1. Check existing administrator accounts.
     const { data: admin, error: adminError } = await supabase

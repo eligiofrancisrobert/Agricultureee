@@ -13,14 +13,17 @@
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600&amp;family=Poppins:wght@300;400;500;600&amp;display=swap"
         rel="stylesheet">
 
+    <!-- Shared and page-specific stylesheets. -->
     <link rel="stylesheet" href="../../../css/feature/style.css">
     <link rel="stylesheet" href="../../../css/farmer/farmer.css">
     <link rel="stylesheet" href="../../../css/farmer/harvest-records.css">
 
+    <!-- Restore the saved theme before page content renders. -->
     <script>
         document.documentElement.dataset.theme = localStorage.getItem('theme') || 'light';
     </script>
 
+    <!-- Page-specific behavior scripts. -->
     <script type="module" src="../../../js/farmer/harvests.js"></script>
 </head>
 
@@ -28,12 +31,14 @@
 
     <div class="app-layout">
 
+        <!-- Role navigation and account actions -->
         <aside class="sidebar">
             <div class="logo">
                 <h1>T<span>ani</span>kala</h1>
                 <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
             </div>
 
+            <!-- Farmer sections -->
             <nav class="navigation" aria-label="Farmer sections">
                 <a href="farmer-dashboard.html" class="nav-link">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -88,8 +93,10 @@
             </div>
         </aside>
 
+        <!-- Main page content -->
         <main class="main-content">
 
+            <!-- Page header and account controls -->
             <header class="topbar">
                 <div>
                     <h2>Harvest Records</h2>
@@ -124,6 +131,7 @@
                 </div>
             </header>
 
+            <!-- Harvest Records section -->
             <section class="welcome-section">
                 <div>
                     <p class="welcome-label">FARMER PORTAL</p>
@@ -154,6 +162,7 @@
                         </div>
                     </div>
 
+                    <!-- Harvest record form -->
                     <form id="harvestForm" class="harvest-form">
 
                         <div class="harvest-field full-width">
@@ -225,6 +234,7 @@
                                     <th>Verification Remarks</th>
                                 </tr>
                             </thead>
+                            <!-- Dynamic harvest history body populated by page scripts. -->
                             <tbody id="harvestHistoryBody">
                                 <tr>
                                     <td colspan="6" class="harvest-empty">
@@ -256,6 +266,7 @@
                                     <th>Action</th>
                                 </tr>
                             </thead>
+                            <!-- Dynamic rejected harvest body populated by page scripts. -->
                             <tbody id="rejectedHarvestBody">
                                 <tr>
                                     <td colspan="5" class="harvest-empty">

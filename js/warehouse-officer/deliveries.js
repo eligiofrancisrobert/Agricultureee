@@ -28,6 +28,7 @@ let deliveryCountdownInterval = null;
    REALTIME
    ========================================================= */
 
+/** Subscribe to warehouse sale changes and schedule an order refresh. */
 function subscribeToOrderChanges() {
     if (realtimeChannel) {
         supabase.removeChannel(realtimeChannel);
@@ -436,6 +437,7 @@ function canConfirmCashPayment(order) {
     );
 }
 
+/** Build the cash-payment confirmation section for eligible deliveries. */
 function renderCashPaymentConfirmation(order) {
     if (order?.sale_status !== 'shipped') return '';
 
@@ -1116,6 +1118,7 @@ function closeShipmentModal() {
    CONFIRM PAYMENT
    ========================================================= */
 
+/** Confirm cash payment through the warehouse payment RPC. */
 async function handleCashPaymentConfirmation(event) {
     if (state.updating) return;
 
@@ -1211,6 +1214,7 @@ async function handleCashPaymentConfirmation(event) {
    UPDATE ORDER STATUS
    ========================================================= */
 
+/** Advance an order to the selected permitted delivery status. */
 async function handleStatusChange(event) {
     const select = event.currentTarget;
     const saleId = select.dataset.orderId;
@@ -1276,6 +1280,7 @@ async function handleStatusChange(event) {
    SHIPMENT SCHEDULE SUBMISSION
    ========================================================= */
 
+/** Validate and submit the delivery schedule for the selected order. */
 async function handleShipmentScheduleSubmit(event) {
     event.preventDefault();
 
@@ -1326,6 +1331,7 @@ async function handleShipmentScheduleSubmit(event) {
    SUPABASE ORDER STATUS UPDATE
    ========================================================= */
 
+/** Persist a sale-status transition and refresh its current order state. */
 async function updateOrderStatus(
     saleId,
     newStatus,
@@ -1396,6 +1402,7 @@ async function updateOrderStatus(
    LOAD ORDERS
    ========================================================= */
 
+/** Fetch warehouse deliveries and refresh the list, optionally without a loader. */
 async function loadOrders({ silent = false } = {}) {
     if (state.loading) {
         realtimeReloadQueued = true;
@@ -1469,6 +1476,7 @@ async function loadOrders({ silent = false } = {}) {
    MODULE INITIALIZATION
    ========================================================= */
 
+/** Render delivery controls, load orders, and subscribe to order changes. */
 export async function render(root, ctx = {}) {
     rootElement = root;
 

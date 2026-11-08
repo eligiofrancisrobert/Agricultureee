@@ -6,6 +6,7 @@ const field = ([label, value]) =>
         h('small', {}, label),
         value instanceof Node ? value : h('b', {}, value === null || value === undefined || value === '' ? '—' : String(value)));
 
+/** Create a document row whose button requests a temporary viewing URL. */
 function docRow(doc) {
     const btn = h('button', { class: 'btn ghost', type: 'button' }, 'View document');
     btn.addEventListener('click', async () => {
@@ -29,7 +30,11 @@ function docRow(doc) {
         h('span', {}, `${String(doc.document_type ?? 'Document').replaceAll('_', ' ')} (${doc.review_status ?? 'Unknown'})`), btn);
 }
 
-// onDecide(status) is optional; when given and the applicant is pending, Approve/Reject buttons appear.
+/**
+ * Open an applicant detail dialog and load role-specific details and documents.
+ * @param {object} app Applicant profile normalized by the admin API.
+ * @param {(status: string) => Promise<void>} [onDecide] Optional approval callback.
+ */
 export function openDetails(app, onDecide) {
     document.getElementById('detailsDialog')?.remove();
 

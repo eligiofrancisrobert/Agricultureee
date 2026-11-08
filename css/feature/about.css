@@ -1,3 +1,4 @@
+/* Two-column story layout, image carousel, and mission cards. */
 .about {
     padding: 50px 0;
 }
@@ -57,6 +58,7 @@
 }
 
 
+/* Carousel track and its navigation controls. */
 .carousel {
     position: relative;
     width: 100%;
@@ -207,6 +209,7 @@
     font-family: 'Poppins', sans-serif;
 }
 
+/* Stack the story layout and adapt the cards as the viewport narrows. */
 @media (max-width: 900px) {
 
     .about {

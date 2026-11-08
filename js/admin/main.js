@@ -29,6 +29,7 @@ const route = () => {
     return { key: TITLES[name] ? name : 'dashboard', sub };
 };
 
+/** Refresh the pending-application indicators from the admin statistics API. */
 async function refreshBadge() {
     try {
         const { pending } = await getStats();
@@ -53,6 +54,7 @@ function syncNav({ key, sub }) {
     if (key === 'users') setMenu(true);
 }
 
+/** Load and render the view selected by the current hash route. */
 async function show() {
     if (!authorized) return;
 
@@ -88,6 +90,7 @@ async function show() {
 }
 
 // Verify the session is an admin, otherwise send back to login.
+/** Re-check admin authorization before exposing the admin interface. */
 async function boot() {
     if (checking) return;
     checking = true;

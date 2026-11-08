@@ -27,11 +27,13 @@ const saveButton = document.getElementById("saveButton");
 
 // Loaded only when needed, so a problem in connection.js shows up as a
 // readable message on submit instead of silently breaking the page.
+/** Load the shared Supabase client only when password submission needs it. */
 async function getSupabase() {
     const module = await import("../connection.js");
     return module.supabase;
 }
 
+/** Display password-reset feedback with the matching live announcement. */
 function showMessage(text, isError = false) {
     message.textContent = text;
     message.hidden = false;
@@ -40,6 +42,7 @@ function showMessage(text, isError = false) {
     message.style.color = isError ? "#A12622" : "#35452D";
 }
 
+/** Check the length and character classes required by this form. */
 function isStrongPassword(password) {
     return (
         password.length >= 12 &&
@@ -50,6 +53,7 @@ function isStrongPassword(password) {
     );
 }
 
+/** Verify the recovery session, update the password, then sign out locally. */
 form?.addEventListener("submit", async (event) => {
     event.preventDefault();
 

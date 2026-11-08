@@ -4,6 +4,7 @@ import { getStats } from './api.js';
 const statBox = (label, value, cls = '') =>
     h('div', { class: `stat-box ${cls}` }, h('small', {}, label), h('b', {}, value));
 
+/** Render platform totals, registration activity, and approval statistics. */
 export async function render(root) {
     const s = await getStats();
     let mode = 'role';

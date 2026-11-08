@@ -13,10 +13,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap"
     rel="stylesheet">
 
+  <!-- Shared and page-specific stylesheets. -->
   <link rel="stylesheet" href="../../../css/feature/style.css">
   <link rel="stylesheet" href="../../../css/buyers/buyers.css">
   <link rel="stylesheet" href="../../../css/buyers/buyer-order-history.css">
 
+  <!-- Restore the saved theme before page content renders. -->
   <script>
     document.documentElement.dataset.theme =
       localStorage.getItem('theme') || 'light';
@@ -36,6 +38,7 @@
           alt="Tanikala Logo" class="logo-image">
       </div>
 
+      <!-- Buyer navigation -->
       <nav class="navigation" aria-label="Buyer navigation">
 
         <a href="browse-produce.html" class="nav-link">
@@ -302,6 +305,7 @@
             </div>
           </div>
 
+          <!-- Dynamic history orders list populated by page scripts. -->
           <div class="history-orders-list" id="historyOrdersList">
           </div>
 
@@ -359,6 +363,7 @@
 
       </div>
 
+      <!-- Interactive dialog managed by page scripts. -->
       <div class="history-modal-content"
         id="historyModalContent">
 

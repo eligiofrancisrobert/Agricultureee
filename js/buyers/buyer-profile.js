@@ -175,6 +175,7 @@ function toggleBusinessField() {
   if (!isBusiness) setInvalid(el.businessName, false);
 }
 
+/** Load the authenticated buyer profile and populate the identity and form. */
 async function init() {
   setToday();
   bindEvents();
@@ -210,6 +211,7 @@ async function init() {
 
 /* ============ SAVE DETAILS ============ */
 
+/** Validate and save buyer profile fields as Supabase Auth user metadata. */
 async function saveDetails(event) {
   event.preventDefault();
 
@@ -280,6 +282,7 @@ async function saveDetails(event) {
 
 /* ============ CHANGE PASSWORD ============ */
 
+/** Validate the confirmation and update the signed-in buyer's password. */
 async function changePassword(event) {
   event.preventDefault();
 

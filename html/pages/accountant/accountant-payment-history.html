@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="../../../css/accountant/accountant-shared.css">
   <link rel="stylesheet" href="../../../css/accountant/payment-history.css">
 
+  <!-- Restore the saved theme before page content renders. -->
   <script>
     document.documentElement.dataset.theme = localStorage.getItem('theme') || 'light';
   </script>
@@ -33,6 +34,7 @@
         <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
       </div>
 
+      <!-- Accountant navigation -->
       <nav class="navigation" aria-label="Accountant navigation">
         <a href="accountant-dashboard.html" class="nav-link">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -147,15 +149,19 @@
         </div>
       </section>
 
+      <!-- Loading state toggled while page data is retrieved. -->
       <div class="loading-state" id="loadingState" role="status">Loading payment history...</div>
 
+      <!-- Request feedback displayed by page scripts. -->
       <div class="error-state" id="errorState" hidden>
         <p id="errorMessage">Unable to load payment history.</p>
         <button type="button" id="retryPaymentsBtn" class="secondary-btn">Try Again</button>
       </div>
 
+      <!-- Page content updated by page scripts. -->
       <div class="dashboard-content" id="paymentContent" hidden>
 
+        <!-- All Payment Transactions section -->
         <section class="information-section">
           <div class="activities-toolbar">
             <div class="section-heading">
@@ -202,6 +208,7 @@
                   <th>Status</th>
                 </tr>
               </thead>
+              <!-- Dynamic payment history body populated by page scripts. -->
               <tbody id="paymentHistoryBody">
                 <tr>
                   <td colspan="6" class="state-message">Loading records...</td>
@@ -227,8 +234,10 @@
     </main>
   </div>
 
+  <!-- Transient notifications inserted by page scripts. -->
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
+  <!-- Page-specific behavior scripts. -->
   <script type="module" src="../../../js/accountant/payment-history.js"></script>
   <script type="module" src="../../../js/feature/theme.js"></script>
 </body>

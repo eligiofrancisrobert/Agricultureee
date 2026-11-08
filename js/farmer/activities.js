@@ -626,6 +626,7 @@ function createActivityCard(activity, planting, farm) {
 
 // ---------- LOAD ASSIGNED ACTIVITIES ----------
 
+/** Fetch activities available to the farmer and render their current statuses. */
 async function loadActivities() {
     displayMessage("Loading your assigned activities...", "loading-state");
 
@@ -696,6 +697,7 @@ function scheduleActivitiesReload() {
     }, 300);
 }
 
+/** Subscribe to accessible activity changes and reload the activity list. */
 function subscribeToActivityChanges() {
     if (activitiesRealtimeChannel) {
         supabase.removeChannel(activitiesRealtimeChannel);
@@ -775,6 +777,7 @@ function initializeLogout() {
 
 // ---------- INITIALIZATION ----------
 
+/** Initialize the activity page after validating the farmer session. */
 async function initializeFarmerActivities() {
     try {
         initializeLogout();

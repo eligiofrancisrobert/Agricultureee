@@ -19,6 +19,7 @@ const farmerDocumentHint = document.getElementById("farmerDocumentHint");
 
 let farmCounter = 0;
 
+/** Display registration feedback, marking failures for error styling. */
 function showMessage(text, error = false) {
     if (!message) return;
 
@@ -47,6 +48,7 @@ function appendValue(data, key, id) {
     data.append(key, value(id));
 }
 
+/** Validate an optional/required document and append it to the multipart form. */
 function appendFile(data, key, id, label, required = true) {
     const file = getFile(id);
 
@@ -187,6 +189,7 @@ function updateFarmNumbers() {
 }
 
 
+/** Clone and initialize a farm card with unique field IDs and crop controls. */
 function addFarm() {
     if (!farmTemplate || !farmsContainer) {
         throw new Error(
@@ -279,6 +282,7 @@ function setFieldRequired(element, required) {
     element.required = required;
 }
 
+/** Show fields for the selected role and synchronize role-dependent inputs. */
 function updateRoleSections() {
     const role = roleSelect?.value ?? "";
 
@@ -298,6 +302,7 @@ function updateRoleSections() {
     updateFarmerTypeFields();
 }
 
+/** Require only fields that are currently visible and marked data-required. */
 function updateConditionalRequiredFields() {
     document.querySelectorAll("[data-required]").forEach(input => {
         const containingSection = input.closest(
@@ -408,6 +413,7 @@ function resetRoleSpecificFields() {
     if (nonOwnerFarmerNotice) nonOwnerFarmerNotice.hidden = true;
 }
 
+/** Validate owner-operator farm entries and return their crop selections. */
 function validateFarms() {
     const farmerType = value("farmerType");
 
@@ -456,6 +462,7 @@ function validateFarms() {
     });
 }
 
+/** Append farmer type and farm JSON, including first-farm legacy fields. */
 function appendFarmRegistration(data, farms) {
     data.append("farmerType", value("farmerType"));
     data.append("farms", JSON.stringify(farms));
@@ -473,6 +480,7 @@ function appendFarmRegistration(data, farms) {
 }
 
 // Submit registration through the existing Supabase Edge Function.
+/** Submit multipart applicant data and surface Edge Function failures. */
 async function submitRegistration(data) {
     const { data: result, error } =
         await supabase.functions.invoke("register-applicant", {

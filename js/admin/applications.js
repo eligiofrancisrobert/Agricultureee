@@ -7,6 +7,7 @@ export async function render(root, ctx) {
     const holder = h('div');
 
 
+    /** Apply an approval or a reasoned rejection, then refresh the queue. */
     const decide = async (user, status) => {
         let reason = '';
 
@@ -49,6 +50,7 @@ export async function render(root, ctx) {
     };
 
 
+    /** Render applicants matching the current role, status, and search filters. */
     const draw = async () => {
         try {
             const q = ctx.query.toLowerCase();

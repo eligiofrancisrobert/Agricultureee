@@ -727,6 +727,7 @@ async function loadHarvestHistory() {
 // REALTIME HARVEST UPDATES
 // ==========================================
 
+/** Subscribe to harvest changes and refresh the current harvest display. */
 function subscribeToHarvestUpdates() {
     if (!currentUser) return;
 
@@ -780,6 +781,7 @@ async function handleLogout() {
 // INITIALIZATION
 // ==========================================
 
+/** Verify the farmer session, load harvest data, and attach page handlers. */
 async function initializeHarvestPage() {
     applyTheme(readSavedTheme() || 'light');
 

@@ -12,6 +12,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 
 def main() -> int:
+    """Run pytest with caller arguments, defaulting to the complete test tree."""
     arguments = sys.argv[1:] or ["tests"]
     return int(pytest.main(arguments, plugins=[]))
 

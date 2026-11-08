@@ -8,6 +8,7 @@ const STAFF_ROLES = {
     4: 'Accountant'
 };
 
+/** Render the worker list scoped to the current farm-manager assignment. */
 export async function render(root, ctx) {
     const holder = h('div');
 
@@ -19,6 +20,7 @@ export async function render(root, ctx) {
         holder
     );
 
+    /** Fetch and display the latest workers for the manager's assigned farm. */
     const load = async () => {
         holder.replaceChildren(
             h('p', { class: 'muted' }, 'Loading workers...')

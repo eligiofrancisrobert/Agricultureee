@@ -3,6 +3,7 @@ import { getLookups, listStaff, createStaff, updateStaff, deleteStaffPermanently
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** Replace and display a modal dialog, removing it when it closes. */
 function openModal(id, label, ...kids) {
     document.getElementById(id)?.remove();
     const dialog = h('dialog', { id, class: 'details staff-dialog', 'aria-label': label }, ...kids);
@@ -24,6 +25,7 @@ const statusBadge = (a) => {
     return h('span', { class: `badge ${cls}` }, label);
 };
 
+/** Build the add/edit form, validate its values, and pass valid data to onSave. */
 function openForm({ account, roles, statuses, isDuplicate, onSave }) {
     const editing = Boolean(account);
 

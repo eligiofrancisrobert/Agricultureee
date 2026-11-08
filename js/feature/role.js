@@ -1,5 +1,6 @@
 const roleSelect = document.getElementById('role');
 
+/** Clear a conditional form field without changing checkbox/radio values. */
 function clearField(field) {
     if (field.type === 'checkbox' || field.type === 'radio') {
         // Uncheck only. Never touch .value, because it holds the crop name.
@@ -16,6 +17,7 @@ function clearField(field) {
     }
 }
 
+/** Show the selected role's fields and update their required state. */
 function updateConditionalFields() {
     const selectedRole = roleSelect.value;
 
@@ -38,6 +40,7 @@ function updateConditionalFields() {
     updateBuyerBusinessFields();
 }
 
+/** Toggle business-only buyer fields and clear them when hidden. */
 function updateBuyerBusinessFields() {
     const isBusiness =
         roleSelect.value === 'buyer' &&

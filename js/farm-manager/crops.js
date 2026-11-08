@@ -272,6 +272,7 @@ function renderTable() {
 }
 
 
+/** Fetch this manager's crop catalog and refresh the statistics and table. */
 async function loadCrops() {
     if (!managerId) {
         throw new Error('Farm Manager account could not be identified.');
@@ -387,6 +388,7 @@ function closeModal() {
     editingCrop = null;
 }
 
+/** Validate and persist the crop form, then refresh the catalog display. */
 async function saveCrop(form) {
     if (busy) return;
 
@@ -706,6 +708,7 @@ function renderPage() {
     `;
 }
 
+/** Initialize the crop catalog view, including its filters and editor actions. */
 export async function render(container, ctx) {
     if (!container) {
         console.error('Farm Manager page root #view was not found.');
@@ -725,4 +728,3 @@ export async function render(container, ctx) {
         notify(error.message || 'Unable to initialize the crop catalog.');
     }
 }
-

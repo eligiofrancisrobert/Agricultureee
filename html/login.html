@@ -12,12 +12,14 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500&amp;family=Poppins:wght@300;400;500;600;700;800&amp;display=swap"
         rel="stylesheet">
+    <!-- Shared and page-specific stylesheets. -->
     <link rel="stylesheet" href="../css/auth/signup.css">
     <link rel="stylesheet" href="../css/feature/style.css">
     <link rel="stylesheet" href="../css/auth/login.css">
 </head>
 
 <body>
+    <!-- Page header and account controls -->
     <header class="topbar">
         <a href="../index.html" class="brand">
             <div class="logo">
@@ -59,6 +61,7 @@
             </div>
         </aside>
 
+        <!-- Account login form -->
         <form id="loginForm" novalidate>
             <div class="form-title">
                 <h2>Log in</h2>
@@ -123,6 +126,7 @@
                 <strong id="otpEmail"></strong>.
             </p>
 
+            <!-- Email verification form -->
             <form id="otpForm">
                 <div class="otp-inputs">
                     <input class="otp-digit" type="text" inputmode="numeric" maxlength="1" autocomplete="one-time-code"
@@ -155,6 +159,7 @@
             </p>
         </div>
     </div>
+    <!-- Page-specific behavior scripts. -->
     <script src="../js/feature/layout.js"></script>
     <script src="../js/feature/theme.js"></script>
     <script type="module" src="../js/auth/login.js"></script>

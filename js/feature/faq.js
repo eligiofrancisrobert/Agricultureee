@@ -45,6 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
+    /** Apply the search, category, and expanded-list state to FAQ entries. */
     function filterFaqs() {
         const searchTerm = searchInput.value.trim().toLowerCase();
         const searching = searchTerm.length > 0;
@@ -104,6 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
             : 'See More Questions <i class="fa-solid fa-chevron-down"></i>';
     }
 
+    // Search includes extra questions even while the default list is collapsed.
     searchInput.addEventListener("input", filterFaqs);
 
     clearSearch.addEventListener("click", () => {

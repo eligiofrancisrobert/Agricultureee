@@ -6,6 +6,7 @@ const emailInput = document.getElementById("email");
 const message = document.getElementById("message");
 const resetButton = document.getElementById("resetButton");
 
+/** Display the recovery result and set its visual and live-region state. */
 function showMessage(text, isError = false) {
     message.textContent = text;
     message.hidden = false;
@@ -14,6 +15,7 @@ function showMessage(text, isError = false) {
     message.style.color = isError ? "#A12622" : "#35452D";
 }
 
+/** Request a Supabase recovery email with the environment-specific redirect. */
 form.addEventListener("submit", async (event) => {
     event.preventDefault();
 

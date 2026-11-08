@@ -40,11 +40,8 @@ function createHeader(text) {
 }
 
 /**
- * Creates the Harvest Contributions section.
- *
- * Returns:
- * - element: section DOM element
- * - load(): fetches and renders latest contribution records
+ * Build the contribution table and its asynchronous loader.
+ * @returns {{ element: HTMLElement, load: () => Promise<void> }}
  */
 export function createHarvestContributionsSection() {
     const section = createElement(
@@ -99,6 +96,7 @@ export function createHarvestContributionsSection() {
         tableWrapper
     );
 
+    /** Fetch contributions and inventory, then render farm/crop running totals. */
     async function load() {
         tbody.replaceChildren();
 

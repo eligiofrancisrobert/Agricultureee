@@ -31,6 +31,7 @@ const normalize = (p) => ({
     joined: p.created_at,
 });
 
+/** Fetch supported applicant profiles newest-first and normalize their UI fields. */
 async function fetchProfiles() {
     const { data, error } = await supabase
         .from('profiles')
@@ -45,6 +46,7 @@ async function fetchProfiles() {
 }
 
 // --- Auth -------------------------------------------------------------------
+/** Confirm the current user has an admin_users row; sign out unauthorized users. */
 export async function requireAdmin() {
     try {
         const { data: { user }, error } = await supabase.auth.getUser();
@@ -74,6 +76,7 @@ export async function requireAdmin() {
     }
 }
 
+/** End the current Supabase session and propagate any sign-out error. */
 export async function logout() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -82,6 +85,7 @@ export async function logout() {
 // --- Users & applications ---------------------------------------------------
 export const listUsers = fetchProfiles;
 
+/** Change an applicant's status through the admin decision function. */
 export async function setUserStatus(user, status, reason = '') {
     if (status === 'rejected' && !reason.trim()) {
         throw new Error('A rejection reason is required.');
@@ -132,6 +136,7 @@ export async function setUserStatus(user, status, reason = '') {
 
 // --- Permanently delete a user ----------------------------------------------
 // Requires the admin-delete-user Supabase Edge Function to be deployed.
+/** Permanently delete the specified user through the admin Edge Function. */
 export async function deleteUserPermanently(userId) {
     if (!userId) {
         throw new Error('A valid user ID is required.');
@@ -185,6 +190,7 @@ const ROLE_DETAILS = {
     }
 };
 
+/** Load profile details, farms/crops, or business/product interests by role. */
 export async function getApplicantDetails(app) {
     const role = String(app.role ?? '').toLowerCase();
 
@@ -305,6 +311,7 @@ export async function getApplicantDetails(app) {
 
 // --- Registration documents (private, via Edge Function) --------------------
 
+/** Invoke the admin document-review function for the requested action. */
 async function review(body) {
     const { data, error } = await supabase.functions.invoke(
         'admin-review-application',
@@ -317,9 +324,11 @@ async function review(body) {
     return data;
 }
 
+/** List private registration documents for one applicant. */
 export const listDocuments = async (userId) =>
     (await review({ action: 'list', userId }))?.documents ?? [];
 
+/** Request a signed viewing URL for one private registration document. */
 export async function getDocumentUrl(documentId) {
     const data = await review({ action: 'view', documentId });
 
@@ -332,6 +341,7 @@ export async function getDocumentUrl(documentId) {
 
 // --- Dashboard --------------------------------------------------------------
 
+/** Aggregate profile counts, approval rates, and the trailing seven days. */
 export async function getStats() {
     const u = await fetchProfiles();
     const count = (k, v) => u.filter((x) => x[k] === v).length;
@@ -477,6 +487,7 @@ export async function getLogs() {
 
 export const getSettings = async () => structuredClone(settings);
 
+/** Update the in-memory settings object and return a defensive copy. */
 export async function saveSettings(values) {
     Object.assign(settings, values);
     log('Updated settings', 'Platform');

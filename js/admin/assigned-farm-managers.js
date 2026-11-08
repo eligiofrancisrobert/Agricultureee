@@ -59,6 +59,7 @@ function formatDate(value) {
     });
 }
 
+/** Render assigned managers and their linked farms using the current search. */
 function render() {
     const query = searchInput.value.trim().toLowerCase();
 
@@ -154,6 +155,7 @@ function render() {
     }).join('');
 }
 
+/** Load manager, municipality, farm, and assignment metadata from Supabase. */
 async function loadData() {
     tbody.innerHTML = `
         <tr>
@@ -419,6 +421,7 @@ searchInput.addEventListener('input', render);
 assignmentFilter.addEventListener('change', render);
 
 // Save or change municipality assignment.
+/** Save the selected manager's municipality assignment. */
 form.addEventListener('submit', async (event) => {
     event.preventDefault();
 

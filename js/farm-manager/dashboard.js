@@ -609,6 +609,7 @@ function quickActionsCard() {
     );
 }
 
+/** Compose the dashboard cards from the loaded farm, farmer, and planting data. */
 function dashboard({ farms, farmers, plantings, cropLabels }) {
     const statusMap = plantingsByFarm(plantings, cropLabels);
 
@@ -637,6 +638,7 @@ function dashboard({ farms, farmers, plantings, cropLabels }) {
 }
 
 /* ---------- Page ---------- */
+/** Load farm-manager dashboard data and render its summary and charts. */
 export async function render(root, ctx) {
     const holder = h('div');
 

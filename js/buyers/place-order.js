@@ -316,6 +316,7 @@ function renderCheckout() {
   }
 }
 
+/** Load cart rows with current stock and prices for checkout validation. */
 async function loadCheckoutItems() {
   el.checkoutLoading.hidden = false;
   el.checkoutLayout.hidden = true;
@@ -428,6 +429,7 @@ async function loadCheckoutItems() {
   }
 }
 
+/** Validate checkout items and submit the selected order through the sale RPC. */
 async function placeOrder() {
   if (state.isCheckingOut) return;
 
@@ -535,6 +537,7 @@ function bindEvents() {
   el.placeOrderBtn?.addEventListener('click', placeOrder);
 }
 
+/** Authenticate the buyer and initialize the checkout summary and controls. */
 async function init() {
   setToday();
   bindEvents();

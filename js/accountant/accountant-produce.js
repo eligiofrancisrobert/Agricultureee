@@ -56,6 +56,7 @@ let deletingPriceId = null;
 
 let lastFocusedElement = null;
 
+/** Escape text before inserting it into produce-table markup. */
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (character) => ({
         '&': '&amp;',
@@ -129,6 +130,7 @@ function getProduceKey(cropName, unit) {
    PRODUCE AVAILABILITY FILTER
    ========================================================= */
 
+/** Check whether a crop/unit combination already has a price record. */
 function isProduceUnitPriced(cropName, unit) {
     const key = getProduceKey(cropName, unit);
 
@@ -579,6 +581,7 @@ async function deletePrice() {
    LOAD PRICE RECORDS
    ========================================================= */
 
+/** Load the accountant's produce and existing price records from Supabase. */
 async function loadPriceRecords() {
     const { data, error } = await supabase
         .from('farm_produce_prices')

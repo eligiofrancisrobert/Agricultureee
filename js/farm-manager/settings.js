@@ -64,6 +64,7 @@ const formatDateTime = (value) => {
 };
 
 // Advisory only: it never blocks saving a password that meets the minimum.
+/** Return the advisory strength score used by the password meter. */
 function passwordStrength(password) {
     const points = [
         password.length >= MIN_PASSWORD_LENGTH,
@@ -427,6 +428,7 @@ function sessionsPanel() {
 }
 
 /* ---------- Page ---------- */
+/** Render appearance, password, and session settings for the farm manager. */
 export async function render(root, ctx) {
     const holder = h('div');
 

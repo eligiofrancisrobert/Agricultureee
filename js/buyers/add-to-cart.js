@@ -510,6 +510,7 @@ function renderCart() {
   updateSummary();
 }
 
+/** Fetch the buyer's cart with current inventory and price data for display. */
 async function loadCart() {
   el.cartLoading.hidden = false;
   el.cartLayout.hidden = true;
@@ -622,6 +623,7 @@ async function loadCart() {
   }
 }
 
+/** Validate and persist a cart quantity against current inventory and unit rules. */
 async function updateCartItem(button) {
   const card = button.closest('.cart-item');
   const cartItemId = card?.dataset.cartItemId;
@@ -691,6 +693,7 @@ async function updateCartItem(button) {
   }
 }
 
+/** Delete the selected cart row and refresh the cart count and summary. */
 async function removeCartItem(button) {
   const card = button.closest('.cart-item');
   const cartItemId = card?.dataset.cartItemId;
@@ -736,6 +739,7 @@ async function removeCartItem(button) {
 
 /* ============ CHECKBOX HANDLERS ============ */
 
+/** Persist a checkbox selection change and update totals without rerendering. */
 function handleSelectionChange(input) {
   if (input.matches('[data-select-all]')) {
     for (const item of state.cartItems) {
@@ -766,6 +770,7 @@ function handleSelectionChange(input) {
   updateSummary();
 }
 
+/** Pass selected cart item IDs to the checkout page through session storage. */
 function proceedToCheckout() {
   if (!state.cartItems.length) {
     showToast('Your cart is empty.', 'error');
@@ -850,6 +855,7 @@ function bindEvents() {
   });
 }
 
+/** Authenticate the buyer and initialize cart loading and event handlers. */
 async function init() {
   setToday();
   bindEvents();

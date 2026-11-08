@@ -13,6 +13,7 @@
         suspended: { label: 'Suspended', color: 'var(--error)' },
     };
 
+    /** Create an HTML element, bind on* attributes, and append text or nodes. */
     export const h = (tag, attrs = {}, ...kids) => {
         const el = document.createElement(tag);
         for (const [k, v] of Object.entries(attrs || {})) {
@@ -60,6 +61,7 @@
             options.map(([v, l]) => h('option', { value: v, selected: v === value }, l)));
 
 
+    /** Build a table from column renderers, including a configurable empty row. */
     export function table(cols, rows, empty = 'Nothing to show yet.') {
         return h('div', { class: 'table-wrap' },
             h('table', {},
@@ -90,6 +92,7 @@
 
 
     let toastTimer;
+    /** Show a temporary message using the shared admin toast element. */
     export function toast(message) {
         const t = document.getElementById('toast');
         t.textContent = message;
@@ -98,6 +101,7 @@
         toastTimer = setTimeout(() => (t.hidden = true), 2600);
     }
 
+    /** Draw a donut chart from labeled values and their colors. */
     export function donut(items) {
         const total = items.reduce((a, i) => a + i.value, 0);
         const R = 70, C = 2 * Math.PI * R;
@@ -118,6 +122,7 @@
         return el;
     }
 
+    /** Draw weekly series and show the values at the pointer's nearest day. */
     export function lineChart(labels, series) {
         const W = 640, H = 230, L = 30, R = 10, T = 10, B = 26;
         const max = Math.max(1, ...series.flatMap((s) => s.values));

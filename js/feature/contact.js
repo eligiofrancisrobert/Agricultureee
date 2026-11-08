@@ -1,5 +1,6 @@
 const contactForm = document.getElementById("contactForm");
 
+/** Validate and submit contact details to the send-contact-message function. */
 contactForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 

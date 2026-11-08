@@ -9,6 +9,7 @@ const OPTIONS = [
     ['maintenance', 'Maintenance mode', 'Only admins can sign in while this is on.'],
 ];
 
+/** Render registration and maintenance settings and save changed checkbox values. */
 export async function render(root) {
     const settings = await getSettings();
 

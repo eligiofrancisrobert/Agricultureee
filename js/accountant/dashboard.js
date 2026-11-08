@@ -152,6 +152,7 @@ const refundedSales = () =>
    SUMMARY CARDS
    ============================================================ */
 
+/** Refresh dashboard statistic cards from the currently loaded data. */
 function renderStats() {
     const paid = paidSales();
     const completed = completedSales();
@@ -371,6 +372,7 @@ function renderStatusChart() {
     );
 }
 
+/** Build dashboard charts from the loaded sales and inventory summaries. */
 function renderCharts() {
     chartDefaults();
     renderTrend();
@@ -381,6 +383,7 @@ function renderCharts() {
    RECENT PAYMENT TRANSACTIONS
    ============================================================ */
 
+/** Render the latest sale records in the dashboard's recent-activity area. */
 function renderRecent() {
     const rows = state.sales
         .filter(sale =>

@@ -11,10 +11,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Poppins:wght@400;500;600;700&display=swap"
     rel="stylesheet">
 
+  <!-- Shared and page-specific stylesheets. -->
   <link rel="stylesheet" href="../../../css/feature/style.css">
   <link rel="stylesheet" href="../../../css/buyers/buyers.css">
   <link rel="stylesheet" href="../../../css/buyers/buyer-profile.css">
 
+  <!-- Restore the saved theme before page content renders. -->
   <script>
     document.documentElement.dataset.theme = localStorage.getItem('theme') || 'light';
   </script>
@@ -23,12 +25,14 @@
 <body>
   <div class="app-layout">
 
+    <!-- Role navigation and account actions -->
     <aside class="sidebar">
       <div class="logo">
         <h1>T<span>ani</span>kala</h1>
         <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
       </div>
 
+      <!-- Buyer navigation -->
       <nav class="navigation" aria-label="Buyer navigation">
 
         <a href="browse-produce.html" class="nav-link">
@@ -89,8 +93,10 @@
       </div>
     </aside>
 
+    <!-- Main page content -->
     <main class="main-content">
 
+      <!-- Page header and account controls -->
       <header class="topbar">
         <div>
           <h2>Profile</h2>
@@ -128,6 +134,7 @@
         </div>
       </header>
 
+      <!-- My Profile section -->
       <section class="welcome-section">
         <div>
           <p class="welcome-label">YOUR ACCOUNT</p>
@@ -143,6 +150,7 @@
         </div>
       </section>
 
+      <!-- Your account section -->
       <section class="profile-section">
 
         <div class="profile-toolbar">
@@ -152,13 +160,16 @@
           </div>
         </div>
 
+        <!-- Request feedback displayed by page scripts. -->
         <div class="profile-error" id="profileError" role="alert" hidden></div>
 
+        <!-- Loading state toggled while page data is retrieved. -->
         <div class="profile-loading" id="profileLoading" role="status">
           <span class="profile-loader" aria-hidden="true"></span>
           Loading your profile...
         </div>
 
+        <!-- Page content updated by page scripts. -->
         <div class="profile-layout" id="profileLayout" hidden>
 
           <!-- Identity card -->
@@ -254,8 +265,10 @@
     </main>
   </div>
 
+  <!-- Transient notifications inserted by page scripts. -->
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
+  <!-- Page-specific behavior scripts. -->
   <script type="module" src="../../../js/buyers/buyer-profile.js"></script>
   <script type="module" src="../../../js/feature/theme.js"></script>
 </body>

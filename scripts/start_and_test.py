@@ -16,6 +16,11 @@ from scripts.testing import local_server
 
 
 def main() -> int:
+    """Run pytest against a supplied URL or a temporary local site server.
+
+    ``--url`` and ``BASE_URL`` opt into testing an existing service. Otherwise,
+    the context-managed server is shut down after pytest completes.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--url",

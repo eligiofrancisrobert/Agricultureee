@@ -261,6 +261,7 @@ async function loadFarms(farmIds) {
 
 // ---------- LOAD LINKED PLANTINGS ----------
 
+/** Load planting records and their related activity/farm information. */
 async function loadPlantings(plantingIds) {
     const uniquePlantingIds = [...new Set(plantingIds.filter(Boolean))];
 
@@ -708,6 +709,7 @@ function schedulePlantingsReload() {
     }, 300);
 }
 
+/** Subscribe to planting updates and schedule a page data refresh. */
 function subscribeToPlantingChanges() {
     if (plantingRealtimeChannel) {
         supabase.removeChannel(plantingRealtimeChannel);
@@ -772,6 +774,7 @@ function initializeLogout() {
 
 // ---------- INITIALIZATION ----------
 
+/** Verify the farmer session and initialize the planting list and controls. */
 async function initializeFarmerPlantings() {
     try {
         initializeLogout();

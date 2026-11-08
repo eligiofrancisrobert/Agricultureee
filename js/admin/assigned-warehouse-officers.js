@@ -68,6 +68,7 @@ function getOfficer(officerId) {
     );
 }
 
+/** Render officers with their current farm assignment and search/filter state. */
 function render() {
     const query = searchInput.value.trim().toLowerCase();
     const filter = assignmentFilter.value;
@@ -322,6 +323,7 @@ function populateDropdowns() {
     `;
 }
 
+/** Load officer, farm, assignment, and assigning-staff records for the page. */
 async function loadData() {
     if (loading) return;
 
@@ -476,6 +478,7 @@ searchInput.addEventListener('input', render);
 assignmentFilter.addEventListener('change', render);
 
 // Save or change farm assignment.
+/** Save the selected officer-to-farm assignment. */
 form.addEventListener('submit', async (event) => {
     event.preventDefault();
 

@@ -49,6 +49,7 @@ function createCell(value) {
 
 
 
+/** Show a profile and load its farmer, buyer, or supplier details from Supabase. */
 async function showApplicationDetails(app) {
     if (!accessGranted) return;
 
@@ -337,6 +338,7 @@ async function showApplicationDetails(app) {
     }
 }
 
+/** Filter loaded application profiles and rebuild the applications table. */
 function renderApplications() {
     if (!tableBody) return;
 
@@ -388,6 +390,7 @@ function renderApplications() {
 }
 
 
+/** Fetch application profiles and update the current application list. */
 async function loadApplications() {
     if (!accessGranted) return;
 
@@ -420,6 +423,7 @@ async function loadApplications() {
     }
 }
 
+/** Verify the signed-in user is an administrator before enabling this page. */
 async function verifyAdminAccess() {
     if (checkingAccess) return;
     checkingAccess = true;

@@ -186,6 +186,7 @@ function setFormMessage(message, text, type = 'error') {
     message.className = `wo-inventory-form-message ${type}`;
 }
 
+/** Return the authenticated user's ID or throw when the session is missing. */
 async function getCurrentUserId() {
     const { data, error } = await supabase.auth.getUser();
 
@@ -223,6 +224,7 @@ function validatePhoto(file) {
     }
 }
 
+/** Validate and upload an inventory image, returning its storage path. */
 async function uploadInventoryPhoto(file, category) {
     if (!file) return null;
 
@@ -248,6 +250,7 @@ async function uploadInventoryPhoto(file, category) {
     return data.path;
 }
 
+/** Resolve a public URL or create a short-lived URL for a stored photo path. */
 async function getPhotoUrl(photoPath) {
     if (!photoPath) return null;
 
@@ -2678,6 +2681,7 @@ async function renderHarvestInventory(root, config, ctx) {
 PAGE ENTRY POINTS
 ========================================================= */
 
+/** Render a configured inventory module and load its records and actions. */
 export async function renderInventoryPage(root, config, ctx = {}) {
     closeModal();
     revokeObjectUrls();
@@ -2689,6 +2693,7 @@ export async function renderInventoryPage(root, config, ctx = {}) {
     return renderToolsInventory(root, config, ctx);
 }
 
+/** Close the active inventory modal and revoke generated object URLs. */
 export function cleanupInventoryPage() {
     closeModal();
     revokeObjectUrls();

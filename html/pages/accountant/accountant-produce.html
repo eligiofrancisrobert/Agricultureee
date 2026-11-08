@@ -9,10 +9,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+  <!-- Shared and page-specific stylesheets. -->
   <link rel="stylesheet" href="../../../css/feature/style.css">
   <link rel="stylesheet" href="../../../css/accountant/accountant.css">
   <link rel="stylesheet" href="../../../css/accountant/accountant-produce.css">
 
+  <!-- Restore the saved theme before page content renders. -->
   <script>
     document.documentElement.dataset.theme = localStorage.getItem('theme') || 'light';
   </script>
@@ -21,12 +23,14 @@
 <body>
   <div class="app-layout">
 
+    <!-- Role navigation and account actions -->
     <aside class="sidebar">
       <div class="logo">
         <h1>T<span>ani</span>kala</h1>
         <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
       </div>
 
+      <!-- Accountant navigation -->
       <nav class="navigation" aria-label="Accountant navigation">
         <a href="accountant-dashboard.html" class="nav-link">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -93,8 +97,10 @@
       </div>
     </aside>
 
+    <!-- Main page content -->
     <main class="main-content">
 
+      <!-- Page header and account controls -->
       <header class="topbar">
         <div>
           <h2>Produce Records</h2>
@@ -133,6 +139,7 @@
         </div>
       </header>
 
+      <!-- Produce Records section -->
       <section class="welcome-section">
         <div>
           <p class="welcome-label">FARM PRODUCE</p>
@@ -149,6 +156,7 @@
         </div>
       </section>
 
+      <!-- Produce List section -->
       <section class="produce-section">
 
         <div class="produce-toolbar">
@@ -191,6 +199,7 @@
               </tr>
             </thead>
 
+            <!-- Dynamic produce body populated by page scripts. -->
             <tbody id="produceBody">
               <tr>
                 <td colspan="4" class="table-message">
@@ -201,6 +210,7 @@
           </table>
         </div>
 
+        <!-- Empty state shown when no matching records are available. -->
         <div class="produce-empty" id="produceEmpty" hidden>
           <div class="empty-icon">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -213,6 +223,7 @@
           <p id="emptyMessage">Add a price to start managing your farm's produce prices.</p>
         </div>
 
+        <!-- Request feedback displayed by page scripts. -->
         <div class="produce-error" id="produceError" hidden></div>
 
       </section>
@@ -242,6 +253,7 @@
         </button>
       </div>
 
+      <!-- Produce price form -->
       <form id="priceForm">
         <div class="form-group">
           <label for="produceSelect">Produce Name</label>
@@ -272,6 +284,7 @@
           </div>
         </div>
 
+        <!-- Interactive dialog managed by page scripts. -->
         <div class="modal-error" id="modalError" hidden></div>
 
         <div class="modal-actions">
@@ -317,8 +330,10 @@
     </section>
   </div>
 
+  <!-- Transient notifications inserted by page scripts. -->
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
+  <!-- Page-specific behavior scripts. -->
   <script type="module" src="../../../js/accountant/accountant-produce.js"></script>
   <script type="module" src="../../../js/feature/theme.js"></script>
 </body>

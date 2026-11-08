@@ -59,12 +59,14 @@ function initializeTheme() {
 
 /* ============ HELPERS ============ */
 
+/** Escape HTML-sensitive characters before embedding a value in markup. */
 export function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, ch => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[ch]));
 }
 
+/** Format a numeric amount as Philippine pesos. */
 export function formatPeso(amount) {
     return new Intl.NumberFormat("en-PH", {
         style: "currency",
@@ -72,6 +74,7 @@ export function formatPeso(amount) {
     }).format(Number(amount) || 0);
 }
 
+/** Format a valid date for the accountant pages, or return a dash. */
 export function formatDate(value) {
     if (!value) return "-";
     const date = new Date(value);
@@ -79,6 +82,7 @@ export function formatDate(value) {
     return date.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
 }
 
+/** Add a temporary status or error toast when the toast stack exists. */
 export function showToast(message, type = "success") {
     const stack = document.getElementById("toastStack");
     if (!stack) return;

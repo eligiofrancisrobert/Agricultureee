@@ -153,6 +153,7 @@ async function loadAssignedFarms(staffId) {
     return matchedFarms;
 }
 
+/** Load the assigned farms' planting and harvest data for this manager. */
 async function loadDashboardData(staff) {
     const farms = await loadAssignedFarms(staff?.staff_id);
 
@@ -463,6 +464,7 @@ export function cleanup() {
     cleanupHarvestRealtime();
 }
 
+/** Render harvest status summaries and records for the farm manager. */
 export async function render(container, ctx) {
     cleanupHarvestRealtime();
     const page = h('div', { class: 'harvest-page' });

@@ -34,6 +34,7 @@ const MODULES = [
     }
 ];
 
+/** Create a DOM node and optionally set its class and text content. */
 function element(tag, className, text) {
     const el = document.createElement(tag);
 
@@ -43,6 +44,7 @@ function element(tag, className, text) {
     return el;
 }
 
+/** Count harvest records, optionally limited to a confirmation status. */
 async function getCount(status) {
     let query = supabase
         .from('harvested_crops')
@@ -75,6 +77,7 @@ function createStat(label, value, description) {
 }
 
 // Assigned Farm Card
+/** Build the assigned-farm summary or its no-assignment message. */
 function createAssignedFarmCard(farm) {
     const card = element('article', 'wo-assigned-farm-card');
 
@@ -147,6 +150,7 @@ function createModuleCard(module) {
     return card;
 }
 
+/** Render the warehouse dashboard and load harvest status totals in parallel. */
 export async function render(root, ctx) {
     const page = element('section', 'wo-dashboard');
 

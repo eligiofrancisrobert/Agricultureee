@@ -56,6 +56,11 @@ function normalizeLocation(value) {
 
 // RLS must enforce which farm records the manager may access.
 // This client-side filter only matches the assigned location.
+/**
+ * Load farms visible to the assigned municipality and sign their cover images.
+ * The database RLS policies remain responsible for access control.
+ * @returns {Promise<Array<object>>} Farms with display URLs and owner labels.
+ */
 export async function loadFarms() {
     const municipality = await getAssignedMunicipality();
 
@@ -195,6 +200,7 @@ function confirmRemove(farm, onConfirm) {
 }
 
 
+/** Validate, upload, and register a new cover image for the selected farm. */
 async function uploadCover(farm, file) {
     const ext = TYPES[file.type];
 
@@ -470,6 +476,7 @@ export function farmCard(farm, onChanged) {
 }
 
 
+/** Render the farm list and its photo and farm-management actions. */
 export async function render(root, ctx) {
     const holder = h('div');
 

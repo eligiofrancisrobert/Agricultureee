@@ -12,6 +12,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500&amp;family=Poppins:wght@300;400;500;600;700;800&amp;display=swap"
         rel="stylesheet">
+    <!-- Shared and page-specific stylesheets. -->
     <link rel="stylesheet" href="../../../css/feature/style.css">
     <link rel="stylesheet" href="../../../css/auth/signup.css">
     <link rel="stylesheet" href="../../../css/admin/assigned-farm-managers.css">
@@ -19,6 +20,7 @@
 </head>
 
 <body>
+    <!-- Page header and account controls -->
     <header class="topbar">
         <div class="logo">
             <h1>T<span>ani</span>kala</h1>
@@ -26,7 +28,9 @@
         </div>
     </header>
 
+    <!-- Main page content -->
     <main class="admin-page">
+        <!-- Page header and account controls -->
         <header class="page-header">
             <div>
                 <h1>Assigned Farm Managers</h1>
@@ -45,6 +49,7 @@
             </div>
         </header>
 
+        <!-- Farm Manager Assignments section -->
         <section class="card">
             <div class="section-heading">
                 <span class="section-number">01</span>
@@ -79,6 +84,7 @@
                             <th>Actions</th>
                         </tr>
                     </thead>
+                    <!-- Dynamic assigned managers body populated by page scripts. -->
                     <tbody id="assignedManagersBody">
                         <tr>
                             <td colspan="6">Loading assignments...</td>
@@ -89,7 +95,9 @@
         </section>
     </main>
 
+    <!-- Interactive dialog for municipality dialog -->
     <dialog id="municipalityDialog" class="details staff-dialog">
+        <!-- Municipality assignment form -->
         <form id="municipalityForm" class="staff-form">
             <div class="section-heading">
                 <span class="section-number">01</span>
@@ -133,6 +141,7 @@
         </form>
     </dialog>
 
+    <!-- Page-specific behavior scripts. -->
     <script type="module" src="../../../js/admin/assigned-farm-managers.js"></script>
     <script type="module" src="../../../js/feature/theme.js"></script>
     <script type="module" src="../../../js/admin/sidebar-menu.js"></script>

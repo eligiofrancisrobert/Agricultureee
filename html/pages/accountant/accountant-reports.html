@@ -13,11 +13,13 @@
     href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Poppins:wght@400;500;600;700&display=swap"
     rel="stylesheet">
 
+  <!-- Shared and page-specific stylesheets. -->
   <link rel="stylesheet" href="../../../css/feature/style.css">
   <link rel="stylesheet" href="../../../css/accountant/accountant.css">
   <link rel="stylesheet" href="../../../css/accountant/accountant-reports.css">
   
 
+  <!-- Restore the saved theme before page content renders. -->
   <script>
     document.documentElement.dataset.theme =
       localStorage.getItem("theme") || "light";
@@ -34,6 +36,7 @@
         <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
       </div>
 
+      <!-- Accountant navigation -->
       <nav class="navigation" aria-label="Accountant navigation">
         <a href="accountant-dashboard.html" class="nav-link">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -212,6 +215,7 @@
           Loading reports...
         </div>
 
+        <!-- Request feedback displayed by page scripts. -->
         <div class="error-state" id="errorState" hidden>
           <p id="errorMessage">Unable to load reports.</p>
           <button type="button" id="retryReportBtn" class="secondary-btn">
@@ -266,6 +270,7 @@
                 </div>
               </div>
               <div class="chart-wrap">
+                <!-- Chart rendered from page data. -->
                 <canvas id="accountantSalesTrendChart"></canvas>
               </div>
             </article>
@@ -278,6 +283,7 @@
                 </div>
               </div>
               <div class="chart-wrap">
+                <!-- Chart rendered from page data. -->
                 <canvas id="accountantPaymentChart"></canvas>
               </div>
             </article>
@@ -290,6 +296,7 @@
                 </div>
               </div>
               <div class="chart-wrap">
+                <!-- Chart rendered from page data. -->
                 <canvas id="accountantDeliveryChart"></canvas>
               </div>
             </article>
@@ -302,6 +309,7 @@
                 </div>
               </div>
               <div class="chart-wrap">
+                <!-- Chart rendered from page data. -->
                 <canvas id="accountantProduceChart"></canvas>
               </div>
             </article>
@@ -342,6 +350,7 @@
             <div class="table-wrap">
               <table class="data-table report-table">
                 <thead id="reportTableHead"></thead>
+                <!-- Dynamic report table body populated by page scripts. -->
                 <tbody id="reportTableBody">
                   <tr>
                     <td class="state-message">Loading report records...</td>
@@ -360,9 +369,12 @@
     </main>
   </div>
 
+  <!-- Transient notifications inserted by page scripts. -->
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
+  <!-- Chart.js dependency for data visualizations. -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Page-specific behavior scripts. -->
   <script type="module" src="../../../js/accountant/reports.js"></script>
   <script type="module" src="../../../js/feature/theme.js"></script>
 </body>

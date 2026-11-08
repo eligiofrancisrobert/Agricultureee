@@ -191,6 +191,7 @@ async function loadCartCount() {
   el.cartCount.hidden = total === 0;
 }
 
+/** Fetch available inventory and prices, then render the current product filters. */
 async function loadProducts() {
   setLoading(true);
   hideError();
@@ -449,6 +450,7 @@ function applyFilters() {
   renderProducts(products);
 }
 
+/** Validate a product selection and insert its quantity into the buyer's cart. */
 async function addToCart(button) {
   if (!state.buyerId) {
     showToast('Please log in to add items to your cart.', 'error');
@@ -596,6 +598,7 @@ function bindEvents() {
   });
 }
 
+/** Authenticate the buyer and initialize the produce browsing controls. */
 async function init() {
   setToday();
   bindEvents();

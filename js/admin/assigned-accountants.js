@@ -52,6 +52,7 @@ function showMessage(text = '', error = false) {
     message.className = error ? 'msg error' : 'msg';
 }
 
+/** Fetch accountant, farm, and assignment records and refresh both selectors. */
 async function loadData() {
     tbody.innerHTML = '<tr><td colspan="6">Loading assignments...</td></tr>';
 
@@ -121,6 +122,7 @@ async function loadData() {
     }
 }
 
+/** Render accountants filtered by assignment state and the search text. */
 function render() {
     const query = search.value.trim().toLowerCase();
 
@@ -279,6 +281,7 @@ tbody.addEventListener('click', async event => {
     }
 });
 
+/** Save the selected accountant-to-farm assignment. */
 form.addEventListener('submit', async event => {
     event.preventDefault();
 

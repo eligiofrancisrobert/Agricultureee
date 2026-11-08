@@ -13,6 +13,7 @@ from scripts.runtime_test import main as run_runtime_tests
 
 
 def main() -> int:
+    """Validate CLI arguments and delegate read-only smoke tests to runtime_test."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", required=True, help="Deployed application URL (HTTP or HTTPS).")
     parser.add_argument("--timeout", type=float, default=30.0, help="Deployment readiness timeout in seconds.")

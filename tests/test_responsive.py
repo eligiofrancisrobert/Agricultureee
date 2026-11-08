@@ -33,6 +33,7 @@ def test_public_pages_fit_supported_viewports(
     height: int,
     route: str,
 ) -> None:
+    """Check horizontal overflow and essential visibility at each target size."""
     page.set_viewport_size({"width": width, "height": height})
     page.goto(f"{base_url}/{route}", wait_until="domcontentloaded")
     dimensions = page.evaluate(

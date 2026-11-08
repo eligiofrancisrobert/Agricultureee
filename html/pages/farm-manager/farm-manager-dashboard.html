@@ -19,6 +19,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600&amp;family=Poppins:wght@300;400;500;600&amp;display=swap"
         rel="stylesheet">
+    <!-- Shared and page-specific stylesheets. -->
     <link rel="stylesheet" href="../../../css/feature/style.css">
     <link rel="stylesheet" href="../../../css/admin/admin-dash.css">
     <link rel="stylesheet" href="../../../css/admin/staff.css">
@@ -28,6 +29,7 @@
     <link rel="stylesheet" href="../../../css/farm-manager/farm-actions.css">
     <link rel="stylesheet" href="../../../css/feature/reports.css">
 
+    <!-- Restore the saved theme before page content renders. -->
     <script>
         document.documentElement.dataset.theme = localStorage.getItem('theme') || 'light';
     </script>
@@ -35,12 +37,14 @@
 
 <body>
     <div class="shell">
+        <!-- Role navigation and account actions -->
         <aside class="sidebar">
             <div class="logo">
                 <h1>T<span>ani</span>kala</h1>
                 <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
             </div>
 
+            <!-- Farm Manager sections -->
             <nav class="nav" aria-label="Farm Manager sections">
                 <a href="#dashboard" data-view="dashboard">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -120,7 +124,9 @@
             <button type="button" id="logoutButton" class="nav-logout">Log out</button>
         </aside>
 
+        <!-- Main page content -->
         <main class="main">
+            <!-- Page header and account controls -->
             <header class="topbar">
                 <label class="search">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
@@ -145,11 +151,14 @@
                 </div>
             </header>
 
+            <!-- Dashboard view rendered by page scripts. -->
             <div id="view" role="region" aria-live="polite"></div>
         </main>
     </div>
 
+    <!-- Transient notifications inserted by page scripts. -->
     <div id="toast" class="toast" role="status" hidden></div>
+    <!-- Page-specific behavior scripts. -->
     <script type="module" src="../../../js/farm-manager/main.js"></script>
 </body>
 

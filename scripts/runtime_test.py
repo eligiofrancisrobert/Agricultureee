@@ -17,6 +17,13 @@ from scripts.testing import normalize_base_url, wait_for_url, write_runtime_repo
 
 
 def main() -> int:
+    """Check site readiness, run runtime/browser tests, and write a JSON result.
+
+    Readiness failures are reported immediately with a non-zero exit code.
+    Once reachable, selected page, navigation, and responsive tests run against
+    the requested URL; their outcome and timing are written to the runtime
+    report and returned to the calling process.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--url",

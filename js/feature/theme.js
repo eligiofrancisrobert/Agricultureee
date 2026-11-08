@@ -2,6 +2,7 @@ const KEY = 'theme';
 const OLD_KEY = 'tanikala-theme';
 const root = document.documentElement;
 
+/** Read the current theme key, falling back to the legacy key if needed. */
 function getSaved() {
     try {
         // Use the shared key, and fall back to the old one so nobody loses their saved choice.
@@ -10,6 +11,7 @@ function getSaved() {
         return null;
     }
 }
+/** Persist a theme choice when browser storage is available. */
 function save(theme) {
     try {
         localStorage.setItem(KEY, theme);
@@ -18,6 +20,7 @@ function save(theme) {
     }
 }
 
+/** Set the document theme and keep the toggle's accessible labels in sync. */
 function applyTheme(theme) {
     root.setAttribute('data-theme', theme);
 

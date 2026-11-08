@@ -399,6 +399,7 @@ async function fetchPaged(buildQuery) {
     return all;
 }
 
+/** Resolve the current accountant's assigned farm IDs and names. */
 async function loadAssignedFarms(user) {
     const { data: rows, error } = await supabase
         .from("accountant_farm_assignments")
@@ -543,6 +544,7 @@ async function loadBuyers(sales) {
     }
 }
 
+/** Load assigned-farm sales and the related buyer and item records. */
 async function loadAllData(user) {
     data.user = user;
     data.farms = await loadAssignedFarms(user);
@@ -925,6 +927,7 @@ const recordFarms = record =>
    REPORT DEFINITIONS
    ============================================================ */
 
+/** Build report datasets from the farm-scoped records and selected range. */
 function buildReports({ records, summary: s, range, metric }) {
     const produceRows = buildProduceRows(records, metric);
     const monthlyRows = buildMonthlyRows(records);
@@ -1430,6 +1433,7 @@ function csvCell(value) {
     return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
+/** Download the filtered report rows as a CSV file. */
 function downloadCsv(report) {
     const rows = tableRows(report);
 
@@ -1456,6 +1460,7 @@ function downloadCsv(report) {
 }
 
 /* ---------- Print ---------- */
+/** Open a print view with report data, active filters, and chart snapshots. */
 function printReport(report, filterLines, chartImages) {
     const rows = tableRows(report);
 
@@ -2153,6 +2158,7 @@ async function load(root) {
     }
 }
 
+/** Authenticate the accountant and initialize the reports page data and UI. */
 async function initializeReports() {
     const root =
         document.querySelector(".dashboard-content") ||

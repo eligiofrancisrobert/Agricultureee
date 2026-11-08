@@ -1,3 +1,4 @@
+/* Service-page aliases keep these components aligned with the shared theme. */
 :root {
     --bg: var(--background);
     --card: var(--surface-card);
@@ -52,6 +53,7 @@ a {
     outline-offset: 4px;
 }
 
+/* Sticky site navigation and its compact-screen menu control. */
 .site-header {
     position: sticky;
     top: 0;
@@ -131,6 +133,7 @@ a {
     font-size: 1.25rem;
 }
 
+/* Centered introduction and layered decorative accents. */
 .intro {
     position: relative;
     overflow: hidden;
@@ -216,6 +219,7 @@ a {
     font-size: 1rem;
 }
 
+/* Alternating image-and-copy cards form the main service directory. */
 .services-section {
     width: min(1160px, calc(100% - 40px));
     margin: 0 auto;
@@ -411,6 +415,7 @@ a {
     transform: translateX(5px);
 }
 
+/* Closing call to action. */
 .closing {
     width: min(1160px, calc(100% - 40px));
     margin: 0 auto 90px;
@@ -457,6 +462,7 @@ a {
     background: #f4eee7;
 }
 
+/* Site footer layout and link treatment. */
 .site-footer {
     display: flex;
     align-items: center;
@@ -519,6 +525,7 @@ a {
     color: var(--primary-hover);
 }
 
+/* Collapse navigation, service cards, and closing content on narrow screens. */
 @media (max-width: 760px) {
     .site-header {
         padding: 12px 20px;
@@ -595,6 +602,7 @@ a {
     }
 }
 
+/* Keep service-card entrances and transitions unobtrusive when motion is reduced. */
 @media (prefers-reduced-motion: reduce) {
     html {
         scroll-behavior: auto;

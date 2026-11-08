@@ -299,6 +299,7 @@ async function loadBuyer() {
   return user;
 }
 
+/** Fetch the buyer's sales and items, optionally suppressing refresh loading UI. */
 async function loadOrders({ silent = false } = {}) {
   if (!state.buyerId) return;
 
@@ -1086,6 +1087,7 @@ function openOrderDetails(saleId) {
   el.closeModalBtn.focus();
 }
 
+/** Recheck the latest order status and request cancellation when still allowed. */
 async function cancelBuyerOrder(saleId) {
   if (state.cancelling) return;
 
@@ -1255,6 +1257,7 @@ function bindEvents() {
   });
 }
 
+/** Authenticate the buyer and initialize the order list and tracking controls. */
 async function init() {
   setToday();
   bindEvents();

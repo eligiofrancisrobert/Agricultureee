@@ -14,13 +14,17 @@ from scripts.testing import PROJECT_ROOT
 
 
 class ResourceParser(HTMLParser):
+    """Collect IDs, local resource references, and client-side hash routes."""
+
     def __init__(self) -> None:
+        """Initialize the collections populated while parsing HTML start tags."""
         super().__init__(convert_charrefs=True)
         self.references: list[tuple[str, str]] = []
         self.ids: list[str] = []
         self.client_routes: set[str] = set()
 
     def handle_starttag(self, _tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        """Record IDs and resource links, including hash-based dashboard routes."""
         attributes = dict(attrs)
         if attributes.get("id"):
             self.ids.append(attributes["id"])
@@ -35,15 +39,18 @@ class ResourceParser(HTMLParser):
 
 
 def html_files() -> list[Path]:
+    """Return the homepage and all authored application HTML pages."""
     return [PROJECT_ROOT / "index.html", *sorted((PROJECT_ROOT / "html").rglob("*.html"))]
 
 
 def is_local_reference(value: str, base_url: str) -> bool:
+    """Tell whether resolving a reference keeps it on the tested site's origin."""
     parsed = urlparse(urljoin(base_url, value))
     return parsed.scheme in {"http", "https"} and parsed.netloc == urlparse(base_url).netloc
 
 
 def test_local_html_references_resolve_from_website_root(base_url: str) -> None:
+    """Check local href/src targets and same-page fragments against the site."""
     failures: list[str] = []
     root_url = base_url.rstrip("/") + "/"
     for html_file in html_files():
@@ -75,6 +82,7 @@ def test_local_html_references_resolve_from_website_root(base_url: str) -> None:
 
 
 def test_stylesheets_have_no_parse_errors(base_url: str) -> None:
+    """Parse every authored stylesheet and verify its local url() assets exist."""
     failures: list[str] = []
     root_url = base_url.rstrip("/") + "/"
     for stylesheet in sorted((PROJECT_ROOT / "css").rglob("*.css")):
@@ -97,6 +105,7 @@ def test_stylesheets_have_no_parse_errors(base_url: str) -> None:
 
 
 def test_application_pages_have_no_duplicate_ids() -> None:
+    """Ensure each page uses unique IDs, which browser scripts rely on for lookup."""
     failures: list[str] = []
     for html_file in html_files():
         parser = ResourceParser()

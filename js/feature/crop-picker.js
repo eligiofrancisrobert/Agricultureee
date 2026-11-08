@@ -16,7 +16,7 @@ if (cropPicker) {
         cropPicker.querySelectorAll('input[name="crops"]')
     );
 
-
+    /** Return checked preset crops plus comma-separated custom crop names. */
     function getSelectedCrops() {
         const listedCrops = cropInputs
             .filter(input => input.checked)
@@ -35,6 +35,7 @@ if (cropPicker) {
 
     window.getSelectedTanikalaCrops = getSelectedCrops;
 
+    /** Reflect the current selection in the picker trigger text. */
     function updateCropSummary() {
         const crops = getSelectedCrops();
 
@@ -47,6 +48,7 @@ if (cropPicker) {
         }
     }
 
+    /** Close the dropdown and reset its expanded accessibility state. */
     function closeCropDropdown() {
         dropdown.hidden = true;
         trigger.setAttribute("aria-expanded", "false");

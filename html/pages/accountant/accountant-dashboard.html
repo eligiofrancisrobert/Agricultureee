@@ -12,9 +12,11 @@
     href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Poppins:wght@400;500;600;700&display=swap"
     rel="stylesheet">
 
+  <!-- Shared and page-specific stylesheets. -->
   <link rel="stylesheet" href="../../../css/feature/style.css">
   <link rel="stylesheet" href="../../../css/accountant/accountant.css">
 
+  <!-- Restore the saved theme before page content renders. -->
   <script>
     document.documentElement.dataset.theme = localStorage.getItem('theme') || 'light';
   </script>
@@ -30,6 +32,7 @@
         <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
       </div>
 
+      <!-- Accountant navigation -->
       <nav class="navigation" aria-label="Accountant navigation">
         <a href="accountant-dashboard.html" class="nav-link active" aria-current="page">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -129,6 +132,7 @@
         </div>
       </header>
 
+      <!-- Payment Collections section -->
       <section class="welcome-section">
         <div>
           <p class="welcome-label">FINANCIAL OVERVIEW</p>
@@ -144,9 +148,12 @@
         </div>
       </section>
 
+      <!-- Loading state toggled while page data is retrieved. -->
       <div class="loading-state" id="loadingState" role="status">Loading dashboard...</div>
+      <!-- Request feedback displayed by page scripts. -->
       <div class="error-state" id="errorState" hidden></div>
 
+      <!-- Page content updated by page scripts. -->
       <div class="dashboard-content" id="dashboardContent" hidden>
 
         <!-- SUMMARY (filled by JS from Supabase) -->
@@ -181,12 +188,14 @@
                 <option value="90">Last 90 days</option>
               </select>
             </div>
+            <!-- Chart rendered from page data. -->
             <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
             <p class="empty-note" id="trendEmpty" hidden>No collections recorded in this period.</p>
           </article>
 
           <article class="information-section">
             <h2>Payment Status Overview</h2>
+            <!-- Chart rendered from page data. -->
             <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
             <p class="empty-note" id="statusEmpty" hidden>No orders to display.</p>
           </article>
@@ -213,6 +222,7 @@
                   <th>Status</th>
                 </tr>
               </thead>
+              <!-- Dynamic recent body populated by page scripts. -->
               <tbody id="recentBody"></tbody>
             </table>
           </div>
@@ -223,9 +233,12 @@
     </main>
   </div>
 
+  <!-- Transient notifications inserted by page scripts. -->
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
+  <!-- Chart.js dependency for data visualizations. -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Page-specific behavior scripts. -->
   <script type="module" src="../../../js/accountant/dashboard.js"></script>
   <script type="module" src="../../../js/feature/theme.js"></script>
 </body>

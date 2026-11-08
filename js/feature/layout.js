@@ -1,6 +1,6 @@
 const layout = document.querySelector(".page-layout");
 
-// Page transition links
+// Delay same-origin topbar navigation for the page-swap transition.
 document.querySelectorAll(".topbar-text a").forEach((link) => {
     link.addEventListener("click", (event) => {
         const destination = link.href;

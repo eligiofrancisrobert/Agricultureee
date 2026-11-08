@@ -4,6 +4,7 @@ import {
     cleanupInventoryPage
 } from './inventory-template.js';
 
+/** Render verified harvest inventory through the shared warehouse template. */
 export async function render(root, ctx) {
     await renderInventoryPage(root, {
         type: 'harvest',
@@ -19,6 +20,7 @@ export async function render(root, ctx) {
     }, ctx);
 }
 
+/** Release shared inventory-page resources before navigating away. */
 export function cleanup() {
     cleanupInventoryPage();
 }

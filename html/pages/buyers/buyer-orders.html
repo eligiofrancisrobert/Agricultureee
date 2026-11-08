@@ -11,10 +11,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Poppins:wght@400;500;600;700&display=swap"
     rel="stylesheet">
 
+  <!-- Shared and page-specific stylesheets. -->
   <link rel="stylesheet" href="../../../css/feature/style.css">
   <link rel="stylesheet" href="../../../css/buyers/buyers.css">
   <link rel="stylesheet" href="../../../css/buyers/buyer-orders.css">
 
+  <!-- Restore the saved theme before page content renders. -->
   <script>
     document.documentElement.dataset.theme = localStorage.getItem('theme') || 'light';
   </script>
@@ -23,12 +25,14 @@
 <body>
   <div class="app-layout">
 
+    <!-- Role navigation and account actions -->
     <aside class="sidebar" id="sidebar">
       <div class="logo">
         <h1>T<span>ani</span>kala</h1>
         <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
       </div>
 
+      <!-- Buyer navigation -->
       <nav class="navigation" aria-label="Buyer navigation">
 
         <a href="browse-produce.html" class="nav-link">
@@ -90,8 +94,10 @@
       </div>
     </aside>
 
+    <!-- Main page content -->
     <main class="main-content">
 
+      <!-- Page header and account controls -->
       <header class="topbar">
         <div>
           <h2>My Orders</h2>
@@ -133,6 +139,7 @@
         </div>
       </header>
 
+      <!-- My Orders section -->
       <section class="welcome-section">
         <div>
           <p class="welcome-label">PURCHASE MANAGEMENT</p>
@@ -149,6 +156,7 @@
         </div>
       </section>
 
+      <!-- Order History section -->
       <section class="orders-section">
 
         <div class="orders-stat-grid">
@@ -224,15 +232,19 @@
           </select>
         </div>
 
+        <!-- Loading state toggled while page data is retrieved. -->
         <div class="loading-state" id="loadingState" role="status">
           <div class="loader"></div>
           <span>Loading your orders...</span>
         </div>
 
+        <!-- Request feedback displayed by page scripts. -->
         <div class="error-message" id="errorMessage" role="alert" hidden></div>
 
+        <!-- Dynamic orders list populated by page scripts. -->
         <div class="orders-list" id="ordersList" hidden></div>
 
+        <!-- Empty state shown when no matching records are available. -->
         <div class="empty-state" id="emptyState" hidden>
           <div class="empty-icon" aria-hidden="true">▤</div>
           <h3 id="emptyTitle">No orders yet</h3>
@@ -264,6 +276,7 @@
         </button>
       </div>
 
+      <!-- Interactive dialog managed by page scripts. -->
       <div class="modal-body" id="modalBody"></div>
 
       <div class="modal-footer">
@@ -275,8 +288,10 @@
     </div>
   </div>
 
+  <!-- Transient notifications inserted by page scripts. -->
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
+  <!-- Page-specific behavior scripts. -->
   <script type="module" src="../../../js/buyers/buyer-orders.js"></script>
   <script type="module" src="../../../js/feature/theme.js"></script>
 </body>

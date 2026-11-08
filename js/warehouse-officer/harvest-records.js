@@ -15,6 +15,7 @@ function el(tag, className = '', text = '') {
     return node;
 }
 
+/** Read the assigned farm ID from the warehouse-officer route context. */
 function getAssignedFarmId(ctx) {
     return ctx.assignedFarm?.farm_id ?? ctx.assignedFarm?.id ?? null;
 }
@@ -67,6 +68,7 @@ function createDetail(label, value) {
     return item;
 }
 
+/** Build the verification form that submits the chosen decision through RPC. */
 function createVerificationForm(record, refresh) {
     const form = el('form', 'wo-verification-form');
 
@@ -327,6 +329,7 @@ function createRecordCard(record, ctx, refresh) {
     return card;
 }
 
+/** Render records for the assigned farm and wire the verification workflow. */
 export async function render(root, ctx) {
     cleanup();
 
@@ -447,6 +450,7 @@ export async function render(root, ctx) {
         );
     }
 
+    /** Fetch the assigned farm's harvest records and render the current page. */
     async function loadRecords() {
         if (currentToken !== renderToken) return;
 
@@ -542,6 +546,7 @@ export async function render(root, ctx) {
         }
     }
     // Subscribe to harvest record changes.
+    /** Refresh harvest records when their Supabase rows change. */
     function subscribeToHarvestChanges() {
         if (currentToken !== renderToken) return;
 

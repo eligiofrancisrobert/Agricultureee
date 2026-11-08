@@ -76,6 +76,7 @@ todayLabel.textContent = new Date().toLocaleDateString("en-PH", {
 });
 
 /* ============ DASHBOARD ============ */
+/** Verify the signed-in farmer profile and populate the dashboard identity. */
 async function initializeFarmerDashboard() {
     try {
         const {
@@ -133,6 +134,7 @@ async function initializeFarmerDashboard() {
     }
 }
 
+/** Sign out the current farmer and redirect to the login page. */
 async function logout() {
     if (!currentUser || logoutButton.disabled) return;
 

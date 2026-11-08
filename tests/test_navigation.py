@@ -12,6 +12,7 @@ pytestmark = pytest.mark.functional
 
 
 def test_faq_search_and_accordion_work(page: Page, base_url: str) -> None:
+    """Verify FAQ expansion, filtering, empty state, and search reset behavior."""
     page.goto(f"{base_url}/index.html")
     question = page.locator(".faq-question").first
     question.click()
@@ -26,6 +27,7 @@ def test_faq_search_and_accordion_work(page: Page, base_url: str) -> None:
 
 
 def test_theme_persists_and_carousel_moves(page: Page, base_url: str) -> None:
+    """Check theme state survives reload and the carousel advances one slide."""
     page.goto(f"{base_url}/index.html")
     toggle = page.locator("#themeToggle")
     toggle.click()
@@ -40,6 +42,7 @@ def test_theme_persists_and_carousel_moves(page: Page, base_url: str) -> None:
 
 
 def test_contact_form_rejects_empty_required_fields(page: Page, base_url: str) -> None:
+    """Confirm browser constraint validation blocks a contact form with blanks."""
     page.goto(f"{base_url}/index.html")
     form = page.locator("#contactForm")
     assert form.evaluate("(element) => element.checkValidity()") is False
@@ -49,6 +52,7 @@ def test_contact_form_rejects_empty_required_fields(page: Page, base_url: str) -
 
 
 def test_contact_form_submits_to_isolated_stub(page: Page, base_url: str) -> None:
+    """Verify valid contact data is posted to a local stub, not a live service."""
     submitted: list[dict[str, str]] = []
 
     def handle_contact_request(route) -> None:
@@ -83,6 +87,7 @@ def test_contact_form_submits_to_isolated_stub(page: Page, base_url: str) -> Non
 
 
 def test_login_form_rejects_missing_credentials(page: Page, base_url: str) -> None:
+    """Check native form validation prevents login submission without credentials."""
     page.goto(f"{base_url}/html/login.html")
     form = page.locator("#loginForm")
     assert form.evaluate("(element) => element.checkValidity()") is False
@@ -92,6 +97,7 @@ def test_login_form_rejects_missing_credentials(page: Page, base_url: str) -> No
 
 
 def test_mobile_menu_and_homepage_links_navigate(page: Page, base_url: str) -> None:
+    """Exercise the mobile navigation toggle and key service/login links."""
     page.set_viewport_size({"width": 375, "height": 812})
     page.goto(f"{base_url}/index.html")
     page.locator("#menu-icon").click()

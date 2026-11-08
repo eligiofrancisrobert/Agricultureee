@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
 
+# Cancel stale runs for the same ref when a newer push or PR update arrives.
 concurrency:
   group: tanikala-python-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -22,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # The application remains static HTML/CSS/JavaScript; Python runs the tests.
       - name: Check out source
         uses: actions/checkout@v4
 
@@ -38,6 +40,7 @@ jobs:
       - name: Install Chromium
         run: python -m playwright install --with-deps chromium
 
+      # Upload diagnostics even when a test fails; the paths are created by pytest.
       - name: Run test suite
         run: python scripts/run_tests.py
 

@@ -77,6 +77,7 @@ const getStatusClass = status => {
         : "unknown";
 };
 
+/** Fetch sales, resolve available buyer names, and apply the initial filters. */
 async function loadPaymentHistory() {
     const { data, error } = await supabase
         .from("warehouse_sales")
@@ -103,6 +104,7 @@ async function loadPaymentHistory() {
     applyFilters();
 }
 
+/** Populate buyer names for the IDs present in the loaded sales. */
 async function loadBuyers() {
     state.buyers.clear();
 
@@ -139,6 +141,7 @@ async function loadBuyers() {
     });
 }
 
+/** Filter loaded sales by search/status/type and reset pagination. */
 function applyFilters() {
     const search = normalize($("paymentSearch")?.value);
     const status = normalize($("paymentStatusFilter")?.value || "all");
@@ -172,6 +175,7 @@ function applyFilters() {
     renderTable();
 }
 
+/** Render the current page of payment history and its empty state. */
 function renderTable() {
     const tbody = $("paymentHistoryBody");
     const empty = $("paymentEmpty");

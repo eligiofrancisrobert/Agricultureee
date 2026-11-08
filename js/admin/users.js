@@ -20,6 +20,7 @@ export async function render(root, ctx) {
     const filter = { role: 'all' };
     const holder = h('div');
 
+    /** Update a user's status and refresh the list and pending badge. */
     const change = async (user, next, doneText) => {
         try {
             await setUserStatus(user, next);
@@ -32,6 +33,7 @@ export async function render(root, ctx) {
         }
     };
 
+    /** Resolve true only after the user confirms the timed deletion dialog. */
     function confirmUserDeletion(user, seconds = 5) {
         return new Promise((resolve) => {
             const confirmBtn = h(
@@ -126,6 +128,7 @@ export async function render(root, ctx) {
     }
 
 
+    /** Permanently delete a confirmed user and refresh the visible counts. */
     const removeUser = async (user) => {
         const confirmed = await confirmUserDeletion(user);
 
@@ -206,6 +209,7 @@ export async function render(root, ctx) {
         }, 'Delete')
     ].filter(Boolean);
 
+    /** Render users matching the current route, role filter, and search query. */
     const draw = async () => {
         try {
             const q = ctx.query.toLowerCase();

@@ -8,6 +8,7 @@ const navigations = document.querySelector(".navigations");
 
 let currentIndex = 0;
 
+// Toggle the mobile navigation and keep the primary call-to-action outside it.
 menuIcon.addEventListener("click", () => {
     navigations.classList.toggle("active");
 
@@ -23,6 +24,7 @@ menuIcon.addEventListener("click", () => {
         });
 });
 
+/** Synchronize the carousel offset and active pagination dot with currentIndex. */
 function updateCarousel() {
     track.style.transform = `translateX(-${currentIndex * 100}%)`;
 
@@ -31,6 +33,7 @@ function updateCarousel() {
     });
 }
 
+// Both arrow controls wrap around at the ends of the slide list.
 nextBtn.addEventListener('click', () => {
     currentIndex++;
 
@@ -68,5 +71,4 @@ setInterval(() => {
 
     updateCarousel();
 }, 3000);
-
 

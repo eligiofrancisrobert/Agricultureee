@@ -13,15 +13,18 @@
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600&amp;family=Poppins:wght@300;400;500;600&amp;display=swap"
         rel="stylesheet">
 
+    <!-- Shared and page-specific stylesheets. -->
     <link rel="stylesheet" href="../../../css/feature/style.css">
     <link rel="stylesheet" href="../../../css/farmer/farmer.css">
     <link rel="stylesheet" href="../../../css/farmer/farmer-activities.css">
 
+    <!-- Restore the saved theme before page content renders. -->
     <script>
         document.documentElement.dataset.theme =
             localStorage.getItem('theme') || 'light';
     </script>
 
+    <!-- Page-specific behavior scripts. -->
     <script type="module" src="../../../js/farmer/plantings.js"></script>
 </head>
 
@@ -29,12 +32,14 @@
 
     <div class="app-layout">
 
+        <!-- Role navigation and account actions -->
         <aside class="sidebar">
             <div class="logo">
                 <h1>T<span>ani</span>kala</h1>
                 <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
             </div>
 
+            <!-- Farmer sections -->
             <nav class="navigation" aria-label="Farmer sections">
 
                 <a href="farmer-dashboard.html" class="nav-link">
@@ -97,8 +102,10 @@
             </div>
         </aside>
 
+        <!-- Main page content -->
         <main class="main-content">
 
+            <!-- Page header and account controls -->
             <header class="topbar">
                 <div>
                     <h2>My Plantings</h2>
@@ -139,6 +146,7 @@
                 </div>
             </header>
 
+            <!-- Your Planting Records section -->
             <section class="activities-toolbar">
                 <div class="section-heading">
                     <h2>Your Planting Records</h2>
@@ -149,6 +157,7 @@
                 </div>
             </section>
 
+            <!-- Planting records list -->
             <section id="plantingList" class="activity-list" aria-live="polite">
                 <div class="loading-state">
                     Loading your planting records...

@@ -3,6 +3,7 @@
    Load after buyers.css
    ============================================================ */
 
+/* Cart feedback, item list, and sticky order summary. */
 .cart-section {
     display: grid;
     gap: 22px;
@@ -62,6 +63,7 @@
     border-radius: 16px;
 }
 
+/* Keep cart items and the order summary side by side on wide screens. */
 .cart-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 340px;
@@ -256,6 +258,7 @@
     cursor: not-allowed;
 }
 
+/* Sticky totals remain visible while buyers review a long cart. */
 .cart-summary {
     position: sticky;
     top: 92px;
@@ -354,6 +357,7 @@
     text-align: center;
 }
 
+/* Recovery path shown when the cart has no items. */
 .cart-empty {
     padding: 55px 20px;
     text-align: center;
@@ -412,6 +416,7 @@
     filter: brightness(1.08);
 }
 
+/* Narrow the summary column, then stack it beneath the cart items on smaller screens. */
 @media (max-width: 1050px) {
     .cart-layout {
         grid-template-columns: minmax(0, 1fr) 300px;

@@ -504,6 +504,7 @@ async function getAssignedMunicipality() {
     return location;
 }
 
+/** Load farmers eligible to be assigned to planting records. */
 async function loadFarmers() {
     const { data, error } = await supabase.rpc(
         'manager_list_residential_farmers'
@@ -756,6 +757,7 @@ export function cleanup() {
     cleanupPlantingsRealtime();
 }
 
+/** Render the planting form and manage its farm, crop, and farmer lookups. */
 export async function render(root, ctx) {
     cleanupPlantingsRealtime();
     const holder = h('div', { class: 'crop-page' });

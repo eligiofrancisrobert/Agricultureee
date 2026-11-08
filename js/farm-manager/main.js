@@ -50,6 +50,7 @@ async function requireFarmManager() {
     return staff;
 }
 
+/** Clean up and render the module selected by the current route hash. */
 async function show() {
     if (!authorized) return;
 
@@ -81,6 +82,7 @@ async function show() {
     }
 }
 
+/** Authorize the staff account and initialize the farm-manager shell. */
 async function boot() {
     if (checking) return;
     checking = true;

@@ -27,6 +27,7 @@ export function friendlyError(err) {
     return 'Something went wrong. Check the browser console and try again.';
 }
 
+/** Load role and status lookup rows used by the staff editor. */
 export async function getLookups() {
     const [roles, statuses] = await Promise.all([
         supabase.from('staff_roles').select('role_id, role_name').order('role_id'),
@@ -41,12 +42,14 @@ export async function getLookups() {
     };
 }
 
+/** Fetch staff accounts newest-first and map database columns to UI fields. */
 export async function listStaff() {
     const { data, error } = await supabase.from('staff_accounts').select(SELECT).order('created_at', { ascending: false });
     if (error) throw error;
     return (data ?? []).map(normalize);
 }
 
+/** Create a staff account through the create-staff Edge Function. */
 export async function createStaff({ name, email, roleId, statusId, password }) {
     const { data, error } = await supabase.functions.invoke('create-staff', {
         body: { name, email, roleId, statusId, password },
@@ -59,6 +62,7 @@ export async function createStaff({ name, email, roleId, statusId, password }) {
     return normalize(data);
 }
 // patch uses the UI field names: any of { name, email, roleId, statusId }
+/** Update only supplied staff fields and return the normalized account. */
 export async function updateStaff(id, patch) {
     const columns = {};
     if (patch.name !== undefined) columns.full_name = patch.name;
@@ -72,6 +76,7 @@ export async function updateStaff(id, patch) {
     return normalize(data);
 }
 
+/** Delete a staff row and detect when row-level security removed no rows. */
 export async function deleteStaff(id) {
     const { data, error } = await supabase.from('staff_accounts').delete().eq('staff_id', id).select('staff_id');
     if (error) throw error;
@@ -79,6 +84,7 @@ export async function deleteStaff(id) {
     if (!data?.length) throw Object.assign(new Error('No rows deleted'), { code: 'PGRST116' });
 }
 
+/** Permanently remove a staff user through the delete-staff Edge Function. */
 export async function deleteStaffPermanently(id) {
     const { data, error } = await supabase.functions.invoke('delete-staff', { body: { staffId: id } });
     if (error) {

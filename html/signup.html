@@ -14,14 +14,17 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500&amp;family=Poppins:wght@300;400;500;600;700;800&amp;display=swap"
         rel="stylesheet">
+    <!-- Shared and page-specific stylesheets. -->
     <link rel="stylesheet" href="../css/auth/signup.css">
     <link rel="stylesheet" href="../css/auth/login.css">
     <link rel="stylesheet" href="../css/feature/crop-picker.css">
     <link rel="stylesheet" href="../css/feature/style.css">
+    <!-- Role-dependent form behavior. -->
     <script type="module" src="../js/feature/role.js"></script>
 </head>
 
 <body>
+    <!-- Page header and account controls -->
     <header class="topbar">
         <a href="../index.html" class="brand">
             <div class="logo">
@@ -52,7 +55,9 @@
         </p>
     </header>
 
+    <!-- Main page content -->
     <main class="page-layout">
+        <!-- Illustrated page introduction -->
         <aside class="image-panel">
             <img src="../assets/hero-image.jpg" alt="Farm field at sunrise" class="image-panel__img">
             <div class="image-panel__overlay">
@@ -61,6 +66,7 @@
             </div>
         </aside>
 
+        <!-- Account registration form -->
         <form id="signupForm">
             <!-- ACCOUNT INFORMATION -->
             <div class="section-heading">
@@ -221,6 +227,7 @@
                         </div>
                     </div>
 
+                    <!-- Additional farm forms are appended from the reusable template. -->
                     <div id="farmsContainer"></div>
 
                     <button type="button" class="submit-button" id="addFarmButton">

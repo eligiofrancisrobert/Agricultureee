@@ -1,6 +1,7 @@
 
 const MOBILE_QUERY = '(max-width: 800px)';
 
+/** Add the responsive sidebar drawer controls when the page has a sidebar. */
 export function initSidebarMenu() {
     const sidebar = document.querySelector('.sidebar');
 
@@ -54,6 +55,7 @@ export function initSidebarMenu() {
     document.documentElement.classList.add('has-menu-bar');
 
     /* ---------- Open / close ---------- */
+    /** Apply the drawer state only while the mobile media query matches. */
     function setOpen(open) {
         const isOpen = Boolean(open) && media.matches;
 

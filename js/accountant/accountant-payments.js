@@ -28,6 +28,7 @@ const buyerLabel = sale => `Buyer ${String(sale.buyer_id ?? "").slice(0, 8)}`;
 
 /* ============ DATA ============ */
 
+/** Load warehouse sales used by payment review; payment changes use the RPC. */
 async function loadSales() {
     const { data, error } = await supabase
         .from("warehouse_sales")
@@ -44,6 +45,7 @@ async function loadSales() {
 
 /* ============ FILTERS + TABLE ============ */
 
+/** Apply the current text, payment, type, and date filters to loaded sales. */
 function filteredSales() {
     const query = $("searchInput").value.trim().toLowerCase();
     const status = $("statusFilter").value;
@@ -74,6 +76,7 @@ function actionButtons(sale) {
     return `${view}<button type="button" class="btn-approve btn-sm" data-action="record" data-id="${escapeHtml(sale.sale_id)}">${label}</button>`;
 }
 
+/** Render the matching payment rows and their available actions. */
 function renderTable() {
     const rows = filteredSales();
 
@@ -101,6 +104,7 @@ function renderTable() {
 
 /* ============ MODALS ============ */
 
+/** Create a dismissible modal that closes on Escape or an outside click. */
 function openModal(html) {
     const overlay = document.createElement("div");
     overlay.className = "activity-modal-overlay";
@@ -145,6 +149,7 @@ function orderDetails(sale) {
         </div>`;
 }
 
+/** Show sale details and fetch its warehouse sale items for the modal. */
 async function viewOrder(sale) {
     const { overlay, close } = openModal(`
         <h2>Order ${escapeHtml(shortId(sale.sale_id))}</h2>

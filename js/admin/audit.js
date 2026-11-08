@@ -29,6 +29,7 @@ export async function render(root, ctx) {
             h('pre', { class: 'audit-detail-data' }, showValue(value))
         );
 
+    /** Show the selected log's recorded metadata and before/after values. */
     const openDetails = (log) => {
         detailsContent.replaceChildren(
             h('p', {},
@@ -74,6 +75,7 @@ export async function render(root, ctx) {
         }
     });
 
+    /** Filter the loaded audit records and rebuild the table. */
     const draw = () => {
         const q = (ctx.query || '').toLowerCase();
 

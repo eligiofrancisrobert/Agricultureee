@@ -14,22 +14,28 @@ from scripts.testing import PROJECT_ROOT
 
 
 class DocumentParser(HTMLParser):
+    """Collect document element names and IDs for static HTML assertions."""
+
     def __init__(self) -> None:
+        """Create empty sets used by the HTML parser callbacks."""
         super().__init__(convert_charrefs=True)
         self.elements: set[str] = set()
         self.ids: set[str] = set()
         self.parse_error: str | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        """Add each encountered element and its non-empty ID to the collections."""
         self.elements.add(tag)
         self.ids.update(value for name, value in attrs if name == "id" and value)
 
 
 def application_pages() -> list[Path]:
+    """Return every authored page that the static and browser checks exercise."""
     return [PROJECT_ROOT / "index.html", *sorted((PROJECT_ROOT / "html").rglob("*.html"))]
 
 
 def test_all_html_pages_parse_as_documents() -> None:
+    """Require each application page to have a valid HTML document structure."""
     failures: list[str] = []
     for path in application_pages():
         source = path.read_text(encoding="utf-8")
@@ -49,6 +55,7 @@ def test_all_html_pages_parse_as_documents() -> None:
 
 @pytest.mark.runtime
 def test_every_application_page_is_reachable(base_url: str) -> None:
+    """Request every page directly and ensure it responds with an HTML document."""
     failures: list[str] = []
     root_url = base_url.rstrip("/") + "/"
     for path in application_pages():
@@ -69,6 +76,11 @@ def test_pages_load_without_unexpected_browser_errors(
     page: Page,
     expected_unauthenticated_logs: dict[str, str],
 ) -> None:
+    """Collect unexpected script, console, request, resource, and image errors.
+
+    Known anonymous-access messages are filtered because the test intentionally
+    does not authenticate against production services.
+    """
     failures: list[str] = []
     for path in application_pages():
         route = path.relative_to(PROJECT_ROOT).as_posix()
