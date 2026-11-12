@@ -1,0 +1,399 @@
+/* ==========================================================
+   SETTINGS (Agricultural Technician)
+   Built on the shared admin tokens, so it follows the
+   light / dark theme automatically (:root[data-theme="dark"]).
+
+   Tokens used (from the global stylesheet):
+   --bg --card --text --muted --primary --primary-dark
+   --red --mint --shadow --r --border --success
+   --warning --error --surface-card --primary-color
+   ========================================================== */
+
+.at-settings {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(18px, 2vw, 26px);
+    min-width: 0;
+    color: var(--text);
+}
+
+.at-settings .at-page-heading h2 {
+    font-size: 1.6rem;
+    overflow-wrap: anywhere;
+}
+
+.at-settings .at-page-heading p {
+    margin-top: 4px;
+    color: var(--muted);
+}
+
+/* ---------- Layout ---------- */
+.at-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+    align-items: start;
+    gap: 16px;
+}
+
+.at-settings-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+}
+
+/* ---------- Panel (same look as .fm-panel) ---------- */
+.at-settings-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+    padding: 22px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+    transition: border-color .2s;
+}
+
+.at-settings-panel:hover {
+    border-color: var(--primary);
+}
+
+.at-settings-panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.at-settings-panel-header > div {
+    min-width: 0;
+}
+
+.at-settings-panel-header h3 {
+    font-size: 1.1rem;
+}
+
+.at-settings-panel-header p {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: .85rem;
+}
+
+/* Role pill */
+.at-pill {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: var(--mint);
+    color: var(--primary-dark);
+    font-size: .75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ---------- Profile ---------- */
+.at-profile-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--primary-color) 8%, var(--card));
+}
+
+.at-profile-avatar {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    font: 600 1.1rem 'Outfit', sans-serif;
+}
+
+.at-profile-main {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 160px;
+    min-width: 0;
+}
+
+.at-profile-main b {
+    font-size: 1.05rem;
+    overflow-wrap: anywhere;
+}
+
+.at-profile-main small {
+    color: var(--muted);
+    font-size: .82rem;
+    overflow-wrap: anywhere;
+}
+
+.at-settings-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+    gap: 10px;
+}
+
+/* Detail boxes (same as .stat-box) */
+.at-settings-field {
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.at-settings-field small {
+    display: block;
+    color: var(--muted);
+    font-size: .75rem;
+}
+
+.at-settings-field b {
+    display: block;
+    font-size: .88rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* ---------- Appearance list + switch ---------- */
+.at-settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.at-settings-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.at-settings-list li > div {
+    min-width: 0;
+}
+
+.at-settings-list p {
+    font-size: .9rem;
+    font-weight: 500;
+}
+
+.at-settings-list small {
+    color: var(--muted);
+    font-size: .78rem;
+}
+
+.at-switch {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+.at-switch input {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.at-switch span {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: var(--border);
+    transition: background .2s;
+}
+
+.at-switch span::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 25%);
+    transition: transform .2s;
+}
+
+.at-switch input:checked + span {
+    background: var(--primary);
+}
+
+.at-switch input:checked + span::after {
+    transform: translateX(20px);
+}
+
+.at-switch input:focus-visible + span {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* ---------- Forms ---------- */
+.at-settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.at-settings-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.at-settings-form-field label {
+    font-size: .85rem;
+    font-weight: 500;
+}
+
+/* Inputs (same as .toolbar select) */
+.at-form-input {
+    width: 100%;
+    min-height: 42px;
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    transition: border-color .2s;
+}
+
+.at-form-input::placeholder {
+    color: var(--muted);
+}
+
+.at-form-input:hover,
+.at-form-input:focus {
+    border-color: var(--primary);
+}
+
+.at-show-passwords {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .85rem;
+    cursor: pointer;
+}
+
+/* Password strength */
+.at-strength {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.at-strength-bar {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--border);
+}
+
+.at-strength-fill {
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    transition: width .25s ease, background .25s ease;
+}
+
+.at-strength small {
+    color: var(--muted);
+    font-size: .75rem;
+}
+
+/* ---------- Buttons (same as .btn / .btn.ghost) ---------- */
+.at-settings-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.at-button {
+    min-height: 42px;
+    padding: 8px 18px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: var(--primary);
+    color: #fff;
+    font-size: .85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .2s, border-color .2s, transform .2s;
+}
+
+.at-button:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.at-button-secondary {
+    background: var(--mint);
+    color: var(--primary-dark);
+}
+
+.at-button-secondary:hover:not(:disabled) {
+    background: var(--border);
+}
+
+.at-button:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+/* ---------- Messages (same as .msg.error) ---------- */
+.at-settings-msg {
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: .85rem;
+}
+
+.at-settings-msg.error {
+    border: 1px solid var(--red);
+    background: color-mix(in srgb, var(--error) 8%, var(--card));
+    color: var(--red);
+}
+
+.at-settings [hidden] {
+    display: none !important;
+}
+
+/* ---------- Responsive (same breakpoints as the admin shell) ---------- */
+@media (max-width: 560px) {
+    .at-settings .at-page-heading h2 {
+        font-size: 1.45rem;
+    }
+
+    .at-settings-panel {
+        padding: 18px 14px;
+    }
+
+    .at-profile-head > .at-button {
+        width: 100%;
+    }
+
+    .at-settings-actions .at-button {
+        flex: 1 1 100%;
+    }
+}

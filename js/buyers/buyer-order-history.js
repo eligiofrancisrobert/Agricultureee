@@ -174,7 +174,7 @@ async function initializeBuyer() {
     } = await supabase.auth.getUser();
 
     if (error || !user) {
-        window.location.href = '../../../index.html';
+       window.location.replace('../../login.html');
         return false;
     }
 
@@ -814,7 +814,7 @@ function initializeHeader() {
 
             if (error) throw error;
 
-            window.location.href = '../../../index.html';
+            window.location.replace('../../login.html');
 
         } catch (error) {
             console.error('Logout Error:', error);

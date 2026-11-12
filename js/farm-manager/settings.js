@@ -1,28 +1,20 @@
 import { supabase } from '../connection.js';
-import { h, pageHead, toast } from '../admin/ui.js';
+import { h, toast } from '../admin/ui.js';
 
 const MIN_PASSWORD_LENGTH = 8;
 
 /* ---------- Data ---------- */
-async function loadAccount(staff) {
+/** Read the current Supabase Auth email and account timestamps. */
+async function loadAccount() {
     const {
         data: { user },
-        error: authError
+        error
     } = await supabase.auth.getUser();
-
-    if (authError) throw authError;
-
-    const { data, error } = await supabase
-        .from('farm_manager_details')
-        .select('assigned_farm_location')
-        .eq('staff_id', staff.staff_id)
-        .maybeSingle();
 
     if (error) throw error;
 
     return {
         email: user?.email || '',
-        area: data?.assigned_farm_location?.trim() || '',
         createdAt: user?.created_at || '',
         lastSignIn: user?.last_sign_in_at || ''
     };
@@ -64,7 +56,7 @@ const formatDateTime = (value) => {
 };
 
 // Advisory only: it never blocks saving a password that meets the minimum.
-/** Return the advisory strength score used by the password meter. */
+/** Calculate the advisory password meter score and presentation values. */
 function passwordStrength(password) {
     const points = [
         password.length >= MIN_PASSWORD_LENGTH,
@@ -84,20 +76,29 @@ function passwordStrength(password) {
 const field = (label, value) =>
     h(
         'div',
-        { class: 'field' },
+        { class: 'fm-settings-field' },
         h('small', {}, label),
         h('b', {}, value || 'Not set')
     );
 
+const panelHeader = (title, subtitle, extra = '') =>
+    h(
+        'div',
+        { class: 'fm-settings-panel-header' },
+        h('div', {}, h('h3', {}, title), h('p', {}, subtitle)),
+        extra
+    );
+
 /* ---------- Panels ---------- */
-function profilePanel(staff, account) {
+function profilePanel(staff, farm, account) {
     const name = staff?.full_name?.trim() || 'Farm Manager';
+    const isActive = Number(staff?.status_id) === 1;
 
     const copyEmail = account.email
         ? h(
             'button',
             {
-                class: 'btn ghost',
+                class: 'fm-button fm-button-secondary',
                 type: 'button',
                 onclick: async () => {
                     try {
@@ -115,16 +116,10 @@ function profilePanel(staff, account) {
 
     return h(
         'section',
-        { class: 'fm-panel' },
-        h(
-            'div',
-            { class: 'fm-panel-header' },
-            h(
-                'div',
-                {},
-                h('h3', {}, 'Profile'),
-                h('p', {}, 'Your account details')
-            ),
+        { class: 'fm-settings-panel' },
+        panelHeader(
+            'Profile',
+            'Your account details',
             h('span', { class: 'fm-pill' }, 'Farm Manager')
         ),
         h(
@@ -133,7 +128,7 @@ function profilePanel(staff, account) {
             h('span', { class: 'fm-profile-avatar' }, initials(name)),
             h(
                 'div',
-                { class: 'fm-row-main' },
+                { class: 'fm-profile-main' },
                 h('b', {}, name),
                 h('small', {}, account.email || 'No email on file')
             ),
@@ -141,11 +136,14 @@ function profilePanel(staff, account) {
         ),
         h(
             'div',
-            { class: 'fields' },
+            { class: 'fm-settings-fields' },
             field('Full name', name),
             field('Email', account.email),
             field('Role', 'Farm Manager'),
-            field('Assigned area', account.area),
+            field('Staff ID', staff?.staff_id),
+            field('Account status', isActive ? 'Active' : 'Inactive'),
+            field('Assigned farm', farm?.farm_name),
+            field('Farm location', farm?.farm_location),
             field('Member since', formatDay(account.createdAt)),
             field('Last sign-in', formatDateTime(account.lastSignIn))
         )
@@ -171,20 +169,11 @@ function appearancePanel() {
 
     return h(
         'section',
-        { class: 'fm-panel' },
-        h(
-            'div',
-            { class: 'fm-panel-header' },
-            h(
-                'div',
-                {},
-                h('h3', {}, 'Appearance'),
-                h('p', {}, 'Choose how the dashboard looks')
-            )
-        ),
+        { class: 'fm-settings-panel' },
+        panelHeader('Appearance', 'Choose how the dashboard looks'),
         h(
             'ul',
-            { class: 'settings-list' },
+            { class: 'fm-settings-list' },
             h(
                 'li',
                 {},
@@ -194,18 +183,18 @@ function appearancePanel() {
                     h('p', {}, 'Dark mode'),
                     h('small', {}, 'Use a darker theme that is easier on the eyes.')
                 ),
-                h('label', { class: 'switch' }, toggle, h('span'))
+                h('label', { class: 'fm-switch' }, toggle, h('span'))
             )
         )
     );
 }
 
 function securityPanel() {
-    const message = h('p', { class: 'msg error' });
+    const message = h('p', { class: 'fm-settings-msg error' });
     message.hidden = true;
 
     const newPassword = h('input', {
-        class: 'fm-input',
+        class: 'fm-form-input',
         id: 'fmNewPassword',
         type: 'password',
         autocomplete: 'new-password',
@@ -213,7 +202,7 @@ function securityPanel() {
     });
 
     const confirmPassword = h('input', {
-        class: 'fm-input',
+        class: 'fm-form-input',
         id: 'fmConfirmPassword',
         type: 'password',
         autocomplete: 'new-password',
@@ -222,27 +211,18 @@ function securityPanel() {
 
     const submit = h(
         'button',
-        { class: 'btn', type: 'submit' },
+        { class: 'fm-button', type: 'submit' },
         'Update password'
     );
 
     // Strength meter (advisory only).
-    const strengthFill = h('div', {
-        style: 'height:100%;width:0;border-radius:inherit;transition:width .2s ease,background-color .2s ease;'
-    });
-
+    const strengthFill = h('div', { class: 'fm-strength-fill' });
     const strengthText = h('small', {});
 
     const strength = h(
         'div',
-        { style: 'display:grid;gap:6px;', 'aria-live': 'polite' },
-        h(
-            'div',
-            {
-                style: 'height:6px;border-radius:3px;background:var(--border);overflow:hidden;'
-            },
-            strengthFill
-        ),
+        { class: 'fm-strength', 'aria-live': 'polite' },
+        h('div', { class: 'fm-strength-bar' }, strengthFill),
         strengthText
     );
 
@@ -282,33 +262,31 @@ function securityPanel() {
 
     const form = h(
         'form',
-        { class: 'fm-form', novalidate: '' },
+        { class: 'fm-settings-form', novalidate: '' },
         h(
             'div',
-            { class: 'fm-form-field' },
+            { class: 'fm-settings-form-field' },
             h('label', { for: 'fmNewPassword' }, 'New password'),
             newPassword
         ),
         strength,
         h(
             'div',
-            { class: 'fm-form-field' },
+            { class: 'fm-settings-form-field' },
             h('label', { for: 'fmConfirmPassword' }, 'Confirm new password'),
             confirmPassword
         ),
         h(
             'label',
-            {
-                for: 'fmShowPasswords',
-                style: 'display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);cursor:pointer;'
-            },
+            { for: 'fmShowPasswords', class: 'fm-show-passwords' },
             showToggle,
             'Show passwords'
         ),
         message,
-        h('div', { class: 'fm-form-actions' }, submit)
+        h('div', { class: 'fm-settings-actions' }, submit)
     );
 
+    /** Validate and submit the new password with Supabase Auth. */
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         message.hidden = true;
@@ -353,28 +331,19 @@ function securityPanel() {
 
     return h(
         'section',
-        { class: 'fm-panel' },
-        h(
-            'div',
-            { class: 'fm-panel-header' },
-            h(
-                'div',
-                {},
-                h('h3', {}, 'Security'),
-                h('p', {}, 'Change the password you use to sign in')
-            )
-        ),
+        { class: 'fm-settings-panel' },
+        panelHeader('Security', 'Change the password you use to sign in'),
         form
     );
 }
 
 function sessionsPanel() {
-    const message = h('p', { class: 'msg error' });
+    const message = h('p', { class: 'fm-settings-msg error' });
     message.hidden = true;
 
     const button = h(
         'button',
-        { class: 'btn ghost', type: 'button' },
+        { class: 'fm-button fm-button-secondary', type: 'button' },
         'Sign out other devices'
     );
 
@@ -411,53 +380,51 @@ function sessionsPanel() {
 
     return h(
         'section',
-        { class: 'fm-panel' },
+        { class: 'fm-settings-panel' },
+        panelHeader('Sessions', 'Sign out anywhere else your account is signed in'),
         h(
             'div',
-            { class: 'fm-panel-header' },
-            h(
-                'div',
-                {},
-                h('h3', {}, 'Sessions'),
-                h('p', {}, 'Sign out anywhere else your account is signed in')
-            )
-        ),
-        message,
-        h('div', { class: 'fm-form-actions' }, button)
+            { class: 'fm-settings-form' },
+            message,
+            h('div', { class: 'fm-settings-actions' }, button)
+        )
     );
 }
 
 /* ---------- Page ---------- */
-/** Render appearance, password, and session settings for the farm manager. */
+/** Render profile, appearance, security, and session settings panels. */
 export async function render(root, ctx) {
+    const page = h('section', { class: 'fm-settings' });
+
+    const heading = h(
+        'div',
+        { class: 'fm-page-heading' },
+        h('h1', {}, 'Settings'),
+        h('p', { class: 'muted' }, 'Manage your profile and how the dashboard looks.')
+    );
+
     const holder = h('div');
 
-    root.append(
-        pageHead('Settings', 'Manage your profile and how the dashboard looks.'),
-        holder
-    );
+    page.append(heading, holder);
+    root.replaceChildren(page);
 
     const load = async () => {
         holder.replaceChildren(h('p', { class: 'muted' }, 'Loading settings...'));
 
         try {
-            const account = await loadAccount(ctx.staff);
+            const account = await loadAccount();
 
             holder.replaceChildren(
                 h(
                     'div',
-                    { class: 'fm-dash' },
+                    { class: 'fm-settings-grid' },
+                    profilePanel(ctx.staff, ctx.assignedFarm || ctx.farm, account),
                     h(
                         'div',
-                        { class: 'fm-grid-main' },
-                        profilePanel(ctx.staff, account),
-                        h(
-                            'div',
-                            { class: 'fm-stack' },
-                            appearancePanel(),
-                            securityPanel(),
-                            sessionsPanel()
-                        )
+                        { class: 'fm-settings-stack' },
+                        appearancePanel(),
+                        securityPanel(),
+                        sessionsPanel()
                     )
                 )
             );
@@ -465,11 +432,11 @@ export async function render(root, ctx) {
             console.error('Failed to load settings:', err);
 
             holder.replaceChildren(
-                h('p', { class: 'msg error' }, 'Could not load your settings.'),
+                h('p', { class: 'fm-settings-msg error' }, 'Could not load your settings.'),
                 h(
                     'button',
                     {
-                        class: 'btn ghost staff-retry',
+                        class: 'fm-button fm-button-secondary',
                         type: 'button',
                         onclick: load
                     },
@@ -481,3 +448,5 @@ export async function render(root, ctx) {
 
     await load();
 }
+
+export function cleanup() {}

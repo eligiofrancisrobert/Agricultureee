@@ -1,0 +1,20 @@
+/* =========================================================
+   TANIKALA - SUPPLIER DELIVERIES
+   Table, filters, status badges, modal and summary come from supplier.css.
+   ========================================================= */
+
+#view {
+  #deliveryList {
+    min-width: 0;
+  }
+
+  #deliveryDetails {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md, 20px);
+  }
+
+  #deliveryDetails .order-summary p:last-child {
+    grid-column: 1 / -1;
+  }
+}

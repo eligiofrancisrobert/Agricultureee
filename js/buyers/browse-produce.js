@@ -1,3 +1,4 @@
+
 import { supabase } from '../connection.js';
 
 const TABLE_INVENTORY = 'warehouse_produce_inventory';
@@ -40,6 +41,14 @@ const peso = new Intl.NumberFormat('en-PH', {
   currency: 'PHP',
   minimumFractionDigits: 2,
 });
+
+let inventoryChannel = null;
+let pricesChannel = null;
+
+let realtimeRefreshTimeout = null;
+let isRefreshingProducts = false;
+let pendingRefresh = false;
+let isInitialLoading = true;
 
 function setToday() {
   if (!el.todayLabel) return;
@@ -99,13 +108,15 @@ function normalize(value) {
 
 function priceKey(item) {
   return [
-    item.farm_id ?? '',
+    String(item.farm_id ?? '').trim(),
     normalize(item.crop_name),
     normalize(item.unit),
   ].join('::');
 }
 
 function setLoading(isLoading) {
+  if (!el.loading) return;
+
   el.loading.hidden = !isLoading;
 
   if (isLoading) {
@@ -137,12 +148,10 @@ async function loadBuyerHeader() {
     error,
   } = await supabase.auth.getUser();
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   if (!user) {
-    window.location.href = '../../index.html';
+    window.location.replace('../../login.html');
     return null;
   }
 
@@ -187,13 +196,21 @@ async function loadCartCount() {
 
   const total = Number(count || 0);
 
-  el.cartCount.textContent = total > 99 ? '99+' : String(total);
-  el.cartCount.hidden = total === 0;
+  if (el.cartCount) {
+    el.cartCount.textContent = total > 99 ? '99+' : String(total);
+    el.cartCount.hidden = total === 0;
+  }
 }
 
-/** Fetch available inventory and prices, then render the current product filters. */
-async function loadProducts() {
-  setLoading(true);
+/**
+ * Fetch inventory and prices together.
+ * Prices are matched using farm_id, crop_name and unit.
+ */
+async function loadProducts({ initial = false } = {}) {
+  if (initial) {
+    setLoading(true);
+  }
+
   hideError();
 
   try {
@@ -222,29 +239,50 @@ async function loadProducts() {
     if (inventoryResult.error) throw inventoryResult.error;
     if (pricesResult.error) throw pricesResult.error;
 
+    // Build a normalized price lookup.
     const priceMap = new Map();
 
     for (const price of pricesResult.data || []) {
-      priceMap.set(priceKey(price), Number(price.unit_price));
+      const key = priceKey(price);
+      const value = Number(price.unit_price);
+
+      if (Number.isFinite(value)) {
+        priceMap.set(key, value);
+      }
     }
 
     const inventory = inventoryResult.data || [];
 
-    state.products = await Promise.all(
+    const products = await Promise.all(
       inventory.map(async (item) => {
-        const unitPrice = priceMap.get(priceKey(item));
-        const photoUrl = await resolvePhotoUrl(item.photo_path);
+        const key = priceKey(item);
+        const unitPrice = priceMap.get(key);
 
         return {
           ...item,
           unit_price:
-            unitPrice !== undefined && Number.isFinite(unitPrice)
-              ? unitPrice
-              : null,
-          photo_url: photoUrl,
+            unitPrice !== undefined ? unitPrice : null,
+          photo_url: await resolvePhotoUrl(item.photo_path),
         };
       })
     );
+
+    state.products = products;
+
+    console.log('Buyer products loaded:', {
+      inventoryCount: inventory.length,
+      priceCount: priceMap.size,
+      matchedPrices: products.filter(
+        (product) => product.unit_price !== null
+      ).length,
+      unmatchedProducts: products
+        .filter((product) => product.unit_price === null)
+        .map((product) => ({
+          crop_name: product.crop_name,
+          farm_id: product.farm_id,
+          unit: product.unit,
+        })),
+    });
 
     applyFilters();
 
@@ -256,15 +294,131 @@ async function loadProducts() {
       'Unable to load available produce. Please refresh the page and try again.'
     );
 
-    el.resultCount.textContent = 'Could not load products';
-    el.grid.hidden = true;
-    el.empty.hidden = true;
+    if (initial) {
+      el.resultCount.textContent = 'Could not load products';
+      el.grid.hidden = true;
+      el.empty.hidden = true;
+    }
+
+    throw error;
 
   } finally {
-    setLoading(false);
+    if (initial) {
+      setLoading(false);
+    }
   }
 }
 
+/**
+ * Debounce realtime events and prevent overlapping requests.
+ */
+function scheduleProductsRefresh() {
+  window.clearTimeout(realtimeRefreshTimeout);
+
+  realtimeRefreshTimeout = window.setTimeout(async () => {
+    if (isRefreshingProducts) {
+      pendingRefresh = true;
+      return;
+    }
+
+    isRefreshingProducts = true;
+
+    try {
+      do {
+        pendingRefresh = false;
+
+        await loadProducts();
+
+      } while (pendingRefresh);
+
+    } catch (error) {
+      console.error('Realtime product refresh failed:', error);
+    } finally {
+      isRefreshingProducts = false;
+
+      if (pendingRefresh) {
+        scheduleProductsRefresh();
+      }
+    }
+  }, 400);
+}
+
+/**
+ * Subscribe to warehouse produce inventory changes.
+ */
+function subscribeToInventoryRealtime() {
+  inventoryChannel = supabase
+    .channel('buyer-produce-inventory-realtime')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: TABLE_INVENTORY,
+      },
+      (payload) => {
+        console.log('Inventory realtime update:', payload);
+        scheduleProductsRefresh();
+      }
+    )
+    .subscribe((status) => {
+      console.log('Inventory realtime status:', status);
+
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.error('Inventory realtime subscription failed.');
+      }
+    });
+}
+
+/**
+ * Subscribe to Accountant selling price changes.
+ */
+function subscribeToPricesRealtime() {
+  pricesChannel = supabase
+    .channel('buyer-produce-prices-realtime')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'farm_produce_prices',
+      },
+      (payload) => {
+        console.log('PRICE REALTIME EVENT:', payload);
+        scheduleProductsRefresh();
+      }
+    )
+    .subscribe((status, error) => {
+      console.log('PRICE REALTIME STATUS:', status);
+
+      if (error) {
+        console.error('PRICE REALTIME ERROR:', error);
+      }
+    });
+}
+
+function subscribeToBuyerRealtime() {
+  subscribeToInventoryRealtime();
+  subscribeToPricesRealtime();
+}
+
+function unsubscribeFromBuyerRealtime() {
+  if (inventoryChannel) {
+    supabase.removeChannel(inventoryChannel);
+    inventoryChannel = null;
+  }
+
+  if (pricesChannel) {
+    supabase.removeChannel(pricesChannel);
+    pricesChannel = null;
+  }
+
+  window.clearTimeout(realtimeRefreshTimeout);
+}
+
+/**
+ * Render product photo or placeholder.
+ */
 function createImageMarkup(product) {
   const placeholder = `
     <div class="produce-image-placeholder" aria-label="No product photo available">
@@ -289,6 +443,9 @@ function createImageMarkup(product) {
   `;
 }
 
+/**
+ * Create an individual product card.
+ */
 function createProductCard(product) {
   const name = escapeHTML(product.crop_name || 'Unnamed produce');
   const unit = escapeHTML(product.unit || 'unit');
@@ -377,6 +534,9 @@ function createProductCard(product) {
   `;
 }
 
+/**
+ * Render filtered products.
+ */
 function renderProducts(products) {
   el.grid.innerHTML = '';
 
@@ -404,9 +564,12 @@ function renderProducts(products) {
     `${products.length} ${products.length === 1 ? 'product' : 'products'} available`;
 }
 
+/**
+ * Apply current search and sorting filters.
+ */
 function applyFilters() {
-  const searchTerm = el.search.value.trim().toLowerCase();
-  const sortValue = el.sort.value;
+  const searchTerm = (el.search?.value || '').trim().toLowerCase();
+  const sortValue = el.sort?.value || 'newest';
 
   let products = state.products.filter((product) => {
     const searchable =
@@ -450,7 +613,9 @@ function applyFilters() {
   renderProducts(products);
 }
 
-/** Validate a product selection and insert its quantity into the buyer's cart. */
+/**
+ * Add selected produce to buyer cart.
+ */
 async function addToCart(button) {
   if (!state.buyerId) {
     showToast('Please log in to add items to your cart.', 'error');
@@ -483,13 +648,18 @@ async function addToCart(button) {
     return;
   }
 
+  if (requestedQuantity > Number(product.available_quantity)) {
+    showToast('Requested quantity exceeds available stock.', 'error');
+    quantityInput?.focus();
+    return;
+  }
+
   const originalButtonText = button.innerHTML;
 
   button.disabled = true;
   button.textContent = 'Adding...';
 
   try {
-    // Always validate against the latest inventory quantity.
     const { data: latestProduct, error: stockError } = await supabase
       .from(TABLE_INVENTORY)
       .select('produce_id, available_quantity, produce_status')
@@ -508,7 +678,6 @@ async function addToCart(button) {
 
     const availableStock = Number(latestProduct.available_quantity);
 
-    // Check whether this produce is already in the buyer's cart.
     const { data: existingItem, error: existingError } = await supabase
       .from(TABLE_CART)
       .select('cart_item_id, quantity')
@@ -550,7 +719,7 @@ async function addToCart(button) {
 
     if (saveResult.error) throw saveResult.error;
 
-    quantityInput.value = '1';
+    if (quantityInput) quantityInput.value = '1';
 
     await loadCartCount();
 
@@ -581,7 +750,8 @@ async function logout() {
     return;
   }
 
-  window.location.href = '../../index.html';
+  unsubscribeFromBuyerRealtime();
+  window.location.replace('../../login.html');
 }
 
 function bindEvents() {
@@ -598,7 +768,9 @@ function bindEvents() {
   });
 }
 
-/** Authenticate the buyer and initialize the produce browsing controls. */
+/**
+ * Authenticate buyer and initialize the page.
+ */
 async function init() {
   setToday();
   bindEvents();
@@ -609,14 +781,23 @@ async function init() {
     if (!user) return;
 
     await Promise.all([
-      loadProducts(),
+      loadProducts({ initial: true }),
       loadCartCount(),
     ]);
 
+    subscribeToBuyerRealtime();
+
   } catch (error) {
     console.error('Buyer page initialization failed:', error);
-    showError(error?.message || 'Unable to initialize the Buyer page.');
+
+    showError(
+      error?.message || 'Unable to initialize the Buyer page.'
+    );
+  } finally {
+    isInitialLoading = false;
   }
 }
+
+window.addEventListener('pagehide', unsubscribeFromBuyerRealtime);
 
 init();

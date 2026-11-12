@@ -1,0 +1,799 @@
+/* ==========================================================
+   CROP MONITORING (Agricultural Technician)
+   Built on the shared admin tokens, so it follows the
+   light / dark theme automatically (:root[data-theme="dark"]).
+
+   Tokens used (from the global stylesheet):
+   --bg --card --text --muted --primary --primary-dark
+   --amber --red --mint --shadow --r --border --success
+   --warning --error --surface-card --primary-color
+
+   Patterns reused: .search (pill input), .fm-panel (card),
+   .stat-box / .tile (detail boxes), .badge / .fm-pill (pills),
+   .btn / .btn.ghost (buttons), .msg.error (error state).
+   ========================================================== */
+
+.crop-monitoring-page {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(18px, 2vw, 26px);
+    min-width: 0;
+    color: var(--text);
+}
+
+/* ---------- Page header (same as .page-head) ---------- */
+.crop-monitoring-page .page-header h2 {
+    font-size: 1.6rem;
+    overflow-wrap: anywhere;
+}
+
+.crop-monitoring-page .page-header p {
+    color: var(--muted);
+}
+
+/* ---------- Toolbar (search pill + count pill) ---------- */
+.crop-monitoring-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+#cropSearch {
+    flex: 0 1 360px;
+    min-width: 200px;
+    max-width: 100%;
+    min-height: 52px;
+    padding: 0 20px 0 48px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background-color: var(--card);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 18px center;
+    box-shadow: var(--shadow);
+    transition: border-color .2s;
+}
+
+#cropSearch::placeholder {
+    color: var(--muted);
+}
+
+#cropSearch:hover,
+#cropSearch:focus {
+    border-color: var(--primary);
+}
+
+#cropCount {
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: var(--mint);
+    color: var(--primary-dark);
+    font-size: .75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ---------- Grid ---------- */
+.crop-monitoring-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+    align-items: start;
+    gap: 16px;
+}
+
+/* ---------- Crop card (same look as .fm-panel) ---------- */
+.crop-monitoring-card {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+    transition: border-color .2s, transform .2s;
+}
+
+.crop-monitoring-card:hover {
+    border-color: var(--primary);
+}
+
+.crop-card-header h3 {
+    margin-bottom: 8px;
+    font-size: 1.1rem;
+    overflow-wrap: anywhere;
+}
+
+/* Status pill (same as .badge.active) */
+.crop-status-badge {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--success) 22%, var(--surface-card));
+    color: var(--text);
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    white-space: nowrap;
+}
+
+/* ---------- Detail boxes (same as .stat-box) ---------- */
+.crop-card-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+    gap: 10px;
+}
+
+.crop-card-details > div {
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.crop-card-details span,
+.monitoring-history-details span,
+.monitoring-history-description > span,
+.monitoring-history-photo > span {
+    display: block;
+    color: var(--muted);
+    font-size: .75rem;
+}
+
+.crop-card-details strong,
+.monitoring-history-details strong {
+    display: block;
+    font-size: .88rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* Latest growth stage: full row, styled like .tile */
+.crop-card-details > div:last-child {
+    grid-column: 1 / -1;
+    border: 0;
+    border-top: 3px solid var(--primary);
+    border-radius: 0 0 6px 6px;
+    background: color-mix(in srgb, var(--primary-color) 10%, var(--card));
+}
+
+.crop-card-details > div:last-child strong {
+    color: var(--primary-dark);
+    font: 600 1.1rem 'Outfit', sans-serif;
+}
+
+/* ---------- Buttons (same as .btn / .btn.ghost) ---------- */
+.monitor-crop-btn,
+.save-monitoring-btn,
+.cancel-monitoring-btn {
+    min-height: 42px;
+    padding: 8px 16px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    font-size: .85rem;
+    font-weight: 500;
+    transition: background .2s, border-color .2s, transform .2s;
+}
+
+.monitor-crop-btn,
+.save-monitoring-btn {
+    background: var(--primary);
+    color: #fff;
+}
+
+.monitor-crop-btn:hover,
+.save-monitoring-btn:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.monitor-crop-btn {
+    width: 100%;
+}
+
+.cancel-monitoring-btn {
+    background: var(--mint);
+    color: var(--primary-dark);
+}
+
+.cancel-monitoring-btn:hover {
+    background: var(--border);
+}
+
+.save-monitoring-btn:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+/* ---------- Add monitoring record modal (centered) ----------
+   Same look as .delete-modal: dim + blur overlay, 20px radius,
+   scale-in animation. [hidden] is handled by the global rule. */
+.crop-monitoring-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.crop-monitoring-modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgb(20 18 16 / 55%);
+    backdrop-filter: blur(5px);
+    animation: cmOverlayIn .18s ease-out;
+}
+
+.crop-monitoring-modal-dialog {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: min(100%, 560px);
+    max-height: min(90vh, 900px);
+    max-height: min(90dvh, 900px);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface-card);
+    color: var(--text);
+    box-shadow: 0 24px 80px rgb(0 0 0 / 22%);
+    animation: cmModalIn .22s ease-out;
+}
+
+.crop-monitoring-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 22px 24px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.crop-monitoring-modal-header > div {
+    min-width: 0;
+}
+
+.crop-monitoring-modal-header h3 {
+    font-size: 1.25rem;
+    letter-spacing: -.02em;
+}
+
+.crop-monitoring-modal-header p {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: .85rem;
+    overflow-wrap: anywhere;
+}
+
+.crop-monitoring-modal-header p:empty {
+    display: none;
+}
+
+/* Close button (same as .icon-btn) */
+.monitoring-modal-close {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--mint);
+    color: var(--primary-dark);
+    font-size: 1.5rem;
+    line-height: 1;
+    transition: background .2s, transform .2s;
+}
+
+.monitoring-modal-close:hover:not(:disabled) {
+    background: var(--border);
+    transform: rotate(90deg);
+}
+
+.monitoring-modal-close:disabled,
+.cancel-monitoring-btn:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+/* ---------- Monitoring form (scrolls inside the modal) ---------- */
+.crop-monitoring-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+    padding: 20px 24px 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.crop-monitoring-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.crop-monitoring-form label {
+    font-size: .85rem;
+    font-weight: 500;
+}
+
+.crop-monitoring-form .form-group:has([required]) > label::after {
+    content: " *";
+    color: var(--red);
+}
+
+.crop-monitoring-form small {
+    font-size: .75rem;
+}
+
+/* Inputs (same as .toolbar select) */
+.crop-monitoring-form select,
+.crop-monitoring-form textarea,
+.crop-monitoring-form input[type="file"] {
+    width: 100%;
+    min-height: 42px;
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    transition: border-color .2s;
+}
+
+.crop-monitoring-form select {
+    cursor: pointer;
+}
+
+.crop-monitoring-form textarea {
+    resize: vertical;
+}
+
+.crop-monitoring-form textarea::placeholder {
+    color: var(--muted);
+}
+
+.crop-monitoring-form select:hover,
+.crop-monitoring-form textarea:hover,
+.crop-monitoring-form input[type="file"]:hover,
+.crop-monitoring-form select:focus,
+.crop-monitoring-form textarea:focus {
+    border-color: var(--primary);
+}
+
+.crop-monitoring-form select:user-invalid,
+.crop-monitoring-form textarea:user-invalid {
+    border-color: var(--red);
+    background: color-mix(in srgb, var(--error) 8%, var(--card));
+}
+
+.crop-monitoring-form input[type="file"] {
+    padding: 6px 8px;
+    cursor: pointer;
+}
+
+.crop-monitoring-form input[type="file"]::file-selector-button {
+    margin-right: 12px;
+    padding: 6px 14px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--mint);
+    color: var(--primary-dark);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .2s;
+}
+
+.crop-monitoring-form input[type="file"]::file-selector-button:hover {
+    background: var(--border);
+}
+
+/* Details fields only show when the answer is "Yes" (pure CSS) */
+.crop-monitoring-form:has(select[name="pest_observed"] option[value="false"]:checked) .form-group:has(textarea[name="pest_details"]),
+.crop-monitoring-form:has(select[name="disease_observed"] option[value="false"]:checked) .form-group:has(textarea[name="disease_details"]),
+.crop-monitoring-form:has(select[name="action_required"] option[value="false"]:checked) .form-group:has(textarea[name="recommended_action"]) {
+    display: none;
+}
+
+.crop-monitoring-form .form-group:has(textarea[name="pest_details"]),
+.crop-monitoring-form .form-group:has(textarea[name="disease_details"]),
+.crop-monitoring-form .form-group:has(textarea[name="recommended_action"]) {
+    animation: cmReveal .2s ease-out;
+}
+
+/* "Yes" answers turn amber so concerns stand out */
+.crop-monitoring-form select[name="pest_observed"]:has(option[value="true"]:checked),
+.crop-monitoring-form select[name="disease_observed"]:has(option[value="true"]:checked),
+.crop-monitoring-form select[name="action_required"]:has(option[value="true"]:checked) {
+    border-color: var(--amber);
+    background: color-mix(in srgb, var(--warning) 14%, var(--card));
+}
+
+.monitoring-photo-preview {
+    display: block;
+    max-width: 100%;
+    max-height: 220px;
+    margin-top: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    object-fit: contain;
+}
+
+/* Action bar stays visible while the form scrolls */
+.monitoring-form-actions {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    gap: 12px;
+    margin: 6px -24px 0;
+    padding: 16px 24px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-card);
+}
+
+.monitoring-form-actions button {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+/* ---------- Monitoring history ---------- */
+.monitoring-history {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.monitoring-history-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.monitoring-history-heading h4 {
+    font: 600 1rem 'Outfit', sans-serif;
+}
+
+.monitoring-history-heading span {
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: var(--mint);
+    color: var(--muted);
+    font-size: .72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.monitoring-history-empty {
+    padding: 28px 8px;
+    color: var(--muted);
+    font-size: .85rem;
+    text-align: center;
+}
+
+.monitoring-history-empty p {
+    color: var(--text);
+    font-weight: 500;
+}
+
+.monitoring-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 460px;
+    padding-right: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.monitoring-history-item {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--primary);
+    border-radius: 12px;
+}
+
+.monitoring-history-item-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.monitoring-history-item-header > div {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.monitoring-history-stage {
+    color: var(--primary-dark);
+    font-size: .8rem;
+    font-weight: 500;
+}
+
+/* History status pills (same as .badge variants) */
+.monitoring-history-status {
+    flex-shrink: 0;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: var(--mint);
+    color: var(--text);
+    font-size: .75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.monitoring-history-status.submitted {
+    background: color-mix(in srgb, var(--primary-color) 20%, var(--surface-card));
+    color: var(--primary-dark);
+}
+
+.monitoring-history-status.reviewed {
+    background: color-mix(in srgb, var(--success) 22%, var(--surface-card));
+}
+
+.monitoring-history-status.draft {
+    background: color-mix(in srgb, var(--warning) 26%, var(--surface-card));
+}
+
+.monitoring-history-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 110px), 1fr));
+    gap: 10px;
+}
+
+.monitoring-history-description {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--bg);
+}
+
+.monitoring-history-description p {
+    overflow-wrap: anywhere;
+}
+
+.monitoring-history-photo {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.monitoring-history-photo a {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.monitoring-history-photo img {
+    display: block;
+    width: 100%;
+    max-width: 280px;
+    max-height: 200px;
+    object-fit: cover;
+    transition: transform .3s ease;
+}
+
+.monitoring-history-photo a:hover img {
+    transform: scale(1.04);
+}
+
+/* ---------- Empty / error states ---------- */
+.crop-monitoring-page .empty-state {
+    padding: 48px 16px;
+    border: 1px dashed var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+    color: var(--muted);
+    text-align: center;
+}
+
+.crop-monitoring-page .empty-state h3 {
+    margin-bottom: 4px;
+    color: var(--text);
+    font-size: 1.05rem;
+}
+
+/* Same as .msg.error */
+.crop-monitoring-page .error-state {
+    padding: 14px 18px;
+    border: 1px solid var(--red);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--error) 8%, var(--card));
+    color: var(--red);
+}
+
+.crop-monitoring-page .error-state h3 {
+    font-size: 1rem;
+}
+
+
+/* COLLAPSIBLE MONITORING HISTORY */
+
+.monitoring-history {
+    margin-top: 18px;
+    border-top: 1px solid #e8e8e8;
+    padding-top: 14px;
+}
+
+.monitoring-history-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid #e8e8e8;
+    border-radius: 10px;
+    background: #f8f8f5;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.monitoring-history-toggle:hover {
+    background: #f0f0eb;
+    border-color: #d5d5cc;
+}
+
+.monitoring-history-toggle-info {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.monitoring-history-toggle-info strong {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.monitoring-history-count {
+    color: #777;
+    font-size: 12px;
+}
+
+.monitoring-history-chevron {
+    flex-shrink: 0;
+    color: #777;
+    font-size: 11px;
+    transition: transform 0.2s ease;
+}
+
+.monitoring-history-toggle.is-expanded .monitoring-history-chevron {
+    transform: rotate(180deg);
+}
+
+.monitoring-history-content {
+    margin-top: 12px;
+}
+
+.monitoring-history-content[hidden] {
+    display: none !important;
+}
+
+.monitoring-history-empty {
+    padding: 18px 14px;
+    border: 1px dashed #ddd;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.monitoring-history-empty p {
+    margin: 0 0 5px;
+    font-weight: 600;
+}
+
+.monitoring-history-empty small {
+    color: #777;
+}
+
+@media (max-width: 600px) {
+    .monitoring-history-toggle {
+        padding: 11px 12px;
+    }
+
+    .monitoring-history-toggle-info strong {
+        font-size: 13px;
+    }
+}
+
+
+@keyframes cmOverlayIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes cmModalIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes cmReveal {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ---------- Responsive (same breakpoints as the admin shell) ---------- */
+@media (max-width: 560px) {
+    .crop-monitoring-page .page-header h2 {
+        font-size: 1.45rem;
+    }
+
+    .crop-monitoring-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #cropSearch {
+        flex: 1 1 100%;
+        min-height: 46px;
+    }
+
+    #cropCount {
+        align-self: flex-start;
+    }
+
+    .crop-monitoring-card {
+        padding: 16px 14px;
+    }
+
+    .crop-monitoring-modal {
+        padding: 12px;
+    }
+
+    .crop-monitoring-modal-dialog {
+        border-radius: 16px;
+    }
+
+    .crop-monitoring-modal-header {
+        padding: 18px 16px 14px;
+    }
+
+    .crop-monitoring-form {
+        padding: 16px 16px 0;
+    }
+
+    .monitoring-form-actions {
+        margin: 6px -16px 0;
+        padding: 14px 16px 16px;
+    }
+}

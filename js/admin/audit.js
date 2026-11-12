@@ -3,18 +3,33 @@ import { h, table, select, fmtDateTime, pageHead } from './ui.js';
 import { getLogs } from './api.js';
 
 export async function render(root, ctx) {
-    const logs = await getLogs();
-    let action = 'all';
+    root.replaceChildren();
 
-    const holder = h('div');
-    const detailsContent = h('div');
-    const detailsDialog = h('dialog', {
-        class: 'audit-detail-dialog',
-        'aria-labelledby': 'audit-detail-title'
-    });
+    let logs = [];
+
+    try {
+        logs = await getLogs() || [];
+    } catch (error) {
+        console.error('Failed to load audit logs:', error);
+
+        root.append(
+            pageHead('Audit Logs', 'Monitor administrative and security activities.'),
+            h('section', { class: 'card' },
+                h('p', { class: 'muted' }, 'Unable to load audit logs. Please try again.')
+            )
+        );
+        return;
+    }
+
+    let action = 'all';
+    let searchTerm = '';
+
+    const page = h('div', { class: 'audit-page' });
+    const holder = h('div', { class: 'audit-table-wrap' });
+    const countLabel = h('span', { class: 'audit-result-count' });
 
     const showValue = (value) => {
-        if (value === null || value === undefined) {
+        if (value === null || value === undefined || value === '') {
             return 'No data recorded';
         }
 
@@ -23,33 +38,117 @@ export async function render(root, ctx) {
             : String(value);
     };
 
+    const today = new Date().toLocaleDateString();
+
+    const todayLogs = logs.filter(log =>
+        log.time && new Date(log.time).toLocaleDateString() === today
+    );
+
+    const uniqueActors = new Set(
+        logs.map(log => log.actor).filter(Boolean)
+    ).size;
+
+    const uniqueActions = new Set(
+        logs.map(log => log.action).filter(Boolean)
+    ).size;
+
+    const metricCard = (label, value, description, icon, color) =>
+        h('article', { class: `audit-metric audit-metric--${color}` },
+            h('div', { class: 'audit-metric-top' },
+                h('span', { class: 'audit-metric-icon' }, icon),
+                h('span', { class: 'audit-metric-label' }, label)
+            ),
+            h('strong', { class: 'audit-metric-value' }, String(value)),
+            h('span', { class: 'audit-metric-description' }, description)
+        );
+
+    const metrics = h('section', { class: 'audit-metrics' },
+        metricCard(
+            'Total Events',
+            logs.length,
+            'Recorded audit activities',
+            '▤',
+            'brown'
+        ),
+        metricCard(
+            "Today's Events",
+            todayLogs.length,
+            'Activities recorded today',
+            '◷',
+            'green'
+        ),
+        metricCard(
+            'Unique Actors',
+            uniqueActors,
+            'Accounts with recorded activity',
+            '♙',
+            'blue'
+        ),
+        metricCard(
+            'Action Types',
+            uniqueActions,
+            'Different recorded actions',
+            '⌘',
+            'orange'
+        )
+    );
+
+    const detailsContent = h('div', {
+        class: 'audit-detail-content'
+    });
+
+    const detailsDialog = h('dialog', {
+        class: 'audit-detail-dialog',
+        'aria-labelledby': 'audit-detail-title'
+    });
+
     const detailSection = (title, value) =>
         h('section', { class: 'audit-detail-section' },
             h('h3', {}, title),
             h('pre', { class: 'audit-detail-data' }, showValue(value))
         );
 
-    /** Show the selected log's recorded metadata and before/after values. */
+    const detailItem = (label, value) =>
+        h('div', { class: 'audit-detail-item' },
+            h('span', { class: 'audit-detail-label' }, label),
+            h('strong', { class: 'audit-detail-value' },
+                value || 'Not recorded'
+            )
+        );
+
     const openDetails = (log) => {
+        const metadata = log.metadata || log.new_data?.metadata || {};
+
         detailsContent.replaceChildren(
-            h('p', {},
-                h('strong', {}, 'When: '),
-                fmtDateTime(log.time) || 'Unknown'
+            h('div', { class: 'audit-detail-summary' },
+                h('span', { class: 'audit-detail-summary-label' }, 'ACTION'),
+                h('h3', {}, log.action || 'Unknown action'),
+                h('p', {}, log.target || 'No target specified')
             ),
-            h('p', {},
-                h('strong', {}, 'Admin: '),
-                log.actor || 'Unknown'
+
+            h('section', { class: 'audit-detail-section' },
+                h('h3', {}, 'Event Information'),
+                h('div', { class: 'audit-detail-grid' },
+                    detailItem('Date & Time', fmtDateTime(log.time)),
+                    detailItem('Actor / Account', log.actor),
+                    detailItem('Action', log.action),
+                    detailItem('Target', log.target)
+                )
             ),
-            h('p', {},
-                h('strong', {}, 'Action: '),
-                log.action || 'Unknown'
+
+            h('section', { class: 'audit-detail-section' },
+                h('h3', {}, 'Device & Location'),
+                h('div', { class: 'audit-detail-grid' },
+                    detailItem('IP Address', log.ip_address || metadata.ip_address),
+                    detailItem('Location', log.location || metadata.location),
+                    detailItem('Device', log.device || metadata.device),
+                    detailItem('Browser', log.browser || metadata.browser),
+                    detailItem('Operating System', log.operating_system || metadata.operating_system)
+                )
             ),
-            h('p', {},
-                h('strong', {}, 'Target: '),
-                log.target || 'Unknown'
-            ),
-            detailSection('Previous values', log.old_data),
-            detailSection('New values', log.new_data)
+
+            detailSection('Previous Values', log.old_data),
+            detailSection('New Values', log.new_data)
         );
 
         if (!detailsDialog.open) {
@@ -59,95 +158,142 @@ export async function render(root, ctx) {
 
     detailsDialog.append(
         h('div', { class: 'audit-detail-header' },
-            h('h2', { id: 'audit-detail-title' }, 'Audit Log Details'),
+            h('div', {},
+                h('span', { class: 'audit-eyebrow' }, 'ACTIVITY RECORD'),
+                h('h2', { id: 'audit-detail-title' }, 'Audit Log Details')
+            ),
             h('button', {
                 type: 'button',
-                class: 'btn ghost',
+                class: 'audit-close-button',
+                'aria-label': 'Close details',
                 onclick: () => detailsDialog.close()
-            }, 'Close')
+            }, '×')
         ),
         detailsContent
     );
 
-    detailsDialog.addEventListener('click', (event) => {
+    detailsDialog.addEventListener('click', event => {
         if (event.target === detailsDialog) {
             detailsDialog.close();
         }
     });
 
-    /** Filter the loaded audit records and rebuild the table. */
-    const draw = () => {
-        const q = (ctx.query || '').toLowerCase();
+    const actionBadge = (value) => {
+        const normalized = String(value || 'Unknown')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-');
 
-        const rows = logs.filter((l) =>
-            (action === 'all' || l.action === action) &&
-            `${l.actor} ${l.action} ${l.target}`
-                .toLowerCase()
-                .includes(q)
-        );
+        return h('span', {
+            class: `audit-action-badge audit-action--${normalized}`
+        }, value || 'Unknown');
+    };
+
+    const draw = () => {
+        const q = searchTerm.trim().toLowerCase();
+
+        const rows = logs.filter(log => {
+            const matchesAction =
+                action === 'all' || log.action === action;
+
+            const searchable = [
+                log.actor,
+                log.action,
+                log.target,
+                log.ip_address,
+                log.location,
+                log.device,
+                log.browser,
+                JSON.stringify(log.metadata || {})
+            ].join(' ').toLowerCase();
+
+            return matchesAction && searchable.includes(q);
+        });
+
+        countLabel.textContent =
+            `${rows.length} ${rows.length === 1 ? 'record' : 'records'}`;
 
         holder.replaceChildren(
             table([
                 {
-                    label: 'When',
-                    cell: (l) => fmtDateTime(l.time)
+                    label: 'Date & Time',
+                    cell: log => fmtDateTime(log.time) || 'Unknown'
                 },
                 {
-                    label: 'Admin',
-                    cell: (l) => l.actor
+                    label: 'Actor',
+                    cell: log => h('div', { class: 'audit-actor' },
+                        h('strong', {}, log.actor || 'Unknown'),
+                        h('span', {}, log.target || '—')
+                    )
                 },
                 {
                     label: 'Action',
-                    cell: (l) => l.action
+                    cell: log => actionBadge(log.action)
                 },
                 {
                     label: 'Target',
-                    cell: (l) => l.target
+                    cell: log => log.target || '—'
                 },
-
                 {
-                    label: 'Details',
-                    cell: (l) => {
-                        const wrapper = h('div', {
-                            style: 'display:flex;justify-content:center;align-items:center;width:100%;'
-                        });
-
-                        wrapper.append(
-                            h('button', {
-                                type: 'button',
-                                class: 'btn ghost audit-details-button',
-                                onclick: () => openDetails(l)
-                            }, 'View details')
-                        );
-
-                        return wrapper;
-                    }
+                    label: '',
+                    cell: log => h('button', {
+                        type: 'button',
+                        class: 'audit-view-button',
+                        onclick: () => openDetails(log)
+                    }, 'View details →')
                 }
-
-            ], rows, 'No log entries match these filters.')
+            ], rows, 'No audit records found.')
         );
     };
 
     const actions = [
-        ...new Set(logs.map((l) => l.action))
-    ].map((a) => [a, a]);
+        ...new Set(logs.map(log => log.action).filter(Boolean))
+    ].sort().map(value => [value, value]);
+
+    const searchInput = h('input', {
+        type: 'search',
+        class: 'audit-search',
+        placeholder: 'Search actor, action, target...',
+        'aria-label': 'Search audit logs',
+        oninput: event => {
+            searchTerm = event.target.value;
+            draw();
+        }
+    });
+
+    const actionFilter = select(
+        [['all', 'All actions'], ...actions],
+        action,
+        value => {
+            action = value;
+            draw();
+        },
+        'Filter by action'
+    );
+
+    const toolbar = h('section', { class: 'audit-toolbar' },
+        h('div', { class: 'audit-toolbar-heading' },
+            h('div', {},
+                h('h2', {}, 'Activity History'),
+                h('p', {}, 'Review and inspect recorded system activities.')
+            ),
+            countLabel
+        ),
+        h('div', { class: 'audit-toolbar-controls' },
+            searchInput,
+            actionFilter
+        )
+    );
+
+    page.append(metrics, toolbar,
+        h('section', { class: 'audit-table-card' }, holder)
+    );
 
     root.append(
-        pageHead('Audit logs', 'Every admin action, newest first.'),
-        h('section', { class: 'card' },
-            h('div', { class: 'toolbar' },
-                select(
-                    [['all', 'All actions'], ...actions],
-                    action,
-                    (v) => {
-                        action = v;
-                        draw();
-                    },
-                    'Action type'
-                )
-            ),
-            holder
+        pageHead(
+            'Audit Logs',
+            'Monitor administrative actions and system activities.'
         ),
+        page,
         detailsDialog
     );
 

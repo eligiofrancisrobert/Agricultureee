@@ -1,0 +1,907 @@
+/* =========================================================
+   TANIKALA - SUPPLIER PURCHASE ORDERS
+   ========================================================= */
+
+#view {
+  #ordersTable > .empty-state,
+  #deliveryList > .empty-state {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-card);
+  }
+}
+
+/* =========================================================
+   ORDER DETAILS MODAL ("View Details")
+   Spacious layout: sticky header, summary tiles, info cards,
+   and a roomy products table. Uses theme tokens, so dark mode
+   follows automatically.
+   ========================================================= */
+
+#orderModal {
+  --om-surface: var(--surface-card, var(--card-bg, #fff));
+  --om-soft: color-mix(in srgb, var(--om-accent) 5%, var(--om-surface));
+  --om-border: var(--border, var(--border-color, #e4dcd3));
+  --om-text: var(--primary-text, var(--text-color, #222));
+  --om-muted: var(--secondary-text, var(--muted, #777));
+  --om-accent: var(--primary-color, #c65d3a);
+  --om-success: var(--success, #27834b);
+}
+
+#orderModal.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+  background: rgba(20, 20, 20, .58);
+  backdrop-filter: blur(3px);
+}
+
+#orderModal.modal-overlay[hidden] {
+  display: none !important;
+}
+
+#orderModal > .modal-content {
+  box-sizing: border-box;
+  position: relative;
+  width: min(100%, 780px);
+  max-height: 92vh;
+  max-height: 92dvh;
+  overflow-y: auto;
+  padding: 0;
+  border: 1px solid var(--om-border);
+  border-radius: 20px;
+  background: var(--om-surface);
+  color: var(--om-text);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .28);
+  animation: supplierModalEnter .25s ease;
+}
+
+/* ---------- Header (stays visible while scrolling) ---------- */
+
+#orderModal .panel-heading {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  padding: 26px 76px 22px 32px;
+  border-bottom: 1px solid var(--om-border);
+  background: var(--om-surface);
+}
+
+#orderModal .panel-heading h3 {
+  margin: 0 0 8px;
+  color: var(--om-text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+#orderModalSubtitle {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 5px 14px;
+  border: 1px solid color-mix(in srgb, var(--om-accent) 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--om-accent) 10%, var(--om-surface));
+  color: var(--om-accent);
+  font-size: .85rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  overflow-wrap: anywhere;
+}
+
+#orderModalSubtitle:empty {
+  display: none;
+}
+
+/* Close button keeps its existing styling; only reposition it
+   for the taller, padded header. */
+#orderModal .panel-heading button[data-action="close-order-modal"] {
+  top: 24px !important;
+  right: 28px !important;
+}
+
+/* ---------- Body ---------- */
+
+#orderDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  padding: 28px 32px 34px;
+}
+
+#orderDetails .page-loading,
+#orderDetails .page-error {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--om-muted);
+  font-size: var(--fs-sm, .875rem);
+}
+
+/* ---------- Summary tiles (order number, date, status, notes) ---------- */
+
+#orderDetails .order-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+#orderDetails .order-summary p {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  min-width: 0;
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--om-border);
+  border-radius: 14px;
+  background: var(--om-soft);
+  color: var(--om-text);
+  font-size: .98rem;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+#orderDetails .order-summary p strong {
+  color: var(--om-muted);
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+/* Notes take the full row */
+#orderDetails .order-summary p:last-child {
+  grid-column: 1 / -1;
+  font-weight: 500;
+}
+
+/* Status pill inside the order details */
+#orderDetails .status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 14px;
+  border: 1px solid var(--om-accent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--om-accent) 12%, var(--om-surface));
+  color: var(--om-accent);
+  font-size: .82rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* ---------- Manage-order actions (Preparing -> Ship) ---------- */
+
+#orderDetails .order-detail-actions {
+  padding: 18px 20px;
+  border: 1px dashed color-mix(in srgb, var(--om-accent) 45%, var(--om-border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--om-accent) 6%, var(--om-surface));
+}
+
+#orderDetails .order-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+#orderDetails .status-action {
+  min-height: 42px;
+  padding: 0 22px;
+  border: 1px solid var(--om-accent);
+  border-radius: 999px;
+  background: var(--om-accent);
+  color: #fff;
+  font-family: inherit;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter .2s ease, transform .2s ease;
+}
+
+#orderDetails .status-action:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+#orderDetails .status-action:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+/* ---------- Info cards (Delivery / Payment information) ---------- */
+
+#orderDetails .order-tracking-info {
+  padding: 22px 24px 8px;
+  border: 1px solid var(--om-border);
+  border-left: 4px solid var(--om-accent);
+  border-radius: 14px;
+  background: var(--om-surface);
+}
+
+#orderDetails .order-tracking-info h4 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 12px;
+  color: var(--om-text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+#orderDetails .order-tracking-info h4 i {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--om-accent) 12%, var(--om-surface));
+  color: var(--om-accent);
+  font-size: 1rem;
+}
+
+#orderDetails .order-tracking-info > p {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--om-border);
+  color: var(--om-text);
+  font-size: .95rem;
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+#orderDetails .order-tracking-info > p strong {
+  flex-shrink: 0;
+  color: var(--om-muted);
+  font-size: .88rem;
+  font-weight: 500;
+  text-align: left;
+}
+
+/* Live delivery countdown */
+#orderDetails #deliveryCountdown {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--om-accent) 12%, var(--om-surface));
+  color: var(--om-accent);
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+/* Payment Accepted action */
+#orderDetails .order-payment-actions {
+  padding: 16px 0 18px;
+  border-top: 1px solid var(--om-border);
+}
+
+#orderDetails #paymentAcceptedButton {
+  width: 100%;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 22px;
+  border: 1px solid var(--om-success);
+  border-radius: 999px;
+  background: var(--om-success);
+  color: #fff;
+  font-family: inherit;
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter .2s ease, transform .2s ease;
+}
+
+#orderDetails #paymentAcceptedButton[hidden] {
+  display: none !important;
+}
+
+#orderDetails #paymentAcceptedButton:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+#orderDetails #paymentAcceptedButton:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+/* ---------- Delivered At / Completed At rows ---------- */
+
+#orderDetails > p {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0;
+  padding: 16px 20px;
+  border: 1px solid var(--om-border);
+  border-radius: 14px;
+  background: var(--om-soft);
+  color: var(--om-text);
+  font-size: .95rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+#orderDetails > p strong {
+  color: var(--om-muted);
+  font-size: .88rem;
+  font-weight: 500;
+  text-align: left;
+}
+
+/* ---------- Ordered products ---------- */
+
+#orderDetails > h4 {
+  margin: 6px 0 -10px;
+  color: var(--om-text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+#orderDetails .table-responsive {
+  overflow-x: auto;
+  border: 1px solid var(--om-border);
+  border-radius: 14px;
+}
+
+#orderDetails .supplier-table {
+  width: 100%;
+  min-width: 540px;
+  border-collapse: collapse;
+}
+
+#orderDetails .supplier-table th {
+  padding: 15px 20px;
+  background: color-mix(in srgb, var(--om-accent) 6%, var(--om-surface));
+  color: var(--om-muted);
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+#orderDetails .supplier-table td {
+  padding: 18px 20px;
+  border-top: 1px solid var(--om-border);
+  color: var(--om-text);
+  font-size: .95rem;
+  vertical-align: middle;
+}
+
+#orderDetails .supplier-table tbody tr:hover td {
+  background: var(--om-soft);
+}
+
+#orderDetails .supplier-table td:nth-child(n+2),
+#orderDetails .supplier-table th:nth-child(n+2) {
+  text-align: right;
+}
+
+#orderDetails .supplier-table td:first-child {
+  font-weight: 600;
+}
+
+#orderDetails .supplier-table td small {
+  display: block;
+  margin-top: 5px;
+  color: var(--om-muted);
+  font-size: .78rem;
+  font-weight: 400;
+}
+
+#orderDetails .supplier-table td:last-child {
+  color: var(--om-accent);
+  font-weight: 700;
+}
+
+#orderDetails .supplier-table td.empty-state {
+  padding: 40px 20px;
+  color: var(--om-muted);
+  text-align: center;
+}
+
+/* =========================================================
+   SUPPLIER WORKFLOW MODALS
+   ========================================================= */
+
+.supplier-workflow-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(20, 20, 20, .58);
+  backdrop-filter: blur(3px);
+}
+
+.supplier-workflow-overlay[hidden] {
+  display: none !important;
+}
+
+.supplier-workflow-modal {
+  position: relative;
+  width: min(100%, 480px);
+  max-height: min(90vh, 720px);
+  overflow-y: auto;
+  padding: 26px;
+  border-radius: 16px;
+  background: var(--card-bg, #fff);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .2);
+  animation: supplierModalEnter .2s ease;
+}
+
+@keyframes supplierModalEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Modal heading */
+
+.supplier-workflow-modal .panel-heading {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-right: 48px;
+  margin-bottom: 22px;
+}
+
+.supplier-workflow-modal .panel-heading h3 {
+  margin: 0 0 5px;
+  font-size: 21px;
+  font-weight: 600;
+}
+
+.supplier-workflow-modal .panel-heading p {
+  margin: 0;
+  color: var(--muted, #777);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   CLOSE BUTTON - ORDER AND WORKFLOW MODALS
+   ========================================================= */
+
+#workflowModal button[data-action="close-workflow"],
+#orderModal button[data-action="close-order-modal"] {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  flex: 0 0 38px !important;
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  border: 1px solid var(--border-color, #dedede) !important;
+  border-radius: 50% !important;
+
+  background: var(--surface-secondary, #f5f5f5) !important;
+  color: var(--text-color, #333) !important;
+
+  font-family: Arial, sans-serif !important;
+  font-size: 0 !important;
+  line-height: 1 !important;
+
+  cursor: pointer !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  overflow: visible !important;
+  z-index: 100 !important;
+}
+
+/* Draw X independently of Font Awesome or HTML icon */
+
+#workflowModal button[data-action="close-workflow"]::before,
+#orderModal button[data-action="close-order-modal"]::before {
+  content: "\00D7" !important;
+  display: block !important;
+  color: var(--text-color, #333) !important;
+  font-family: Arial, sans-serif !important;
+  font-size: 29px !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
+}
+
+#workflowModal button[data-action="close-workflow"]:hover,
+#orderModal button[data-action="close-order-modal"]:hover {
+  background: #c65d3a !important;
+  border-color: #c65d3a !important;
+}
+
+#workflowModal button[data-action="close-workflow"]:hover::before,
+#orderModal button[data-action="close-order-modal"]:hover::before {
+  color: #fff !important;
+}
+
+/* =========================================================
+   SHIPMENT ORDER DETAILS
+   ========================================================= */
+
+.supplier-shipment-order {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 15px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-color, #e8e8e8);
+  border-radius: 10px;
+  background: var(--surface-secondary, #f8f8f8);
+}
+
+.supplier-shipment-order span {
+  color: var(--muted, #777);
+  font-size: 12px;
+}
+
+.supplier-shipment-order strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* =========================================================
+   FORM FIELDS
+   ========================================================= */
+
+.supplier-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 17px;
+}
+
+.supplier-modal-field label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.supplier-modal-field input,
+.supplier-modal-field textarea {
+  width: 100%;
+  min-height: 45px;
+  padding: 11px 13px;
+  border: 1px solid var(--border-color, #dedede);
+  border-radius: 9px;
+  outline: none;
+  background: var(--input-bg, #fff);
+  color: var(--text-color, #222);
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color .2s, box-shadow .2s;
+}
+
+.supplier-modal-field textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.supplier-modal-field input:focus,
+.supplier-modal-field textarea:focus {
+  border-color: #c65d3a;
+  box-shadow: 0 0 0 3px rgba(198, 93, 58, .12);
+}
+
+.supplier-modal-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px;
+  margin-top: 5px;
+  border-radius: 9px;
+  background: rgba(168, 181, 131, .14);
+  color: var(--text-color, #555);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.supplier-modal-hint i {
+  margin-top: 2px;
+  color: #899b60;
+}
+
+/* =========================================================
+   MODAL ACTION BUTTONS
+   ========================================================= */
+
+.supplier-workflow-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 25px;
+}
+
+.supplier-workflow-actions button {
+  min-height: 42px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .2s, transform .2s;
+}
+
+.supplier-workflow-actions button:hover {
+  transform: translateY(-1px);
+}
+
+.supplier-workflow-actions button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.supplier-modal-secondary {
+  background: var(--surface-secondary, #eee);
+  color: var(--text-color, #333);
+}
+
+.supplier-modal-primary {
+  background: #c65d3a;
+  color: #fff;
+}
+
+.supplier-modal-danger {
+  background: #c0392b;
+  color: #fff;
+}
+
+/* =========================================================
+   FEEDBACK AND CONFIRMATION MODALS
+   ========================================================= */
+
+.supplier-feedback-content,
+.supplier-confirm-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding: 12px 5px;
+}
+
+.supplier-feedback-content p,
+.supplier-confirm-content p {
+  margin: 0;
+  color: var(--text-color, #444);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.supplier-feedback-icon,
+.supplier-confirm-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  font-size: 29px;
+}
+
+.supplier-feedback-success {
+  background: #e8f5ec;
+  color: #27834b;
+}
+
+.supplier-feedback-error {
+  background: #fdebea;
+  color: #c0392b;
+}
+
+.supplier-confirm-icon {
+  background: #fff3e8;
+  color: #c65d3a;
+}
+
+/* =========================================================
+   DARK THEME
+   ========================================================= */
+
+[data-theme="dark"] .supplier-workflow-modal {
+  background: var(--card-bg, #222);
+}
+
+[data-theme="dark"] #workflowModal button[data-action="close-workflow"],
+[data-theme="dark"] #orderModal button[data-action="close-order-modal"] {
+  background: #353535 !important;
+  color: #fff !important;
+  border-color: #555 !important;
+}
+
+[data-theme="dark"] #workflowModal button[data-action="close-workflow"]::before,
+[data-theme="dark"] #orderModal button[data-action="close-order-modal"]::before {
+  color: #fff !important;
+}
+
+[data-theme="dark"] .supplier-shipment-order {
+  background: var(--surface-secondary, #2c2c2c);
+  border-color: var(--border-color, #444);
+}
+
+[data-theme="dark"] .supplier-modal-field input,
+[data-theme="dark"] .supplier-modal-field textarea {
+  background: var(--input-bg, #2b2b2b);
+  color: var(--text-color, #fff);
+  border-color: var(--border-color, #494949);
+}
+
+[data-theme="dark"] .supplier-modal-secondary {
+  background: #3a3a3a;
+  color: #fff;
+}
+
+[data-theme="dark"] .supplier-feedback-content p,
+[data-theme="dark"] .supplier-confirm-content p {
+  color: var(--text-color, #eee);
+}
+
+/* =========================================================
+   PAYMENT ACCEPTED - CLICK FIX
+   ========================================================= */
+
+#orderDetails .order-payment-actions {
+    position: relative;
+    z-index: 10;
+    display: block;
+    pointer-events: auto;
+}
+
+#orderDetails #paymentAcceptedButton {
+    position: relative;
+    z-index: 11;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+#orderDetails #paymentAcceptedButton:focus-visible {
+    outline: 3px solid color-mix(
+        in srgb,
+        var(--om-success) 35%,
+        transparent
+    );
+    outline-offset: 3px;
+}
+
+#orderDetails #paymentAcceptedButton[hidden] {
+    display: none !important;
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 640px) {
+  #orderModal.modal-overlay {
+    padding: 10px;
+  }
+
+  #orderModal > .modal-content {
+    border-radius: 16px;
+  }
+
+  #orderModal .panel-heading {
+    padding: 20px 64px 18px 20px;
+  }
+
+  #orderModal .panel-heading button[data-action="close-order-modal"] {
+    top: 18px !important;
+    right: 16px !important;
+  }
+
+  #orderDetails {
+    gap: 20px;
+    padding: 20px 18px 26px;
+  }
+
+  #orderDetails .order-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #orderDetails .order-tracking-info {
+    padding: 18px 18px 6px;
+  }
+
+  #orderDetails .order-tracking-info > p,
+  #orderDetails > p {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    text-align: left;
+  }
+
+  #orderDetails .order-detail-actions .status-action {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .supplier-workflow-overlay {
+    padding: 12px;
+  }
+
+  .supplier-workflow-modal {
+    padding: 20px;
+    border-radius: 13px;
+  }
+
+  .supplier-workflow-modal .panel-heading h3 {
+    font-size: 19px;
+  }
+
+  .supplier-workflow-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .supplier-workflow-actions button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #orderModal > .modal-content,
+  .supplier-workflow-modal {
+    animation: none !important;
+  }
+
+  #orderDetails .status-action,
+  #orderDetails #paymentAcceptedButton,
+  .supplier-workflow-actions button {
+    transition: none !important;
+  }
+}

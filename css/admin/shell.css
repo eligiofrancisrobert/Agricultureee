@@ -9,12 +9,26 @@
    Small screens (800px and below):
      - the sidebar becomes a slide-in drawer
      - a fixed menu bar (hamburger + logo) sits at the top
+     - the date, notification bell and profile avatar sit on the
+       right side of that menu bar
 ========================================================= */
 
 /* Hidden on desktop. The script creates them, small screens show them. */
 .menu-bar,
 .menu-backdrop {
     display: none;
+}
+
+.topbar-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    margin-left: auto;
+}
+
+#todayLabel {
+    white-space: nowrap;
 }
 
 /* ---------- Large screens: keep content readable ---------- */
@@ -28,6 +42,7 @@
 
 /* ---------- Small laptops / tablets landscape ---------- */
 @media (max-width: 1024px) {
+
     .fm-grid-main,
     .fm-grid-bottom {
         grid-template-columns: minmax(0, 1fr);
@@ -80,6 +95,7 @@
         flex: 1 1 auto;
         min-width: 0;
         margin: 0;
+        overflow: hidden;
         color: inherit;
         text-decoration: none;
     }
@@ -195,9 +211,58 @@
         padding-top: var(--menubar-total);
     }
 
-    /* Sticky page toolbars sit below the fixed menu bar */
+    /* ---------- Date, notification + profile in the menu bar ----------
+       The topbar is lifted out of the page flow and pinned to the
+       right side of the menu bar. Its empty area lets taps pass
+       through to the hamburger and logo. */
     .has-menu-bar .topbar {
-        top: var(--menubar-total);
+        position: fixed;
+        top: 0;
+        right: 0;
+        z-index: 1002;
+        align-items: center;
+        justify-content: flex-end;
+        width: auto;
+        height: var(--menubar-total);
+        padding: env(safe-area-inset-top, 0px) 12px 0 0;
+        pointer-events: none;
+    }
+
+    .has-menu-bar .topbar>* {
+        pointer-events: auto;
+    }
+
+    .has-menu-bar .topbar-right {
+        flex-wrap: nowrap;
+        justify-content: flex-end;
+        width: auto;
+        gap: 8px;
+    }
+
+    .has-menu-bar .chip {
+        min-height: 40px;
+        gap: 8px;
+        padding: 0 6px 0 14px;
+        font-size: .78rem;
+        white-space: nowrap;
+    }
+
+    .has-menu-bar .chip .icon-btn {
+        width: 30px;
+        height: 30px;
+    }
+
+    .has-menu-bar .bell,
+    .has-menu-bar .avatar {
+        width: 40px;
+        height: 40px;
+    }
+
+    .has-menu-bar .bell span {
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        font-size: .62rem;
     }
 
     /* ---------- Sidebar drawer ---------- */
@@ -330,6 +395,31 @@
         height: 28px;
     }
 
+    .has-menu-bar .topbar {
+        padding-right: 10px;
+    }
+
+    .has-menu-bar .topbar-right {
+        gap: 6px;
+    }
+
+    .has-menu-bar .chip {
+        min-height: 36px;
+        padding: 0 4px 0 10px;
+        font-size: .72rem;
+    }
+
+    .has-menu-bar .chip .icon-btn {
+        width: 28px;
+        height: 28px;
+    }
+
+    .has-menu-bar .bell,
+    .has-menu-bar .avatar {
+        width: 36px;
+        height: 36px;
+    }
+
     .main {
         padding: 18px 12px 28px;
     }
@@ -364,6 +454,14 @@
     }
 }
 
+/* ---------- Very narrow phones: keep only the theme button in the date chip ---------- */
+@media (max-width: 420px) {
+    .has-menu-bar .chip {
+        padding: 0 4px;
+        font-size: 0;
+    }
+}
+
 @media (max-width: 360px) {
     .menu-bar .logo h1 {
         font-size: 1.1rem;
@@ -388,6 +486,7 @@
 
 /* ---------- Touch devices: bigger tap targets ---------- */
 @media (pointer: coarse) {
+
     .btn,
     .icon-btn,
     .toolbar select,
@@ -401,6 +500,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
     .has-menu-bar .sidebar,
     .menu-backdrop,
     .menu-toggle,

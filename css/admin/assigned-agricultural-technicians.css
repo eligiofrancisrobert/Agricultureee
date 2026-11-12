@@ -1,0 +1,486 @@
+/* =========================================================
+   AGRICULTURAL TECHNICIAN ASSIGNMENT
+   Replaces the earlier farm-assignment-dialog*.css files.
+   Load only this one for this page.
+
+   1. Shared tokens
+   2. Page fixes (table cells, assigned farms, message)
+   3. Modal (#farmAssignmentDialog)
+   4. Responsive + reduced motion
+========================================================= */
+
+
+/* =========================================
+   1. SHARED TOKENS
+========================================= */
+
+:root {
+    --fa-space-2xs: calc(var(--space-xs, 8px) / 2);
+    --fa-space-xs: var(--space-xs, 8px);
+    --fa-space-sm: var(--space-sm, 12px);
+    --fa-space-md: var(--space-md, 20px);
+    --fa-space-lg: var(--space-lg, 32px);
+
+    --fa-radius-lg: 20px;
+    --fa-radius-md: 12px;
+    --fa-radius-sm: var(--radius, 10px);
+
+    --fa-pad: 28px;                      /* modal form padding; sticky footer depends on it */
+    --fa-max-h: min(85vh, 760px);
+
+    --fa-success: var(--success, #4caf6a);
+    --fa-danger: var(--danger, #e5675b);
+
+    /* Theme-aware tints: follow --primary-color, so light/dark both work */
+    --fa-tint-hover: color-mix(in srgb, var(--primary-color) 6%, transparent);
+    --fa-tint-selected: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    --fa-focus-ring: color-mix(in srgb, var(--primary-color) 22%, transparent);
+    --fa-surface-alt: var(--surface, var(--surface-card));
+}
+
+
+/* =========================================
+   2. PAGE FIXES
+   Only what the table needs; your existing
+   table, header, and card styles stay as they are.
+========================================= */
+
+/* Top-align cells so the name, status, and button line up with the
+   first farm instead of floating in the middle of a tall row. */
+
+#assignedTechniciansBody td {
+    vertical-align: top;
+}
+
+/* .muted was only styled inside the modal, so the email, farm location,
+   and assigned date showed up at full size and brightness. */
+
+#assignedTechniciansBody .muted {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    line-height: 1.5;
+}
+
+#assignedTechniciansBody td:first-child .muted {
+    margin-top: var(--fa-space-2xs);
+    overflow-wrap: anywhere;
+}
+
+/* Loading / empty / error rows */
+
+#assignedTechniciansBody td[colspan] {
+    padding-block: var(--fa-space-lg);
+    color: var(--secondary-text);
+    text-align: center;
+}
+
+/* Assigned farm records: tighter stack */
+
+.assigned-farm-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--fa-space-2xs);
+    padding: var(--fa-space-sm) 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.assigned-farm-item:first-child {
+    padding-top: 0;
+}
+
+.assigned-farm-item:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.assigned-farm-item strong {
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+}
+
+/* Small Unassign button (the default .btn was much too tall here).
+   Three classes in the selector so it beats .btn.ghost. */
+
+.assigned-farm-item .btn.ghost {
+    height: auto;
+    min-height: 0;
+    margin-top: var(--fa-space-xs);
+    padding: var(--fa-space-2xs) var(--fa-space-sm);
+    font-size: var(--fs-xs, 0.8rem);
+    line-height: 1.4;
+}
+
+/* Unassign reads as a destructive action */
+
+.assigned-farm-item .btn[data-action="unassign"] {
+    border-color: color-mix(in srgb, var(--fa-danger) 45%, var(--border));
+    color: var(--fa-danger);
+}
+
+.assigned-farm-item .btn[data-action="unassign"]:hover:not(:disabled) {
+    border-color: var(--fa-danger);
+    background: color-mix(in srgb, var(--fa-danger) 10%, transparent);
+}
+
+.assigned-farm-item .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Feedback message: green for success, red for errors (.msg / .msg.error) */
+
+#assignmentMessage:empty {
+    display: none;
+}
+
+#assignmentMessage {
+    border: 1px solid color-mix(in srgb, var(--fa-success) 40%, transparent);
+    background: color-mix(in srgb, var(--fa-success) 10%, transparent);
+    color: var(--fa-success);
+    font-weight: 500;
+}
+
+#assignmentMessage.error {
+    border-color: color-mix(in srgb, var(--fa-danger) 40%, transparent);
+    background: color-mix(in srgb, var(--fa-danger) 10%, transparent);
+    color: var(--fa-danger);
+}
+
+
+/* =========================================
+   3. MODAL
+========================================= */
+
+#farmAssignmentDialog {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    box-sizing: border-box;
+    width: min(620px, calc(100% - 32px));
+    max-width: 620px;
+    max-height: var(--fa-max-h);
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--fa-radius-lg);
+    background: var(--surface-card);
+    color: var(--primary-text);
+    font-family: "Poppins", sans-serif;
+    font-size: var(--fs-sm, 0.9rem);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+    transition:
+        color 0.2s ease,
+        background-color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+#farmAssignmentDialog::backdrop {
+    background: rgba(20, 17, 14, 0.68);
+    backdrop-filter: blur(5px);
+}
+
+/* Form: the single scroll area */
+
+#farmAssignmentDialog .staff-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--fa-space-md);
+    box-sizing: border-box;
+    max-height: var(--fa-max-h);
+    margin: 0;
+    padding: var(--fa-pad);
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+/* Scrollbars */
+
+#farmAssignmentDialog .staff-form,
+#farmAssignmentDialog .farm-options {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+#farmAssignmentDialog .staff-form::-webkit-scrollbar,
+#farmAssignmentDialog .farm-options::-webkit-scrollbar {
+    width: 7px;
+}
+
+#farmAssignmentDialog .staff-form::-webkit-scrollbar-thumb,
+#farmAssignmentDialog .farm-options::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 20px;
+}
+
+#farmAssignmentDialog .staff-form::-webkit-scrollbar-track,
+#farmAssignmentDialog .farm-options::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Heading */
+
+#farmAssignmentDialog .section-heading {
+    padding: 0 0 var(--fa-space-sm);
+    border-bottom: 1px solid var(--border);
+}
+
+#farmAssignmentDialog .section-heading h2,
+#farmAssignmentDialog .section-heading h3 {
+    margin: 0;
+}
+
+/* Labels (direct children only, so farm cards are unaffected) */
+
+#farmAssignmentDialog .staff-form > label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--fa-space-xs);
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+}
+
+/* Technician dropdown */
+
+#farmAssignmentDialog select {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 48px;
+    padding: var(--fa-space-sm) 40px var(--fa-space-sm) var(--fa-space-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--fa-radius-sm);
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-sm, 0.9rem);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#farmAssignmentDialog select:focus-visible {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--fa-focus-ring);
+    outline: 2px solid transparent;      /* keeps a visible ring in forced-colors mode */
+}
+
+/* Muted text inside the modal */
+
+#farmAssignmentDialog .muted {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    line-height: 1.6;
+}
+
+/* Farm list (holds the "Currently assigned" note + farm cards) */
+
+#farmAssignmentDialog .farm-options {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--fa-space-sm);
+    box-sizing: border-box;
+    width: 100%;
+    max-height: 320px;
+    padding: var(--fa-space-2xs);
+    overflow-x: hidden;
+    overflow-y: auto;
+    border: 0;
+    background: transparent;
+}
+
+#farmAssignmentDialog .farm-options > .muted {
+    margin: 0;
+}
+
+/* Farm card */
+
+#farmAssignmentDialog .farm-option {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--fa-space-sm);
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 76px;
+    margin: 0;
+    padding: var(--fa-space-sm) var(--fa-space-md);
+    border: 1px solid var(--border);
+    border-radius: var(--fa-radius-md);
+    background: var(--surface-card);
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 400;
+    cursor: pointer;
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease,
+        opacity 0.2s ease;
+}
+
+/* Hover (skips selected and disabled so it never weakens them) */
+
+#farmAssignmentDialog .farm-option:hover:not(:has(input:checked)):not(:has(input:disabled)) {
+    border-color: var(--primary-color);
+    background: var(--fa-tint-hover);
+    transform: translateY(-1px);
+}
+
+/* Selected */
+
+#farmAssignmentDialog .farm-option:has(input:checked) {
+    border-color: var(--primary-color);
+    background: var(--fa-tint-selected);
+    box-shadow: 0 0 0 1px var(--primary-color);
+}
+
+/* Keyboard focus */
+
+#farmAssignmentDialog .farm-option:has(input:focus-visible) {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Checkbox */
+
+#farmAssignmentDialog .farm-option input[type="checkbox"] {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+}
+
+/* Farm info */
+
+#farmAssignmentDialog .farm-option span {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--fa-space-2xs);
+    min-width: 0;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+#farmAssignmentDialog .farm-option strong {
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+}
+
+#farmAssignmentDialog .farm-option small {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+/* Disabled (farm limit reached) */
+
+#farmAssignmentDialog .farm-option:has(input:disabled) {
+    background: var(--fa-surface-alt);
+    box-shadow: none;
+    opacity: 0.48;
+    cursor: not-allowed;
+    transform: none;
+}
+
+#farmAssignmentDialog .farm-option input:disabled {
+    cursor: not-allowed;
+}
+
+/* Scope notice */
+
+#farmAssignmentDialog .assignment-scope {
+    padding: var(--fa-space-sm) var(--fa-space-md);
+    border: 1px solid var(--border);
+    border-radius: var(--fa-radius-md);
+    background: var(--fa-surface-alt);
+}
+
+/* Footer buttons: sticky.
+   bottom: 0 sticks to the scrollport edge; the negative margins let the bar
+   span the form padding so it sits flush with the dialog edges. */
+
+#farmAssignmentDialog .staff-buttons {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: var(--fa-space-sm);
+    margin: 0 calc(var(--fa-pad) * -1) calc(var(--fa-pad) * -1);
+    padding: var(--fa-space-md) var(--fa-pad);
+    border-top: 1px solid var(--border);
+    background: var(--surface-card);
+}
+
+#farmAssignmentDialog .staff-buttons .btn {
+    min-height: 42px;
+}
+
+#farmAssignmentDialog .staff-buttons .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+
+/* =========================================
+   4. RESPONSIVE + REDUCED MOTION
+========================================= */
+
+@media (max-width: 600px) {
+    #farmAssignmentDialog {
+        --fa-radius-lg: 16px;
+        --fa-pad: 20px;
+        --fa-max-h: 90vh;
+        width: calc(100% - 24px);
+    }
+
+    /* dvh keeps the dialog clear of the mobile browser bar where supported */
+    @supports (height: 1dvh) {
+        #farmAssignmentDialog {
+            --fa-max-h: 90dvh;
+        }
+    }
+
+    #farmAssignmentDialog .staff-form {
+        gap: var(--fa-space-sm);
+    }
+
+    /* The form becomes the only scroll area on phones */
+    #farmAssignmentDialog .farm-options {
+        max-height: none;
+        overflow-y: visible;
+    }
+
+    #farmAssignmentDialog .farm-option {
+        min-height: 68px;
+        padding: var(--fa-space-sm);
+    }
+
+    #farmAssignmentDialog .staff-buttons {
+        flex-direction: column-reverse;
+    }
+
+    #farmAssignmentDialog .staff-buttons .btn {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #farmAssignmentDialog,
+    #farmAssignmentDialog * {
+        transition: none !important;
+    }
+
+    #farmAssignmentDialog .farm-option:hover {
+        transform: none;
+    }
+}

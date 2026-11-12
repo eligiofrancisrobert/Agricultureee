@@ -1,0 +1,480 @@
+/* ==========================================================
+   MONITORING REPORTS (Agricultural Technician)
+   Built on the shared admin tokens, so it follows the
+   light / dark theme automatically (:root[data-theme="dark"]).
+
+   Tokens used (from the global stylesheet):
+   --bg --card --text --muted --primary --primary-dark
+   --amber --red --mint --shadow --r --border --success
+   --warning --error --surface-card --primary-color
+
+   Classes styled here: .fm-dash, .fm-dash-stats, .fm-stat-card,
+   .fm-panel, .fm-report-grid, .fm-report-card, .fm-badge,
+   .fm-pager, .fm-skeleton, .fm-empty, .table-wrap
+   ========================================================== */
+
+.fm-dash {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(16px, 2vw, 24px);
+    min-width: 0;
+    color: var(--text);
+}
+
+/* ---------- Panel (shared card look) ---------- */
+.fm-panel {
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+}
+
+.fm-panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.fm-panel-header > div {
+    min-width: 0;
+}
+
+.fm-panel-header h3 {
+    font-size: 1.1rem;
+    overflow-wrap: anywhere;
+}
+
+.fm-panel-header p {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: .85rem;
+}
+
+/* Count pill */
+.fm-pill {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: var(--mint);
+    color: var(--primary-dark);
+    font-size: .75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.fm-empty {
+    padding: 32px 12px;
+    color: var(--muted);
+    text-align: center;
+}
+
+.fm-report-note {
+    color: var(--muted);
+    font-size: .8rem;
+}
+
+/* ---------- Filter bar controls ----------
+   The filter bar sets inline styles using a few tokens that may
+   not exist in this theme, so the key ones are pinned here. */
+.fm-dash .fm-panel > label {
+    color: var(--muted) !important;
+    font-size: .75rem !important;
+}
+
+.fm-dash .fm-panel select,
+.fm-dash .fm-panel input[type="date"] {
+    min-height: 42px;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    background: var(--card) !important;
+    color: var(--text) !important;
+    transition: border-color .2s;
+}
+
+.fm-dash .fm-panel select {
+    cursor: pointer;
+}
+
+.fm-dash .fm-panel select:hover,
+.fm-dash .fm-panel select:focus,
+.fm-dash .fm-panel input[type="date"]:hover,
+.fm-dash .fm-panel input[type="date"]:focus {
+    border-color: var(--primary) !important;
+}
+
+/* ---------- Buttons (same as .btn / .btn.ghost) ---------- */
+.fm-dash .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 8px 16px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: var(--primary);
+    color: #fff;
+    font-size: .85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .2s, border-color .2s, transform .2s;
+}
+
+.fm-dash .btn:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.fm-dash .btn.ghost {
+    border-color: var(--border);
+    background: transparent;
+    color: var(--text);
+}
+
+.fm-dash .btn.ghost:hover:not(:disabled) {
+    border-color: var(--primary);
+    background: var(--mint);
+    color: var(--primary-dark);
+}
+
+.fm-dash .btn:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+/* ---------- Stat cards (same look as .tile) ---------- */
+.fm-dash-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+    gap: 14px;
+}
+
+.fm-stat-card {
+    --c: var(--primary);
+
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--c);
+    border-radius: var(--r);
+    background: color-mix(in srgb, var(--c) 8%, var(--card));
+    box-shadow: var(--shadow);
+}
+
+.fm-stat-icon {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--c) 18%, var(--card));
+    color: var(--c);
+}
+
+.fm-stat-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.fm-stat-label {
+    color: var(--muted);
+    font-size: .78rem;
+}
+
+.fm-stat-value {
+    color: var(--text);
+    font: 600 1.7rem 'Outfit', sans-serif;
+    line-height: 1.15;
+}
+
+.fm-stat-body small {
+    color: var(--muted);
+    font-size: .72rem;
+    overflow-wrap: anywhere;
+}
+
+/* ---------- Report cards ---------- */
+.fm-report-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    gap: 16px;
+}
+
+.fm-report-card {
+    --c: var(--primary);
+
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    cursor: pointer;
+    transition: border-color .2s, transform .2s, box-shadow .2s;
+}
+
+.fm-report-card:hover {
+    border-color: var(--c);
+    transform: translateY(-2px);
+}
+
+.fm-report-card.on {
+    border-color: var(--c);
+    box-shadow: 0 0 0 1px var(--c), var(--shadow);
+    background: color-mix(in srgb, var(--c) 6%, var(--card));
+}
+
+.fm-report-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.fm-report-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.fm-report-body h3 {
+    margin-bottom: 4px;
+    font-size: 1.05rem;
+}
+
+.fm-report-body p {
+    color: var(--muted);
+    font-size: .85rem;
+    line-height: 1.45;
+}
+
+.fm-report-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.fm-report-actions .btn {
+    flex: 1 1 0;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+/* ---------- Preview table ---------- */
+.table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.fm-dash table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .85rem;
+}
+
+.fm-dash th {
+    padding: 11px 14px;
+    background: var(--bg);
+    color: var(--muted);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .03em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.fm-dash td {
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    vertical-align: middle;
+}
+
+.fm-dash tbody tr {
+    transition: background .15s;
+}
+
+.fm-dash tbody tr:hover {
+    background: color-mix(in srgb, var(--primary-color) 6%, var(--card));
+}
+
+/* ---------- Badges (crop status + health) ---------- */
+.fm-badge {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: var(--mint);
+    color: var(--text);
+    font-size: .75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Growing / healthy */
+.fm-badge--growing,
+.fm-badge--active,
+.fm-badge--planted,
+.fm-badge--seedling,
+.fm-badge--vegetative,
+.fm-badge--flowering,
+.fm-badge--fruiting,
+.fm-badge--healthy,
+.fm-badge--good {
+    background: color-mix(in srgb, var(--success) 22%, var(--surface-card));
+}
+
+/* Harvest */
+.fm-badge--ready_for_harvest,
+.fm-badge--ready-for-harvest,
+.fm-badge--harvested {
+    background: color-mix(in srgb, var(--primary-color) 22%, var(--surface-card));
+    color: var(--primary-dark);
+}
+
+/* Needs attention */
+.fm-badge--fair {
+    background: color-mix(in srgb, var(--warning) 26%, var(--surface-card));
+}
+
+/* Problems */
+.fm-badge--poor,
+.fm-badge--critical,
+.fm-badge--failed {
+    background: color-mix(in srgb, var(--error) 22%, var(--surface-card));
+}
+
+/* Neutral */
+.fm-badge--cancelled,
+.fm-badge--not-assessed,
+.fm-badge--unknown {
+    background: var(--mint);
+    color: var(--muted);
+}
+
+/* ---------- Pager ---------- */
+.fm-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 14px;
+}
+
+.fm-pager-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.fm-pager-btn {
+    min-height: 36px !important;
+    padding: 6px 14px !important;
+}
+
+.fm-pager-page {
+    color: var(--muted);
+    font-size: .8rem;
+    white-space: nowrap;
+}
+
+/* ---------- Loading skeleton ---------- */
+.fm-skeleton {
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background:
+        linear-gradient(
+            100deg,
+            transparent 30%,
+            color-mix(in srgb, var(--text) 7%, transparent) 50%,
+            transparent 70%
+        )
+        var(--card);
+    background-size: 200% 100%;
+    animation: fmShimmer 1.4s ease-in-out infinite;
+}
+
+.fm-skeleton--stat {
+    height: 86px;
+}
+
+.fm-skeleton--card {
+    height: 190px;
+}
+
+.fm-skeleton--panel {
+    height: 320px;
+}
+
+@keyframes fmShimmer {
+    from {
+        background-position: 100% 0;
+    }
+
+    to {
+        background-position: -100% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fm-skeleton {
+        animation: none;
+    }
+
+    .fm-report-card,
+    .fm-dash .btn {
+        transition: none;
+    }
+}
+
+/* ---------- Error / retry ---------- */
+.fm-dash + .msg.error,
+.msg.error + .staff-retry {
+    margin-top: 12px;
+}
+
+/* ---------- Responsive (same breakpoints as the admin shell) ---------- */
+@media (max-width: 560px) {
+    .fm-panel {
+        padding: 16px 14px;
+    }
+
+    .fm-stat-card {
+        padding: 14px;
+    }
+
+    .fm-stat-value {
+        font-size: 1.45rem;
+    }
+
+    .fm-report-actions {
+        flex-direction: column;
+    }
+
+    .fm-pager {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .fm-pager-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .fm-dash .fm-panel select,
+    .fm-dash .fm-panel input[type="date"] {
+        width: 100%;
+    }
+
+    .fm-dash .fm-panel > label {
+        flex: 1 1 100%;
+    }
+}

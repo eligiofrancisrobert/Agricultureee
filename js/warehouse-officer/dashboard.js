@@ -1,4 +1,3 @@
-
 import { supabase } from '../connection.js';
 
 const MODULES = [
@@ -63,6 +62,96 @@ async function getCount(status) {
 
     return count ?? 0;
 }
+
+/**
+ * Resolve the Warehouse Officer's staff_id.
+ * Uses ctx.staff when it already has one; otherwise looks it up
+ * from the signed-in user (staff_accounts.user_id -> staff_id).
+ */
+async function getOfficerStaffId(ctx) {
+    if (ctx?.staff?.staff_id) return ctx.staff.staff_id;
+
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+
+    if (authError) throw authError;
+
+    const userId = authData?.user?.id;
+
+    if (!userId) return null;
+
+    const { data, error } = await supabase
+        .from('staff_accounts')
+        .select('staff_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (error) throw error;
+
+    return data?.staff_id ?? null;
+}
+
+/**
+ * Load the officer's active farm assignment directly from the same table
+ * the admin page writes to (warehouse_officer_farm_assignments.officer_id
+ * stores the officer's staff_id).
+ * Returns { farm_name, farm_location } or null when none is found.
+ */
+
+
+async function loadAssignedFarm(ctx) {
+    const staffId = await getOfficerStaffId(ctx);
+
+    if (!staffId) {
+        console.error('No Warehouse Officer staff_id found.');
+        return null;
+    }
+
+    const { data: assignment, error: assignmentError } = await supabase
+        .from('warehouse_officer_farm_assignments')
+        .select(`
+            farm_id,
+            farmer_farms (
+                id,
+                farm_name,
+                farm_location
+            )
+        `)
+        .eq('staff_id', staffId)
+        .order('assigned_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (assignmentError) {
+        console.error('Failed to load WO farm assignment:', {
+            staffId,
+            code: assignmentError.code,
+            message: assignmentError.message,
+            details: assignmentError.details,
+            hint: assignmentError.hint
+        });
+        throw assignmentError;
+    }
+
+    if (!assignment) {
+        console.warn('No farm assignment found for staff:', staffId);
+        return null;
+    }
+
+    const farm = assignment.farmer_farms;
+
+    if (!farm) {
+        console.error('Assignment exists but related farm was not returned:', assignment);
+        return null;
+    }
+
+    return {
+        farm_id: farm.id,
+        farm_name: farm.farm_name,
+        farm_location: farm.farm_location
+    };
+}
+
+
 
 function createStat(label, value, description) {
     const card = element('article', 'wo-stat-card');
@@ -168,10 +257,11 @@ export async function render(root, ctx) {
 
     page.append(heading);
 
-    // Assigned farm information
-    page.append(
-        createAssignedFarmCard(ctx.assignedFarm)
-    );
+    // Assigned farm information (shown from ctx first, then refreshed
+    // from the database if ctx did not provide it)
+    let farmCard = createAssignedFarmCard(ctx.assignedFarm);
+
+    page.append(farmCard);
 
     // Harvest statistics
     const stats = element('div', 'wo-stats-grid');
@@ -205,13 +295,30 @@ export async function render(root, ctx) {
 
     root.append(page);
 
+    // If ctx has no assigned farm, look it up directly.
+    const farmLookup = ctx.assignedFarm
+        ? Promise.resolve(ctx.assignedFarm)
+        : loadAssignedFarm(ctx).catch(error => {
+            console.error('Failed to load assigned farm:', error);
+            return null;
+        });
+
     // Load statistics
-    const [pending, inProgress, confirmed, rejected] = await Promise.all([
-        getCount('pending'),
-        getCount('in_progress'),
-        getCount('confirmed'),
-        getCount('rejected')
-    ]);
+    const [pending, inProgress, confirmed, rejected, assignedFarm] =
+        await Promise.all([
+            getCount('pending'),
+            getCount('in_progress'),
+            getCount('confirmed'),
+            getCount('rejected'),
+            farmLookup
+        ]);
+
+    if (assignedFarm && !ctx.assignedFarm) {
+        const updatedCard = createAssignedFarmCard(assignedFarm);
+
+        farmCard.replaceWith(updatedCard);
+        farmCard = updatedCard;
+    }
 
     const values = [pending, inProgress, confirmed, rejected];
 

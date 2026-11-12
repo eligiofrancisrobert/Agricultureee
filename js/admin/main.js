@@ -1,3 +1,4 @@
+
 import { requireAdmin, logout, getStats } from './api.js';
 import { h, toast } from './ui.js';
 
@@ -11,7 +12,6 @@ const TITLES = {
 };
 
 const root = document.getElementById('view');
-const search = document.getElementById('adminSearch');
 const logoutButton = document.getElementById('logoutButton');
 const usersParent = document.getElementById('usersParent');
 const usersMenu = document.getElementById('usersMenu');
@@ -20,7 +20,7 @@ const html = document.documentElement;
 let authorized = false;
 let checking = false;
 
-// Shared with every view. `sub` is the part after "users/" in the URL hash (e.g. "pending").
+// Shared with every view.
 const ctx = { query: '', sub: '', refreshBadge };
 
 // #users/pending -> { key: 'users', sub: 'pending' }
@@ -48,9 +48,16 @@ const setMenu = (open) => {
 };
 
 function syncNav({ key, sub }) {
-    document.querySelectorAll('.nav > a').forEach((a) => a.classList.toggle('active', a.dataset.view === key));
+    document.querySelectorAll('.nav > a').forEach((a) =>
+        a.classList.toggle('active', a.dataset.view === key)
+    );
+
     usersParent.classList.toggle('active', key === 'users');
-    usersMenu.querySelectorAll('a').forEach((a) => a.classList.toggle('active', key === 'users' && a.dataset.sub === sub));
+
+    usersMenu.querySelectorAll('a').forEach((a) =>
+        a.classList.toggle('active', key === 'users' && a.dataset.sub === sub)
+    );
+
     if (key === 'users') setMenu(true);
 }
 
@@ -89,17 +96,21 @@ async function show() {
     }
 }
 
-// Verify the session is an admin, otherwise send back to login.
 /** Re-check admin authorization before exposing the admin interface. */
 async function boot() {
     if (checking) return;
+
     checking = true;
     authorized = false;
     html.classList.remove('admin-authorized');
 
     const ok = await requireAdmin();
     checking = false;
-    if (!ok) { location.replace('../../login.html'); return; }
+
+    if (!ok) {
+        location.replace('../../login.html');
+        return;
+    }
 
     authorized = true;
     html.classList.add('admin-authorized');
@@ -108,7 +119,11 @@ async function boot() {
 
 function setupChrome() {
     document.getElementById('todayLabel').textContent =
-        new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'short', day: 'numeric' });
+        new Date().toLocaleDateString('en-PH', {
+            weekday: 'long',
+            month: 'short',
+            day: 'numeric',
+        });
 
     document.getElementById('themeToggle').addEventListener('click', () => {
         const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
@@ -116,30 +131,25 @@ function setupChrome() {
         localStorage.setItem('theme', next);
     });
 
-    // Users dropdown: opens and goes to all users; clicking again on the Users page collapses it
+    // Users dropdown
     usersParent.addEventListener('click', () => {
-        if (route().key !== 'users') location.hash = 'users';
-        else setMenu(usersMenu.hidden);
-    });
-
-    let timer;
-    search.addEventListener('input', () => {
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-            ctx.query = search.value.trim();
-            // Dashboard has nothing to filter, so searching jumps to the user list
-            if (route().key === 'dashboard' && ctx.query) location.hash = 'users';
-            else show();
-        }, 200);
+        if (route().key !== 'users') {
+            location.hash = 'users';
+        } else {
+            setMenu(usersMenu.hidden);
+        }
     });
 
     window.addEventListener('hashchange', show);
 
     // Back/forward cache: re-check access instead of showing a stale admin page
-    window.addEventListener('pageshow', (e) => { if (e.persisted) boot(); });
+    window.addEventListener('pageshow', (e) => {
+        if (e.persisted) boot();
+    });
 
     logoutButton.addEventListener('click', async () => {
         if (logoutButton.disabled) return;
+
         logoutButton.disabled = true;
         logoutButton.textContent = 'Logging out...';
         authorized = false;
@@ -150,6 +160,7 @@ function setupChrome() {
             location.replace('../../login.html');
         } catch (err) {
             console.error('Logout failed:', err);
+
             logoutButton.disabled = false;
             logoutButton.textContent = 'Log out';
             toast('Logout failed. Please try again.');

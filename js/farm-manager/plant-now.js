@@ -686,14 +686,13 @@ async function loadPlantings(farms) {
     const { data: plantings, error: plantingsError } = await supabase
         .from('farm_plantings')
         .select(
-            'id, field_id, product_id, crop_name, sowing_date, expected_harvest_date, activity_status, crop_status, notes'
+            'id, field_id, product_id, crop_name, sowing_date, expected_harvest_date, activity_status, crop_status, notes, created_at'
         )
         .in(
             'field_id',
             fields.map(field => field.id)
         )
-        .order('created_at', { ascending: true });
-
+        .order('created_at', { ascending: false });
     if (plantingsError) throw plantingsError;
 
     const fieldMap = new Map(
@@ -1363,11 +1362,11 @@ export async function render(root, ctx) {
 
             updateFarmOptions();
 
-           await refreshRecords();
-updateSaveButton();
+            await refreshRecords();
+            updateSaveButton();
 
-// Listen for Farmer updates to planting records.
-subscribeToPlantings(refreshRecords);
+            // Listen for Farmer updates to planting records.
+            subscribeToPlantings(refreshRecords);
         } catch (error) {
             console.error(
                 'Failed to load crop management:',

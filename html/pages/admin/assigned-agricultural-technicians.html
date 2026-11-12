@@ -1,0 +1,187 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Assigned Agricultural Technicians | Tanikala</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500&family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="../../../css/feature/style.css">
+    <link rel="stylesheet" href="../../../css/auth/signup.css">
+    <link rel="stylesheet" href="../../../css/admin/assigned-farm-managers.css">
+    <link rel="stylesheet" href="../../../css/admin/assigned-warehouse-officers.css">
+    <link rel="stylesheet" href="../../../css/admin/assigned-agricultural-technicians.css">
+    <link rel="stylesheet" href="../../../css/admin/shell.css">
+</head>
+
+<body>
+
+    <header class="topbar">
+        <div class="logo">
+            <h1>T<span>ani</span>kala</h1>
+            <img src="../../../assets/logo.png"
+                 alt="Tanikala Logo"
+                 class="logo-image">
+        </div>
+    </header>
+
+    <main class="admin-page">
+
+        <header class="page-header">
+            <div>
+                <h1>Assigned Agricultural Technicians</h1>
+                <p>Manage Agricultural Technician assignments to farms.</p>
+            </div>
+
+            <div class="page-actions">
+                <button class="btn ghost"
+                        type="button"
+                        onclick="history.back()">
+                    Back
+                </button>
+
+                <button class="btn"
+                        id="assignFarmBtn"
+                        type="button">
+                    <span>Assign Farms</span>
+                    <span class="button-arrow">→</span>
+                </button>
+            </div>
+        </header>
+
+        <section class="card">
+
+            <div class="section-heading">
+                <span class="section-number">01</span>
+                <div>
+                    <h2>Agricultural Technician Assignments</h2>
+                    <p>Search and manage assigned farms</p>
+                </div>
+            </div>
+
+            <div class="toolbar">
+
+                <input
+                    id="technicianSearch"
+                    type="search"
+                    placeholder="Search technician or farm"
+                    aria-label="Search Agricultural Technicians">
+
+                <select id="assignmentFilter"
+                        aria-label="Filter assignments">
+                    <option value="all">All Technicians</option>
+                    <option value="assigned">With Assigned Farms</option>
+                    <option value="unassigned">No Assigned Farms</option>
+                </select>
+
+            </div>
+
+            <div id="assignmentMessage" role="status"></div>
+
+            <div class="table-wrap">
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Agricultural Technician</th>
+                            <th>Assigned Farms</th>
+                            <th>Assigned By</th>
+                            <th>Latest Assignment</th>
+                            <th>Account Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="assignedTechniciansBody">
+                        <tr>
+                            <td colspan="6">Loading assignments...</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+            </div>
+        </section>
+
+    </main>
+
+    <dialog id="farmAssignmentDialog" class="details staff-dialog">
+
+        <form id="farmAssignmentForm" class="staff-form">
+
+            <div class="section-heading">
+                <span class="section-number">01</span>
+                <div>
+                    <h2>Assign Farms</h2>
+                    <p>An Agricultural Technician can have up to five active farm assignments.</p>
+                </div>
+            </div>
+
+            <label>
+                Agricultural Technician
+
+                <select id="technicianSelect" required>
+                    <option value="">Select an Agricultural Technician</option>
+                </select>
+            </label>
+
+            <div class="farm-selection">
+                <label>Available Farms</label>
+
+                <p class="muted">
+                    Select one or more farms. Existing active assignments will be disabled.
+                </p>
+
+                <div id="farmOptions" class="farm-options">
+                    <p class="muted">Select a technician first.</p>
+                </div>
+            </div>
+
+            <div class="approval-note">
+                <span class="approval-icon">◷</span>
+                <p>
+                    <strong>Assignment scope</strong>
+                    Each Agricultural Technician can be assigned to a maximum of five
+                    active farms. A farm may have more than one Agricultural Technician.
+                    Previous assignments are retained as history when unassigned.
+                </p>
+            </div>
+
+            <div class="staff-buttons">
+
+                <button class="btn ghost"
+                        id="cancelFarmAssignment"
+                        type="button">
+                    Cancel
+                </button>
+
+                <button class="btn" type="submit">
+                    <span>Save Assignments</span>
+                    <span class="button-arrow">→</span>
+                </button>
+
+            </div>
+
+        </form>
+
+    </dialog>
+
+    <script type="module"
+            src="../../../js/admin/assigned-agricultural-technicians.js"></script>
+
+    <script type="module"
+            src="../../../js/feature/theme.js"></script>
+
+    <script type="module"
+            src="../../../js/admin/sidebar-menu.js"></script>
+
+</body>
+</html>

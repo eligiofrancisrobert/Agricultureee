@@ -1,0 +1,451 @@
+/* =========================================================
+   AGRICULTURAL TECHNICIAN: ASSIGNED FARMS
+   Classes come from the render() function (at-*).
+   Uses your existing design tokens, with fallbacks.
+
+   1. Tokens
+   2. Page heading + summary
+   3. Farm grid + cards
+   4. Loading, empty, and error states
+   5. Responsive + reduced motion
+========================================================= */
+
+
+/* =========================================
+   1. TOKENS
+========================================= */
+
+.at-page {
+    --at-space-2xs: calc(var(--space-xs, 8px) / 2);
+    --at-space-xs: var(--space-xs, 8px);
+    --at-space-sm: var(--space-sm, 12px);
+    --at-space-md: var(--space-md, 20px);
+    --at-space-lg: var(--space-lg, 32px);
+
+    --at-radius-lg: 16px;
+    --at-radius-md: 12px;
+
+    --at-success: var(--success, #4caf6a);
+    --at-danger: var(--danger, #e5675b);
+    --at-surface-alt: var(--surface, var(--surface-card));
+    --at-tint-primary: color-mix(in srgb, var(--primary-color) 12%, transparent);
+
+    display: flex;
+    flex-direction: column;
+    gap: var(--at-space-lg);
+    width: 100%;
+    box-sizing: border-box;
+    color: var(--primary-text);
+    font-family: "Poppins", sans-serif;
+}
+
+
+/* =========================================
+   2. PAGE HEADING + SUMMARY
+========================================= */
+
+.at-page-heading h2 {
+    margin: 0 0 var(--at-space-2xs);
+    color: var(--primary-text);
+    font-size: clamp(1.4rem, 2.4vw, 1.8rem);
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.at-page-heading p {
+    max-width: 62ch;
+    margin: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    line-height: 1.6;
+}
+
+/* Count card */
+
+.at-section-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--at-space-sm);
+    width: fit-content;
+    padding: var(--at-space-xs) var(--at-space-md) var(--at-space-xs) var(--at-space-xs);
+    border: 1px solid var(--border);
+    border-radius: var(--at-radius-lg);
+    background: var(--surface-card);
+}
+
+.at-assigned-farm-count {
+    display: grid;
+    place-items: center;
+    min-width: 48px;
+    height: 48px;
+    padding: 0 var(--at-space-sm);
+    box-sizing: border-box;
+    border-radius: var(--at-radius-md);
+    background: var(--at-tint-primary);
+    color: var(--primary-color);
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.at-section-summary span {
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 500;
+}
+
+
+/* =========================================
+   3. FARM GRID + CARDS
+========================================= */
+
+.at-farms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+    gap: var(--at-space-md);
+    align-items: stretch;
+}
+
+/* Loading, empty, and error states span the full row */
+
+.at-farms-grid > .at-loading-text,
+.at-farms-grid > .at-empty-state,
+.at-farms-grid > .at-error-state {
+    grid-column: 1 / -1;
+}
+
+/* Card */
+
+.at-farm-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--at-space-sm);
+    box-sizing: border-box;
+    min-width: 0;
+    padding: var(--at-space-md);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--at-radius-lg);
+    background: var(--surface-card);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Top accent bar: green for active farms, neutral otherwise */
+
+.at-farm-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--border);
+}
+
+.at-farm-card:has(.at-status-badge.is-active)::before {
+    background: var(--at-success);
+}
+
+.at-farm-card:hover {
+    border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border));
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* Farm photo: same ratio on every card so rows line up */
+
+.at-farm-card img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    border-radius: var(--at-radius-md);
+    background: var(--at-surface-alt);
+}
+
+/* Header: name + status badge */
+
+.at-farm-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--at-space-sm);
+    padding-top: var(--at-space-2xs);       /* clears the accent bar */
+}
+
+.at-farm-name {
+    min-width: 0;
+    margin: 0;
+    color: var(--primary-text);
+    font-size: 1.05rem;
+    font-weight: 600;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+/* Status badge */
+
+.at-status-badge {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--at-surface-alt);
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.at-status-badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.at-status-badge.is-active {
+    border-color: color-mix(in srgb, var(--at-success) 35%, transparent);
+    background: color-mix(in srgb, var(--at-success) 12%, transparent);
+    color: var(--at-success);
+}
+
+/* Location with pin icon */
+
+.at-farm-location {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--at-space-xs);
+    margin: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.at-farm-location::before {
+    content: "";
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    background-color: var(--primary-color);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z'/%3E%3Ccircle cx='12' cy='10' r='2.5'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z'/%3E%3Ccircle cx='12' cy='10' r='2.5'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* Details: assigned date + farm ID.
+   Stacked rows (label left, value right) so nothing is cut off.
+   Long values wrap onto the next line instead of being truncated. */
+
+.at-farm-details {
+    display: flex;
+    flex-direction: column;
+    padding: 0 var(--at-space-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--at-radius-md);
+    background: var(--at-surface-alt);
+}
+
+.at-farm-detail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--at-space-2xs) var(--at-space-sm);
+    min-width: 0;
+    padding: var(--at-space-sm) 0;
+}
+
+.at-farm-detail + .at-farm-detail {
+    border-top: 1px solid var(--border);
+}
+
+.at-farm-detail small {
+    flex-shrink: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.at-farm-detail strong {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+    line-height: 1.4;
+    overflow-wrap: anywhere;                /* wrap long values, never truncate */
+    text-align: right;
+}
+
+/* Farm ID is the last row: a UUID, so smaller type keeps it on one line when it can */
+
+.at-farm-detail:last-child strong {
+    font-size: var(--fs-xs, 0.8rem);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+}
+
+/* Footer: pinned to the card bottom so cards in a row line up */
+
+.at-farm-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--at-space-sm);
+    margin-top: auto;
+    padding-top: var(--at-space-sm);
+    border-top: 1px solid var(--border);
+    color: var(--secondary-text);
+    font-size: var(--fs-xs, 0.8rem);
+}
+
+.at-assignment-active {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--at-success);
+    font-weight: 600;
+}
+
+.at-assignment-active::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: at-pulse 2s ease-out infinite;
+}
+
+@keyframes at-pulse {
+    0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--at-success) 55%, transparent); }
+    70%  { box-shadow: 0 0 0 6px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+
+/* =========================================
+   4. LOADING, EMPTY, AND ERROR STATES
+========================================= */
+
+/* Loading */
+
+.at-loading-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--at-space-sm);
+    margin: 0;
+    padding: var(--at-space-lg) var(--at-space-md);
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+}
+
+.at-loading-text::before {
+    content: "";
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: at-spin 0.8s linear infinite;
+}
+
+@keyframes at-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Empty state */
+
+.at-empty-state {
+    padding: calc(var(--at-space-lg) * 1.5) var(--at-space-md);
+    border: 1.5px dashed var(--border);
+    border-radius: var(--at-radius-lg);
+    background: var(--at-surface-alt);
+    text-align: center;
+}
+
+.at-empty-state::before {
+    content: "";
+    display: block;
+    width: 48px;
+    height: 48px;
+    margin: 0 auto var(--at-space-sm);
+    background-color: var(--primary-color);
+    opacity: 0.85;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 22V11'/%3E%3Cpath d='M12 11C12 7 9 4 4 4c0 4 3 7 8 7z'/%3E%3Cpath d='M12 14c0-3 2.5-6 8-6 0 4-3 6-8 6z'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 22V11'/%3E%3Cpath d='M12 11C12 7 9 4 4 4c0 4 3 7 8 7z'/%3E%3Cpath d='M12 14c0-3 2.5-6 8-6 0 4-3 6-8 6z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.at-empty-state h3 {
+    margin: 0 0 var(--at-space-xs);
+    color: var(--primary-text);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.at-empty-state p {
+    max-width: 46ch;
+    margin: 0 auto;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    line-height: 1.6;
+}
+
+/* Error state */
+
+.at-error-state {
+    padding: var(--at-space-sm) var(--at-space-md);
+    border: 1px solid color-mix(in srgb, var(--at-danger) 35%, transparent);
+    border-left: 4px solid var(--at-danger);
+    border-radius: var(--at-radius-md);
+    background: color-mix(in srgb, var(--at-danger) 8%, transparent);
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+
+/* =========================================
+   5. RESPONSIVE + REDUCED MOTION
+========================================= */
+
+@media (max-width: 600px) {
+    .at-page {
+        gap: var(--at-space-md);
+    }
+
+    .at-farms-grid {
+        grid-template-columns: 1fr;
+        gap: var(--at-space-sm);
+    }
+
+    .at-section-summary {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .at-farm-card {
+        padding: var(--at-space-sm) var(--at-space-md) var(--at-space-md);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .at-farm-card {
+        transition: none;
+    }
+
+    .at-assignment-active::before,
+    .at-loading-text::before {
+        animation: none;
+    }
+}

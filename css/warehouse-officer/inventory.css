@@ -1366,6 +1366,7 @@ body.wo-modal-open {
     font-size: var(--fs-sm, 0.9rem);
 }
 
+
 @media (max-width: 600px) {
     .wo-inventory-history {
         gap: var(--space-md, 20px);
@@ -1389,5 +1390,359 @@ body.wo-modal-open {
 
     .wo-inventory-page .harvest-contributions-table {
         min-width: 580px;
+    }
+}
+
+
+/* =========================================================
+   REPLENISHMENT REQUEST
+========================================================= */
+
+.wo-replenishment-request {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 10px 14px;
+    border: 1px solid color-mix(
+        in srgb,
+        var(--success) 35%,
+        transparent
+    );
+    border-radius: var(--radius, 10px);
+    background-color: color-mix(
+        in srgb,
+        var(--success) 12%,
+        var(--surface-card)
+    );
+    color: var(--success);
+    font-family: inherit;
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        background-color 0.25s ease,
+        border-color 0.25s ease,
+        transform 0.2s ease;
+}
+
+.wo-replenishment-request:hover {
+    background-color: color-mix(
+        in srgb,
+        var(--success) 20%,
+        var(--surface-card)
+    );
+    border-color: var(--success);
+}
+
+.wo-replenishment-request:active {
+    transform: scale(0.98);
+}
+
+.wo-replenishment-request:focus-visible {
+    outline: 2px solid var(--success);
+    outline-offset: 2px;
+}
+
+.wo-replenishment-request:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Pending request indicator */
+
+.wo-replenishment-pending {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 10px 14px;
+    border: 1px solid color-mix(
+        in srgb,
+        var(--success) 30%,
+        transparent
+    );
+    border-radius: var(--radius, 10px);
+    background-color: color-mix(
+        in srgb,
+        var(--success) 10%,
+        var(--surface-card)
+    );
+    color: var(--success);
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Replenishment modal content */
+
+.wo-replenishment-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md, 20px);
+}
+
+.wo-replenishment-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    background-color: color-mix(
+        in srgb,
+        var(--secondary-text) 5%,
+        var(--surface-card)
+    );
+}
+
+.wo-replenishment-item-info strong {
+    color: var(--primary-text);
+    font-family: "Outfit", sans-serif;
+    font-size: 1rem;
+}
+
+.wo-replenishment-item-info span {
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+}
+
+.wo-replenishment-form label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs, 8px);
+    color: var(--primary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 500;
+}
+
+.wo-replenishment-form input,
+.wo-replenishment-form textarea {
+    width: 100%;
+    padding: var(--space-sm, 12px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-sm, 0.9rem);
+    outline: none;
+}
+
+.wo-replenishment-form input:focus,
+.wo-replenishment-form textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(
+        in srgb,
+        var(--primary-color) 20%,
+        transparent
+    );
+}
+
+.wo-replenishment-form textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.wo-replenishment-form-actions {
+    display: flex;
+    gap: var(--space-sm, 12px);
+}
+
+.wo-replenishment-submit {
+    flex: 1;
+    min-height: 42px;
+    padding: 10px 16px;
+    border: 1px solid transparent;
+    border-radius: var(--radius, 10px);
+    background-color: var(--primary-color);
+    color: #FFFFFF;
+    font-family: inherit;
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.wo-replenishment-submit:hover {
+    background-color: var(--primary-hover);
+}
+
+.wo-replenishment-cancel {
+    flex: 1;
+    min-height: 42px;
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-sm, 0.9rem);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.wo-replenishment-submit:disabled,
+.wo-replenishment-cancel:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+    .wo-replenishment-form-actions {
+        flex-direction: column;
+    }
+}
+
+
+/* =========================================================
+   REPLENISH BUTTON (inside the card back actions row)
+   Matches the Edit / Delete buttons in size and shape.
+   Classes come from createInventoryCard():
+   .wo-inventory-replenish and .wo-inventory-replenish-pending
+========================================================= */
+
+/* Edit / Delete / Replenish stay on one line and share the row width */
+.wo-inventory-card-actions {
+    flex-wrap: nowrap;
+    gap: 6px;
+}
+
+.wo-inventory-card-actions > button {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 7px 6px;
+    font-size: 0.75rem;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wo-inventory-replenish,
+.wo-inventory-replenish-pending {
+    padding: 7px var(--space-sm, 12px);
+    border: 1px solid transparent;
+    border-radius: var(--radius, 10px);
+    font-family: inherit;
+    font-size: var(--fs-xs, 0.8rem);
+    font-weight: 600;
+    line-height: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, transform 0.2s ease;
+}
+
+/* Green: request more stock */
+.wo-inventory-replenish {
+    color: var(--success);
+    background-color: color-mix(in srgb, var(--success) 10%, var(--surface-card));
+    border-color: color-mix(in srgb, var(--success) 25%, transparent);
+}
+
+.wo-inventory-replenish:hover {
+    background-color: color-mix(in srgb, var(--success) 18%, var(--surface-card));
+    border-color: var(--success);
+}
+
+.wo-inventory-replenish:active {
+    transform: scale(0.97);
+}
+
+.wo-inventory-replenish:focus-visible {
+    outline: 2px solid var(--success);
+    outline-offset: 2px;
+}
+
+/* Amber: a request is already waiting (button is disabled) */
+.wo-inventory-replenish-pending {
+    color: var(--warning);
+    background-color: color-mix(in srgb, var(--warning) 10%, var(--surface-card));
+    border-color: color-mix(in srgb, var(--warning) 25%, transparent);
+}
+
+.wo-inventory-replenish-pending:disabled {
+    opacity: 1;
+    cursor: not-allowed;
+}
+
+
+/* =========================================================
+   CARD FRONT FRAMING
+   The photo gets its own frame and the title sits in a caption
+   bar below it, so the title strip no longer covers the product.
+   The photo frame takes whatever height the caption leaves, so
+   every card frames its image exactly, whether the title wraps
+   to one or two lines. Overrides the overlay layout above.
+========================================================= */
+
+.wo-card-front {
+    justify-content: flex-start;
+}
+
+.wo-card-front .wo-inventory-card-photo {
+    position: relative;
+    inset: auto;
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    height: auto;
+}
+
+.wo-card-front .wo-inventory-photo {
+    object-fit: cover;
+    object-position: center;
+}
+
+.wo-card-front .wo-inventory-no-photo {
+    margin-bottom: 0;
+}
+
+.wo-card-front .wo-inventory-card-body {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: none;
+    border-top: 1px solid var(--border);
+    border-radius: 0;
+    background-color: var(--surface-card);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+@media (max-width: 600px) {
+    .wo-card-front .wo-inventory-card-body {
+        padding: var(--space-xs, 8px) var(--space-sm, 12px);
+    }
+
+    .wo-card-front .wo-inventory-no-photo {
+        margin-bottom: 0;
+    }
+}
+
+
+/* =========================================================
+   CARD ACTIONS ON SMALL DEVICES
+   Stack Edit / Delete / Replenish in a column,
+   all the same width.
+========================================================= */
+
+@media (max-width: 600px) {
+    .wo-inventory-card-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .wo-inventory-card-actions > button {
+        flex: 0 0 auto;
+        width: 100%;
+        padding: 9px var(--space-sm, 12px);
+        font-size: var(--fs-xs, 0.8rem);
+        overflow: visible;
+        text-overflow: clip;
     }
 }

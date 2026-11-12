@@ -1,3 +1,4 @@
+
 import { supabase } from '../connection.js';
 
 let activeChannel = null;
@@ -8,6 +9,7 @@ function el(tag, className = '', text = '') {
     const node = document.createElement(tag);
 
     if (className) node.className = className;
+
     if (text !== undefined && text !== null) {
         node.textContent = text;
     }
@@ -15,9 +17,52 @@ function el(tag, className = '', text = '') {
     return node;
 }
 
-/** Read the assigned farm ID from the warehouse-officer route context. */
-function getAssignedFarmId(ctx) {
-    return ctx.assignedFarm?.farm_id ?? ctx.assignedFarm?.id ?? null;
+async function loadOfficerAssignedFarm(ctx) {
+    if (ctx.assignedFarm?.farm_id || ctx.assignedFarm?.id) {
+        return {
+            farm_id: ctx.assignedFarm.farm_id || ctx.assignedFarm.id,
+            farm_name: ctx.assignedFarm.farm_name || '',
+            farm_location: ctx.assignedFarm.farm_location || ''
+        };
+    }
+
+    const staffId = ctx.staff?.staff_id;
+
+    if (!staffId) {
+        throw new Error('Warehouse Officer staff ID is missing.');
+    }
+
+    const { data: assignment, error: assignmentError } = await supabase
+        .from('warehouse_officer_farm_assignments')
+        .select('farm_id')
+        .eq('staff_id', staffId)
+        .order('assigned_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (assignmentError) throw assignmentError;
+
+    if (!assignment?.farm_id) {
+        throw new Error('No farm assignment found for this Warehouse Officer.');
+    }
+
+    const { data: farm, error: farmError } = await supabase
+        .from('farmer_farms')
+        .select('id, farm_name, farm_location')
+        .eq('id', assignment.farm_id)
+        .maybeSingle();
+
+    if (farmError) throw farmError;
+
+    if (!farm) {
+        throw new Error('Assigned farm could not be accessed.');
+    }
+
+    return {
+        farm_id: farm.id,
+        farm_name: farm.farm_name,
+        farm_location: farm.farm_location
+    };
 }
 
 function formatDate(value) {
@@ -68,12 +113,10 @@ function createDetail(label, value) {
     return item;
 }
 
-/** Build the verification form that submits the chosen decision through RPC. */
 function createVerificationForm(record, refresh) {
     const form = el('form', 'wo-verification-form');
 
     const heading = el('h3', '', 'Verify Harvest Submission');
-
     const quantityLabel = el('label', 'wo-form-label', 'Verified Quantity');
 
     const quantityInput = el('input', 'wo-form-input');
@@ -86,7 +129,6 @@ function createVerificationForm(record, refresh) {
     quantityLabel.append(quantityInput);
 
     const decisionLabel = el('label', 'wo-form-label', 'Verification Decision');
-
     const decisionSelect = el('select', 'wo-form-input');
 
     [
@@ -101,14 +143,17 @@ function createVerificationForm(record, refresh) {
     decisionLabel.append(decisionSelect);
 
     const notesLabel = el('label', 'wo-form-label', 'Verification Notes');
-
     const notesInput = el('textarea', 'wo-form-input');
     notesInput.rows = 3;
     notesInput.placeholder = 'Enter remarks or reason for rejection';
 
     notesLabel.append(notesInput);
 
-    const submitButton = el('button', 'wo-button wo-button-primary', 'Submit Verification');
+    const submitButton = el(
+        'button',
+        'wo-button wo-button-primary',
+        'Submit Verification'
+    );
     submitButton.type = 'submit';
 
     const updateFormFields = () => {
@@ -117,9 +162,7 @@ function createVerificationForm(record, refresh) {
         quantityInput.disabled = isRejected;
         quantityInput.required = !isRejected;
 
-        if (isRejected) {
-            quantityInput.value = '';
-        }
+        if (isRejected) quantityInput.value = '';
 
         notesInput.required = isRejected;
     };
@@ -195,22 +238,12 @@ function createVerificationForm(record, refresh) {
 
 function createRecordCard(record, ctx, refresh) {
     const card = el('article', 'wo-harvest-card');
-
     const header = el('div', 'wo-harvest-card-header');
-
     const titleGroup = el('div', 'wo-harvest-card-title');
 
     titleGroup.append(
-        el(
-            'h2',
-            '',
-            record.farm_plantings?.crop_name || 'Harvest Submission'
-        ),
-        el(
-            'small',
-            'wo-harvest-id',
-            `Record ID: ${record.harvest_id}`
-        )
+        el('h2', '', record.farm_plantings?.crop_name || 'Harvest Submission'),
+        el('small', 'wo-harvest-id', `Record ID: ${record.harvest_id}`)
     );
 
     header.append(
@@ -243,9 +276,7 @@ function createRecordCard(record, ctx, refresh) {
 
     const footer = el('div', 'wo-harvest-card-footer');
 
-    if (
-        record.confirmation_status === 'pending'
-    ) {
+    if (record.confirmation_status === 'pending') {
         const claimButton = el(
             'button',
             'wo-button wo-button-primary',
@@ -261,9 +292,7 @@ function createRecordCard(record, ctx, refresh) {
             try {
                 const { error } = await supabase.rpc(
                     'claim_harvest',
-                    {
-                        p_harvest_id: record.harvest_id
-                    }
+                    { p_harvest_id: record.harvest_id }
                 );
 
                 if (error) throw error;
@@ -329,7 +358,6 @@ function createRecordCard(record, ctx, refresh) {
     return card;
 }
 
-/** Render records for the assigned farm and wire the verification workflow. */
 export async function render(root, ctx) {
     cleanup();
 
@@ -337,11 +365,10 @@ export async function render(root, ctx) {
 
     let currentStatus = 'all';
     let records = [];
-
-    const farmId = ctx.assignedFarm?.assigned_farm_id ?? null;
+    let assignedFarm = null;
+    let farmId = null;
 
     const page = el('section', 'wo-harvest-records');
-
     const heading = el('div', 'wo-page-heading');
 
     heading.append(
@@ -356,11 +383,10 @@ export async function render(root, ctx) {
     const farmInfo = el(
         'p',
         'wo-assigned-farm-context',
-        `Assigned Farm: ${ctx.assignedFarm?.farm_name || 'Not available'}`
+        'Assigned Farm: Loading...'
     );
 
     const toolbar = el('div', 'wo-harvest-toolbar');
-
     const filter = el('select', 'wo-form-input wo-harvest-filter');
 
     [
@@ -375,30 +401,17 @@ export async function render(root, ctx) {
         filter.append(option);
     });
 
-    filter.addEventListener('change', () => {
-        currentStatus = filter.value;
-        displayRecords();
-    });
-
     const refreshButton = el(
         'button',
         'wo-button wo-button-secondary',
         'Refresh'
     );
-
     refreshButton.type = 'button';
 
     const recordsContainer = el('div', 'wo-harvest-list');
 
     toolbar.append(filter, refreshButton);
-
-    page.append(
-        heading,
-        farmInfo,
-        toolbar,
-        recordsContainer
-    );
-
+    page.append(heading, farmInfo, toolbar, recordsContainer);
     root.replaceChildren(page);
 
     function displayRecords() {
@@ -450,20 +463,13 @@ export async function render(root, ctx) {
         );
     }
 
-    /** Fetch the assigned farm's harvest records and render the current page. */
+
     async function loadRecords() {
         if (currentToken !== renderToken) return;
 
-        console.log("Assigned farm:", ctx.assignedFarm);
-        console.log("Resolved farm ID:", farmId);
-
         if (!farmId) {
             recordsContainer.replaceChildren(
-                el(
-                    'p',
-                    'msg error',
-                    'No assigned farm found. Please contact your administrator.'
-                )
+                el('p', 'msg error', 'No assigned farm found.')
             );
             return;
         }
@@ -473,66 +479,89 @@ export async function render(root, ctx) {
         );
 
         try {
-            // TEST 0: Check authenticated user and officer details.
-            const { data: userData, error: userError } =
-                await supabase.auth.getUser();
+            console.log('[HARVEST DEBUG] Farm ID:', farmId);
 
-            console.log("AUTH USER:", userData?.user?.id);
-            console.log("AUTH ERROR:", userError);
-            console.log("OFFICER STAFF ID:", ctx.staff?.staff_id);
-            console.log("ASSIGNED FARM ID:", farmId);
+            // STEP 1: Get fields belonging to the assigned farm.
+            const { data: fields, error: fieldsError } = await supabase
+                .from('farm_fields')
+                .select('id')
+                .eq('farm_id', farmId);
 
-            // TEST 1: Check the new SECURITY DEFINER helper.
-            const { data: accessResult, error: accessError } =
-                await supabase.rpc(
-                    "is_warehouse_officer_assigned_to_planting",
-                    {
-                        p_planting_id: "aac2c907-cf28-44c7-817d-d659bda188d2"
-                    }
-                );
+            console.log('[HARVEST DEBUG] Fields:', fields);
+            console.log('[HARVEST DEBUG] Fields error:', fieldsError);
 
-            console.log("PLANTING ACCESS RESULT:", accessResult);
-            console.log("PLANTING ACCESS ERROR:", accessError);
-
-            // TEST 2: Check all harvest records visible to this Officer.
-            const { data: allHarvests, error: harvestError } =
-                await supabase
-                    .from('harvested_crops')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-
-            console.log("TEST 2 - All visible harvest records:", allHarvests);
-            console.log("TEST 2 - Error:", harvestError);
-
-            // TEST 3: Check planting and farm relationships.
-            const { data: joinedHarvests, error: joinError } =
-                await supabase
-                    .from('harvested_crops')
-                    .select(`
-                    *,
-                    farm_plantings (
-                        id,
-                        crop_name,
-                        field_id,
-                        farm_fields (
-                            id,
-                            farm_id
-                        )
-                    )
-                `)
-                    .order('created_at', { ascending: false });
-
-            console.log("TEST 3 - Joined harvest records:", joinedHarvests);
-            console.log("TEST 3 - Error:", joinError);
+            if (fieldsError) throw fieldsError;
 
             if (currentToken !== renderToken) return;
 
-            // Temporary display for diagnostics.
-            records = joinedHarvests || [];
+            const fieldIds = (fields || []).map(field => field.id);
+
+            if (!fieldIds.length) {
+                console.warn('[HARVEST DEBUG] No fields found.');
+                records = [];
+                displayRecords();
+                return;
+            }
+
+            // STEP 2: Get plantings belonging to those fields.
+            const { data: plantings, error: plantingsError } = await supabase
+                .from('farm_plantings')
+                .select('id, crop_name, field_id')
+                .in('field_id', fieldIds);
+
+            console.log('[HARVEST DEBUG] Plantings:', plantings);
+            console.log('[HARVEST DEBUG] Plantings error:', plantingsError);
+
+            if (plantingsError) throw plantingsError;
+
+            if (currentToken !== renderToken) return;
+
+            const plantingIds = (plantings || []).map(planting => planting.id);
+
+            if (!plantingIds.length) {
+                console.warn('[HARVEST DEBUG] No plantings found.');
+                records = [];
+                displayRecords();
+                return;
+            }
+
+            // STEP 3: Get every harvest record linked to those plantings.
+            const { data: harvests, error: harvestError } = await supabase
+                .from('harvested_crops')
+                .select('*')
+                .in('planting_id', plantingIds)
+                .order('created_at', { ascending: false });
+
+            console.log('[HARVEST DEBUG] Harvests:', harvests);
+            console.log('[HARVEST DEBUG] Harvest error:', harvestError);
+
+            if (harvestError) throw harvestError;
+
+            if (currentToken !== renderToken) return;
+
+            const plantingMap = new Map(
+                (plantings || []).map(planting => [
+                    planting.id,
+                    planting
+                ])
+            );
+
+            records = (harvests || []).map(record => ({
+                ...record,
+                farm_plantings: plantingMap.get(record.planting_id) || null
+            }));
+
+            console.log('[HARVEST DEBUG] Total records:', records.length);
+            console.log('[HARVEST DEBUG] New Mandrake record:',
+                records.find(record =>
+                    record.harvest_id === '083dc3e7-a72e-4dfb-b073-336b957f57d5'
+                )
+            );
+
             displayRecords();
 
         } catch (error) {
-            console.error("Failed to load harvest records:", error);
+            console.error('[HARVEST DEBUG] Failed to load harvest records:', error);
 
             if (currentToken !== renderToken) return;
 
@@ -545,10 +574,10 @@ export async function render(root, ctx) {
             );
         }
     }
-    // Subscribe to harvest record changes.
-    /** Refresh harvest records when their Supabase rows change. */
+
+
     function subscribeToHarvestChanges() {
-        if (currentToken !== renderToken) return;
+        if (currentToken !== renderToken || !farmId) return;
 
         activeChannel = supabase
             .channel(`wo-harvest-${ctx.staff.staff_id}-${farmId}`)
@@ -560,10 +589,7 @@ export async function render(root, ctx) {
                     table: 'harvested_crops'
                 },
                 payload => {
-                    console.log(
-                        'Harvest record changed:',
-                        payload.eventType
-                    );
+                    console.log('Harvest record changed:', payload.eventType);
 
                     clearTimeout(refreshTimer);
 
@@ -579,15 +605,43 @@ export async function render(root, ctx) {
             });
     }
 
+    filter.addEventListener('change', () => {
+        currentStatus = filter.value;
+        displayRecords();
+    });
+
     refreshButton.addEventListener('click', loadRecords);
 
-    // Subscribe first, then load the initial records.
-    subscribeToHarvestChanges();
-    await loadRecords();
+    try {
+        assignedFarm = await loadOfficerAssignedFarm(ctx);
+
+        if (currentToken !== renderToken) return;
+
+        farmId = assignedFarm.farm_id;
+        ctx.assignedFarm = assignedFarm;
+
+        farmInfo.textContent =
+            `Assigned Farm: ${assignedFarm.farm_name || 'Not available'} — ${assignedFarm.farm_location || ''}`;
+
+        subscribeToHarvestChanges();
+        await loadRecords();
+
+    } catch (error) {
+        console.error('Failed to resolve assigned farm:', error);
+
+        farmInfo.textContent = 'Assigned Farm: Not available';
+
+        recordsContainer.replaceChildren(
+            el(
+                'p',
+                'msg error',
+                error.message || 'Unable to load assigned farm.'
+            )
+        );
+    }
 }
 
 export function cleanup() {
-    // Invalidate pending requests and callbacks.
     renderToken++;
 
     if (refreshTimer) {

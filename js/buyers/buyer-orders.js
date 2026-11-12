@@ -277,7 +277,7 @@ async function loadBuyer() {
   if (error) throw error;
 
   if (!user) {
-    window.location.href = '../../index.html';
+    window.location.replace('../../login.html');
     return null;
   }
 
@@ -1180,7 +1180,7 @@ async function logout() {
     return;
   }
 
-  window.location.href = '../../index.html';
+  window.location.replace('../../login.html');
 }
 
 function bindEvents() {

@@ -1,0 +1,163 @@
+/* =========================================================
+   TANIKALA - SUPPLIER INVOICES
+   Panel, table, filters, modal and base badge come from supplier.css.
+   ========================================================= */
+
+#view {
+  /* ============ OVERVIEW STAT CARDS ============ */
+
+  .dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-md, 20px);
+  }
+
+  .dashboard-stats .stat-card {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-card);
+    box-shadow: 0 2px 10px rgba(101, 53, 40, .08);
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  }
+
+  .dashboard-stats .stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 9px 22px rgba(101, 53, 40, .13);
+    border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border));
+  }
+
+  .dashboard-stats .stat-card p {
+    margin: 0 0 4px;
+    color: var(--secondary-text);
+    font-size: .78rem;
+  }
+
+  .dashboard-stats .stat-card h3 {
+    margin: 0;
+    color: var(--primary-text);
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .dashboard-stats .stat-card > i {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--primary-color) 12%, var(--surface-card));
+    color: var(--primary-color);
+    font-size: 1.1rem;
+  }
+
+  /* pending / verified / rejected cards */
+  .dashboard-stats .stat-card:nth-child(2) > i {
+    background: color-mix(in srgb, var(--warning) 14%, var(--surface-card));
+    color: var(--warning);
+  }
+
+  .dashboard-stats .stat-card:nth-child(3) > i {
+    background: color-mix(in srgb, var(--success) 14%, var(--surface-card));
+    color: var(--success);
+  }
+
+  .dashboard-stats .stat-card:nth-child(4) > i {
+    background: color-mix(in srgb, var(--error) 12%, var(--surface-card));
+    color: var(--error);
+  }
+
+  /* ============ STATUS BADGE MODIFIERS (invoices/payments) ============ */
+
+  .status-badge.success {
+    border-color: color-mix(in srgb, var(--success) 25%, transparent);
+    background: color-mix(in srgb, var(--success) 12%, var(--surface-card));
+    color: var(--success);
+  }
+
+  .status-badge.warning {
+    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+    background: color-mix(in srgb, var(--warning) 12%, var(--surface-card));
+    color: var(--warning);
+  }
+
+  .status-badge.danger {
+    border-color: color-mix(in srgb, var(--error) 30%, transparent);
+    background: color-mix(in srgb, var(--error) 10%, var(--surface-card));
+    color: var(--error);
+  }
+
+  /* ============ INVOICE MODAL ============ */
+
+  #invoiceModalSubtitle {
+    margin: 0;
+    color: var(--primary-color);
+    font-size: var(--fs-sm, .875rem);
+    font-weight: 600;
+  }
+
+  #invoiceDetails {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md, 20px);
+  }
+
+  #invoiceDetails .order-summary h4 {
+    grid-column: 1 / -1;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  #invoiceDetails .order-summary .status-badge {
+    margin-top: 2px;
+  }
+
+  /* long text fields span the full width */
+  #invoiceDetails .order-summary p:nth-of-type(7),
+  #invoiceDetails .order-summary p:nth-of-type(9) {
+    grid-column: 1 / -1;
+  }
+
+  /* payment history */
+  #invoiceDetails .supplier-table td:nth-child(2),
+  #invoiceDetails .supplier-table th:nth-child(2) {
+    text-align: right;
+  }
+
+  #invoiceDetails .supplier-table td[colspan="5"]:not(.empty-state) {
+    white-space: normal;
+    background: color-mix(in srgb, var(--secondary) 6%, var(--surface-card));
+    color: var(--secondary-text);
+    font-size: .8rem;
+  }
+
+  #invoiceDetails .supplier-table td[colspan="5"] strong {
+    color: var(--primary-text);
+  }
+}
+
+@media (max-width: 1200px) {
+  #view .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  #view .dashboard-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #view .dashboard-stats .stat-card {
+    transition: none !important;
+  }
+}

@@ -10,46 +10,72 @@ const DB_STATUS = {
 };
 
 const ROLES = ['farmer', 'buyer', 'supplier'];
-const COLUMNS =
-    'id, full_name, first_name, middle_name, surname, suffix, email, phone, residential_address, role, status, created_at';
 
-const toUi = (s) =>
-    Object.keys(DB_STATUS).find((k) => DB_STATUS[k] === s) ?? s;
+const COLUMNS = [
+    'id',
+    'full_name',
+    'first_name',
+    'middle_name',
+    'surname',
+    'suffix',
+    'email',
+    'phone',
+    'residential_address',
+    'role',
+    'status',
+    'created_at',
+    'deleted_at',
+    'deleted_by'
+].join(', ');
 
-const normalize = (p) => ({
-    ...p,
+const toUi = (status) =>
+    Object.keys(DB_STATUS).find((key) => DB_STATUS[key] === status) ?? status;
+
+const normalize = (profile) => ({
+    ...profile,
     name: [
-        p.first_name,
-        p.middle_name,
-        p.surname,
-        p.suffix
-    ].filter((part) => String(part ?? '').trim())
+        profile.first_name,
+        profile.middle_name,
+        profile.surname,
+        profile.suffix
+    ]
+        .filter((part) => String(part ?? '').trim())
         .map((part) => String(part).trim())
-        .join(' ') || p.full_name || p.email || 'Unnamed',
-    role: String(p.role ?? '').toLowerCase(),
-    status: toUi(p.status),
-    joined: p.created_at,
+        .join(' ') || profile.full_name || profile.email || 'Unnamed',
+    role: String(profile.role ?? '').toLowerCase(),
+    status: toUi(profile.status),
+    joined: profile.created_at
 });
 
-/** Fetch supported applicant profiles newest-first and normalize their UI fields. */
-async function fetchProfiles() {
-    const { data, error } = await supabase
+// --- Profile fetching -------------------------------------------------------
+
+async function fetchProfiles({ deleted = false } = {}) {
+    let query = supabase
         .from('profiles')
         .select(COLUMNS)
         .order('created_at', { ascending: false });
+
+    query = deleted
+        ? query.not('deleted_at', 'is', null)
+        : query.is('deleted_at', null);
+
+    const { data, error } = await query;
 
     if (error) throw error;
 
     return (data ?? [])
         .map(normalize)
-        .filter((p) => ROLES.includes(p.role));
+        .filter((profile) => ROLES.includes(profile.role));
 }
 
 // --- Auth -------------------------------------------------------------------
-/** Confirm the current user has an admin_users row; sign out unauthorized users. */
+
 export async function requireAdmin() {
     try {
-        const { data: { user }, error } = await supabase.auth.getUser();
+        const {
+            data: { user },
+            error
+        } = await supabase.auth.getUser();
 
         if (error || !user) return false;
 
@@ -76,18 +102,152 @@ export async function requireAdmin() {
     }
 }
 
-/** End the current Supabase session and propagate any sign-out error. */
 export async function logout() {
     const { error } = await supabase.auth.signOut();
+
     if (error) throw error;
 }
 
 // --- Users & applications ---------------------------------------------------
-export const listUsers = fetchProfiles;
 
-/** Change an applicant's status through the admin decision function. */
+export async function listUsers() {
+    return fetchProfiles({ deleted: false });
+}
+
+export async function listDeletedUsers() {
+    return fetchProfiles({ deleted: true });
+}
+
+// --- Login security / Account lockdown --------------------------------------
+
+export async function listLoginSecurityAccounts() {
+    const { data, error } = await supabase.rpc(
+        'admin_list_login_security_accounts'
+    );
+
+    if (error) {
+        console.error('Failed to load login security accounts:', error);
+        throw error;
+    }
+
+    return data ?? [];
+}
+
+export async function unlockLoginAccount(userId) {
+    if (!userId) {
+        throw new Error('A valid user ID is required.');
+    }
+
+    const { data, error } = await supabase.rpc(
+        'admin_unlock_login_account',
+        {
+            p_user_id: userId
+        }
+    );
+
+    if (error) {
+        console.error('Failed to unlock account:', error);
+        throw error;
+    }
+
+    if (!data?.success) {
+        throw new Error(data?.message || 'Account is not locked.');
+    }
+
+    return data;
+}
+
+// --- Soft deletion ----------------------------------------------------------
+
+export async function softDeleteUser(userId) {
+    if (!userId) {
+        throw new Error('A valid user ID is required.');
+    }
+
+    const { data, error } = await supabase.functions.invoke(
+        'admin-delete-user',
+        {
+            body: { userId }
+        }
+    );
+
+    if (error) {
+        console.error('Soft deletion request failed:', {
+            message: error.message,
+            context: error.context,
+            data
+        });
+
+        throw new Error(
+            data?.error ||
+            error.message ||
+            'Failed to soft-delete account.'
+        );
+    }
+
+    if (!data?.success || !data?.softDeleted) {
+        throw new Error(
+            data?.error ||
+            'The account was not successfully soft-deleted.'
+        );
+    }
+
+    log('Soft-deleted user', userId);
+
+    return data;
+}
+
+// --- Restore soft-deleted account -------------------------------------------
+
+export async function restoreUser(userId) {
+    if (!userId) {
+        throw new Error('A valid user ID is required.');
+    }
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .update({
+            deleted_at: null,
+            deleted_by: null,
+            status: 'suspended'
+        })
+        .eq('id', userId)
+        .not('deleted_at', 'is', null)
+        .select('id')
+        .maybeSingle();
+
+    if (error) {
+        console.error('Account restoration failed:', error);
+
+        throw new Error(
+            error.message ||
+            'Could not restore this account.'
+        );
+    }
+
+    if (!data) {
+        throw new Error(
+            'Account was not restored. It may no longer be soft-deleted.'
+        );
+    }
+
+    log('Restored soft-deleted user', userId);
+
+    return data;
+}
+
+// --- Account status ---------------------------------------------------------
+
 export async function setUserStatus(user, status, reason = '') {
-    if (status === 'rejected' && !reason.trim()) {
+    if (!user?.id) {
+        throw new Error('A valid user ID is required.');
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(DB_STATUS, status)) {
+        throw new Error('Invalid account status.');
+    }
+
+    if (status === 'rejected' && !String(reason).trim()) {
         throw new Error('A rejection reason is required.');
     }
 
@@ -97,7 +257,7 @@ export async function setUserStatus(user, status, reason = '') {
             body: {
                 userId: user.id,
                 status,
-                reason: reason.trim()
+                reason: String(reason).trim()
             }
         }
     );
@@ -134,63 +294,8 @@ export async function setUserStatus(user, status, reason = '') {
     };
 }
 
-// --- Permanently delete a user ----------------------------------------------
-// Requires the admin-delete-user Supabase Edge Function to be deployed.
-/** Permanently delete the specified user through the admin Edge Function. */
-export async function deleteUserPermanently(userId) {
-    if (!userId) {
-        throw new Error('A valid user ID is required.');
-    }
-
-    const { data, error } = await supabase.functions.invoke(
-        'admin-delete-user',
-        {
-            body: { userId }
-        }
-    );
-
-    if (error) {
-        throw new Error(
-            error.message || 'Failed to delete user.'
-        );
-    }
-
-    if (!data?.success) {
-        throw new Error(
-            data?.error || 'Failed to delete user.'
-        );
-    }
-
-    return data;
-}
-
 // --- Applicant details (role-specific tables) -------------------------------
 
-const ROLE_DETAILS = {
-    farmer: {
-        table: 'farmer_farms',
-        fields: [
-            ['Farm name', 'farm_name'],
-            ['Farm location', 'farm_location']
-        ]
-    },
-    buyer: {
-        table: 'buyer_details',
-        fields: [
-            ['Buyer type', 'buyer_type'],
-            ['Business name', 'business_name']
-        ]
-    },
-    supplier: {
-        table: 'supplier_details',
-        fields: [
-            ['Business name', 'business_name'],
-            ['Business address', 'business_address']
-        ]
-    }
-};
-
-/** Load profile details, farms/crops, or business/product interests by role. */
 export async function getApplicantDetails(app) {
     const role = String(app.role ?? '').toLowerCase();
 
@@ -263,6 +368,7 @@ export async function getApplicantDetails(app) {
     };
 
     const cfg = configs[role];
+
     if (!cfg) return [];
 
     const { data, error } = await supabase
@@ -311,7 +417,6 @@ export async function getApplicantDetails(app) {
 
 // --- Registration documents (private, via Edge Function) --------------------
 
-/** Invoke the admin document-review function for the requested action. */
 async function review(body) {
     const { data, error } = await supabase.functions.invoke(
         'admin-review-application',
@@ -324,11 +429,9 @@ async function review(body) {
     return data;
 }
 
-/** List private registration documents for one applicant. */
 export const listDocuments = async (userId) =>
     (await review({ action: 'list', userId }))?.documents ?? [];
 
-/** Request a signed viewing URL for one private registration document. */
 export async function getDocumentUrl(documentId) {
     const data = await review({ action: 'view', documentId });
 
@@ -341,10 +444,11 @@ export async function getDocumentUrl(documentId) {
 
 // --- Dashboard --------------------------------------------------------------
 
-/** Aggregate profile counts, approval rates, and the trailing seven days. */
 export async function getStats() {
-    const u = await fetchProfiles();
-    const count = (k, v) => u.filter((x) => x[k] === v).length;
+    const u = await fetchProfiles({ deleted: false });
+
+    const count = (key, value) =>
+        u.filter((item) => item[key] === value).length;
 
     const days = [...Array(7)].map((_, i) => {
         const d = new Date();
@@ -354,9 +458,9 @@ export async function getStats() {
     });
 
     const perDay = (role) => days.map((d) =>
-        u.filter((x) =>
-            x.role === role &&
-            new Date(x.joined).toDateString() === d.toDateString()
+        u.filter((item) =>
+            item.role === role &&
+            new Date(item.joined).toDateString() === d.toDateString()
         ).length
     );
 
@@ -365,20 +469,25 @@ export async function getStats() {
         pending: count('status', 'pending'),
 
         byRole: Object.fromEntries(
-            ROLES.map((r) => [r, count('role', r)])
+            ROLES.map((role) => [role, count('role', role)])
         ),
 
         byStatus: Object.fromEntries(
-            Object.keys(DB_STATUS).map((s) => [s, count('status', s)])
+            Object.keys(DB_STATUS).map((status) => [
+                status,
+                count('status', status)
+            ])
         ),
 
         approval: ROLES.map((role) => {
             const decided = u.filter(
-                (x) => x.role === role && x.status !== 'pending'
+                (item) => item.role === role && item.status !== 'pending'
             );
 
             const approved = decided.filter(
-                (x) => x.status === 'active' || x.status === 'suspended'
+                (item) =>
+                    item.status === 'active' ||
+                    item.status === 'suspended'
             ).length;
 
             return {
@@ -396,7 +505,7 @@ export async function getStats() {
                 d.toLocaleDateString('en-US', { weekday: 'short' })
             ),
             ...Object.fromEntries(
-                ROLES.map((r) => [r, perDay(r)])
+                ROLES.map((role) => [role, perDay(role)])
             )
         }
     };
@@ -417,77 +526,159 @@ const log = (action, target) => {
 };
 
 export async function getLogs() {
-    const { data, error } = await supabase
-        .from('audit_logs')
-        .select(`
-            id,
-            actor_id,
-            action,
-            entity_table,
-            target_user_id,
-            old_data,
-            new_data,
-            created_at
-        `)
-        .order('created_at', { ascending: false })
-        .limit(500);
+    // Fetch existing admin audit logs and login security logs.
+    const [auditResult, securityResult] = await Promise.all([
+        supabase
+            .from('audit_logs')
+            .select(`
+                id,
+                actor_id,
+                action,
+                entity_table,
+                target_user_id,
+                old_data,
+                new_data,
+                created_at
+            `)
+            .order('created_at', { ascending: false })
+            .limit(500),
 
-    if (error) throw error;
+        supabase
+            .from('login_security_logs')
+            .select(`
+                id,
+                user_id,
+                email,
+                event_type,
+                ip_address,
+                location,
+                device,
+                browser,
+                operating_system,
+                metadata,
+                created_at
+            `)
+            .order('created_at', { ascending: false })
+            .limit(500)
+    ]);
 
-    const rows = data ?? [];
+    if (auditResult.error) throw auditResult.error;
+    if (securityResult.error) throw securityResult.error;
 
+    const auditRows = auditResult.data ?? [];
+    const securityRows = securityResult.data ?? [];
+
+    // Resolve names for both existing audit events and login events.
     const profileIds = [
-        ...new Set(
-            rows.flatMap((row) => [
+        ...new Set([
+            ...auditRows.flatMap(row => [
                 row.actor_id,
                 row.target_user_id
-            ]).filter(Boolean)
-        )
+            ]),
+            ...securityRows.flatMap(row => [
+                row.user_id,
+                row.metadata?.admin_user_id
+            ])
+        ].filter(Boolean))
     ];
 
     let profiles = [];
 
     if (profileIds.length) {
-        const { data: profileData, error: profileError } = await supabase
+        const { data, error } = await supabase
             .from('profiles')
             .select('id, full_name, email')
             .in('id', profileIds);
 
-        if (profileError) {
-            console.warn('Could not resolve audit profile names:', profileError);
+        if (error) {
+            console.warn(
+                'Could not resolve audit profile names:',
+                error
+            );
         } else {
-            profiles = profileData ?? [];
+            profiles = data ?? [];
         }
     }
 
     const nameById = new Map(
-        profiles.map((profile) => [
+        profiles.map(profile => [
             profile.id,
             profile.full_name || profile.email || profile.id
         ])
     );
 
-    return rows.map((row) => ({
-        id: row.id,
+    // Existing administrator audit events.
+    const adminLogs = auditRows.map(row => ({
+        id: `audit-${row.id}`,
         time: row.created_at,
+
         actor: row.actor_id
             ? nameById.get(row.actor_id) || row.actor_id
             : 'System / Unknown',
+
         action: row.action,
+
         target: [
             row.entity_table,
             row.target_user_id
-                ? nameById.get(row.target_user_id) || row.target_user_id
+                ? nameById.get(row.target_user_id) ||
+                  row.target_user_id
                 : null
         ].filter(Boolean).join(' — '),
+
         old_data: row.old_data,
-        new_data: row.new_data
+        new_data: row.new_data,
+
+        ip_address: null,
+        location: null,
+        device: null,
+        browser: null,
+        operating_system: null,
+        metadata: null
     }));
+
+    // Login security events.
+    const loginLogs = securityRows.map(row => ({
+        id: `security-${row.id}`,
+        time: row.created_at,
+
+        actor: row.metadata?.admin_user_id
+            ? nameById.get(row.metadata.admin_user_id) ||
+              row.metadata.admin_user_id
+            : 'System / Login Security',
+
+        action: row.event_type,
+
+        target: [
+            row.email || 'Unknown account',
+            row.user_id
+                ? nameById.get(row.user_id) || row.user_id
+                : null
+        ].filter(Boolean).join(' — '),
+
+        old_data: null,
+        new_data: row.metadata,
+
+        ip_address: row.ip_address,
+        location: row.location,
+        device: row.device,
+        browser: row.browser,
+        operating_system: row.operating_system,
+        metadata: row.metadata
+    }));
+
+    // Combine and sort newest first.
+    return [...adminLogs, ...loginLogs]
+        .sort(
+            (a, b) =>
+                new Date(b.time).getTime() -
+                new Date(a.time).getTime()
+        )
+        .slice(0, 500);
 }
 
 export const getSettings = async () => structuredClone(settings);
 
-/** Update the in-memory settings object and return a defensive copy. */
 export async function saveSettings(values) {
     Object.assign(settings, values);
     log('Updated settings', 'Platform');

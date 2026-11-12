@@ -1,0 +1,376 @@
+/* ==========================================================
+   CROP ASSESSMENTS (Agricultural Technician)
+   Built on the shared admin tokens, so it follows the
+   light / dark theme automatically (:root[data-theme="dark"]).
+
+   Tokens used (from the global stylesheet):
+   --bg --card --text --muted --primary --primary-dark
+   --amber --red --mint --shadow --r --border --success
+   --warning --error --surface-card --primary-color
+   ========================================================== */
+
+.at-page {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(18px, 2vw, 26px);
+    min-width: 0;
+    color: var(--text);
+}
+
+/* ---------- Page heading ---------- */
+.at-page-heading h2 {
+    font-size: 1.6rem;
+    overflow-wrap: anywhere;
+}
+
+.at-page-heading p {
+    margin-top: 4px;
+    color: var(--muted);
+}
+
+/* ---------- Summary cards (same look as .tile) ---------- */
+.at-assessment-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+    gap: 14px;
+}
+
+.at-assessment-summary-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--primary);
+    border-radius: var(--r);
+    background: color-mix(in srgb, var(--primary-color) 10%, var(--card));
+    box-shadow: var(--shadow);
+}
+
+.at-assessment-summary-card strong {
+    color: var(--primary-dark);
+    font: 600 1.8rem 'Outfit', sans-serif;
+    line-height: 1.1;
+}
+
+.at-assessment-summary-card span {
+    color: var(--muted);
+    font-size: .8rem;
+}
+
+.at-assessment-summary-card.healthy {
+    border-top-color: var(--success);
+    background: color-mix(in srgb, var(--success) 12%, var(--card));
+}
+
+.at-assessment-summary-card.healthy strong {
+    color: var(--success);
+}
+
+.at-assessment-summary-card.action {
+    border-top-color: var(--amber);
+    background: color-mix(in srgb, var(--warning) 14%, var(--card));
+}
+
+.at-assessment-summary-card.action strong {
+    color: var(--text);
+}
+
+/* ---------- Toolbar (search pill + filters) ---------- */
+.at-assessment-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.at-search-input {
+    flex: 1 1 320px;
+    min-width: 200px;
+    max-width: 420px;
+    min-height: 52px;
+    padding: 0 20px 0 48px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background-color: var(--card);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 18px center;
+    box-shadow: var(--shadow);
+    color: var(--text);
+    transition: border-color .2s;
+}
+
+.at-search-input::placeholder {
+    color: var(--muted);
+}
+
+.at-search-input:hover,
+.at-search-input:focus {
+    border-color: var(--primary);
+}
+
+/* Filters (same as .toolbar select) */
+.at-filter-select {
+    flex: 0 1 220px;
+    min-width: 160px;
+    min-height: 42px;
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color .2s;
+}
+
+.at-filter-select:hover,
+.at-filter-select:focus {
+    border-color: var(--primary);
+}
+
+/* ---------- Record count ---------- */
+.at-section-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.at-assigned-farm-count {
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: var(--mint);
+    color: var(--primary-dark);
+    font-size: .75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.at-section-summary > span {
+    color: var(--muted);
+    font-size: .85rem;
+}
+
+/* ---------- Grid ---------- */
+.at-assessments-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+    align-items: start;
+    gap: 16px;
+}
+
+.at-loading-text {
+    grid-column: 1 / -1;
+    padding: 32px 8px;
+    color: var(--muted);
+    text-align: center;
+}
+
+/* ---------- Assessment card (same look as .fm-panel) ---------- */
+.at-assessment-card {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+    transition: border-color .2s, transform .2s;
+}
+
+.at-assessment-card:hover {
+    border-color: var(--primary);
+}
+
+.at-assessment-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.at-assessment-title {
+    min-width: 0;
+    font-size: 1.1rem;
+    overflow-wrap: anywhere;
+}
+
+.at-assessment-date {
+    margin-top: -8px;
+    color: var(--muted);
+    font-size: .8rem;
+}
+
+/* Health status pill (same as .badge.active) */
+.at-status-badge {
+    display: inline-block;
+    flex-shrink: 0;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--success) 22%, var(--surface-card));
+    color: var(--text);
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    white-space: nowrap;
+}
+
+/* Optional variants: pass e.g. `health-poor` as the className in createBadge */
+.at-status-badge.health-fair {
+    background: color-mix(in srgb, var(--warning) 26%, var(--surface-card));
+}
+
+.at-status-badge.health-poor,
+.at-status-badge.health-critical {
+    background: color-mix(in srgb, var(--error) 22%, var(--surface-card));
+}
+
+/* ---------- Detail boxes (same as .stat-box) ---------- */
+.at-assessment-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+    gap: 10px;
+}
+
+.at-assessment-detail {
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.at-assessment-detail small {
+    display: block;
+    color: var(--muted);
+    font-size: .75rem;
+}
+
+.at-assessment-detail strong {
+    display: block;
+    font-size: .88rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* ---------- Text sections ---------- */
+.at-assessment-section {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--bg);
+}
+
+.at-assessment-section h4,
+.at-assessment-recommendation h4 {
+    margin-bottom: 4px;
+    color: var(--muted);
+    font-size: .75rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+}
+
+.at-assessment-section p,
+.at-assessment-recommendation p {
+    font-size: .88rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+/* Recommendation: styled like .tile */
+.at-assessment-recommendation {
+    padding: 12px 14px;
+    border-top: 3px solid var(--primary);
+    border-radius: 0 0 6px 6px;
+    background: color-mix(in srgb, var(--primary-color) 10%, var(--card));
+}
+
+.at-assessment-recommendation h4 {
+    color: var(--primary-dark);
+}
+
+/* ---------- Follow-up action banner ---------- */
+.at-assessment-action {
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: .82rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.at-assessment-action.is-required {
+    border-color: var(--amber);
+    background: color-mix(in srgb, var(--warning) 14%, var(--card));
+    color: var(--text);
+}
+
+.at-assessment-action.is-clear {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--success) 18%, var(--surface-card));
+    color: var(--primary-dark);
+}
+
+/* ---------- Empty / error states ---------- */
+.at-empty-state {
+    grid-column: 1 / -1;
+    padding: 48px 16px;
+    border: 1px dashed var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+    color: var(--muted);
+    text-align: center;
+}
+
+.at-empty-state h3 {
+    margin-bottom: 4px;
+    color: var(--text);
+    font-size: 1.05rem;
+}
+
+/* Same as .msg.error */
+.at-error-state {
+    grid-column: 1 / -1;
+    padding: 14px 18px;
+    border: 1px solid var(--red);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--error) 8%, var(--card));
+    color: var(--red);
+}
+
+/* ---------- Responsive (same breakpoints as the admin shell) ---------- */
+@media (max-width: 560px) {
+    .at-page-heading h2 {
+        font-size: 1.45rem;
+    }
+
+    .at-assessment-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .at-search-input {
+        flex: 1 1 100%;
+        max-width: none;
+        min-height: 46px;
+    }
+
+    .at-filter-select {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .at-assessment-card {
+        padding: 16px 14px;
+    }
+
+    .at-assessment-card-header {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .at-assessment-date {
+        margin-top: 0;
+    }
+}

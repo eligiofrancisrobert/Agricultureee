@@ -1,0 +1,462 @@
+/* =========================================================
+   TANIKALA - FARM MANAGER SETTINGS
+   ========================================================= */
+
+.fm-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md, 20px);
+  min-width: 0;
+}
+
+.fm-settings .muted {
+  margin: 0;
+  color: var(--secondary-text);
+  font-size: var(--fs-sm, .875rem);
+}
+
+/* ============ PAGE HEADING ============ */
+
+.fm-page-heading h1 {
+  margin: 0 0 4px;
+  color: var(--primary-text);
+  font-family: 'Outfit', 'Poppins', sans-serif;
+  font-size: var(--fs-xl, 1.6rem);
+  font-weight: 600;
+}
+
+/* ============ LAYOUT ============ */
+
+.fm-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: var(--space-md, 20px);
+  align-items: start;
+}
+
+.fm-settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md, 20px);
+  min-width: 0;
+}
+
+/* ============ PANEL ============ */
+
+.fm-settings-panel {
+  min-width: 0;
+  padding: var(--space-md, 20px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-card);
+  box-shadow: 0 2px 10px rgba(101, 53, 40, .08);
+}
+
+.fm-settings-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md, 20px);
+  margin-bottom: var(--space-md, 20px);
+}
+
+.fm-settings-panel-header h3 {
+  margin: 0 0 4px;
+  color: var(--primary-text);
+  font-family: 'Outfit', 'Poppins', sans-serif;
+  font-size: var(--fs-lg, 1.2rem);
+  font-weight: 500;
+}
+
+.fm-settings-panel-header p {
+  margin: 0;
+  color: var(--secondary-text);
+  font-size: var(--fs-sm, .875rem);
+}
+
+.fm-pill {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-color) 12%, var(--surface-card));
+  color: var(--primary-color);
+  font-size: .75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ============ PROFILE ============ */
+
+.fm-profile-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: var(--space-md, 20px);
+  padding-bottom: var(--space-md, 20px);
+  border-bottom: 1px solid var(--border);
+}
+
+.fm-profile-avatar {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  font-family: 'Outfit', 'Poppins', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+.fm-profile-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fm-profile-main b {
+  color: var(--primary-text);
+  font-size: 1.05rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.fm-profile-main small {
+  color: var(--secondary-text);
+  font-size: .85rem;
+  overflow-wrap: anywhere;
+}
+
+.fm-settings-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 20px;
+}
+
+.fm-settings-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  background: color-mix(in srgb, var(--secondary) 6%, var(--surface-card));
+}
+
+.fm-settings-field small {
+  color: var(--secondary-text);
+  font-size: .75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.fm-settings-field b {
+  color: var(--primary-text);
+  font-size: .92rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* ============ APPEARANCE ============ */
+
+.fm-settings-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fm-settings-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md, 20px);
+}
+
+.fm-settings-list p {
+  margin: 0 0 2px;
+  color: var(--primary-text);
+  font-weight: 500;
+}
+
+.fm-settings-list small {
+  color: var(--secondary-text);
+  font-size: .8rem;
+  line-height: 1.5;
+}
+
+/* ----- switch ----- */
+
+.fm-switch {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-block;
+  width: 46px;
+  height: 26px;
+  cursor: pointer;
+}
+
+.fm-switch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.fm-switch span {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--secondary-text) 25%, var(--surface-card));
+  transition: background .2s ease, border-color .2s ease;
+}
+
+.fm-switch span::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+  transition: transform .2s ease;
+}
+
+.fm-switch input:checked + span {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.fm-switch input:checked + span::before {
+  transform: translateX(20px);
+}
+
+.fm-switch input:focus-visible + span {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* ============ FORMS ============ */
+
+.fm-settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fm-settings-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fm-settings-form-field label {
+  color: var(--primary-text);
+  font-size: var(--fs-sm, .875rem);
+  font-weight: 500;
+}
+
+.fm-form-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  outline: none;
+  background: var(--surface-card);
+  color: var(--primary-text);
+  font: inherit;
+  font-size: var(--fs-sm, .875rem);
+  transition: border-color .3s ease, box-shadow .3s ease;
+}
+
+.fm-form-input::placeholder {
+  color: var(--secondary-text);
+  opacity: .7;
+}
+
+.fm-form-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+.fm-show-passwords {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  color: var(--secondary-text);
+  font-size: var(--fs-sm, .875rem);
+  cursor: pointer;
+}
+
+.fm-show-passwords input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+}
+
+/* ----- strength meter ----- */
+
+.fm-strength[hidden],
+.fm-settings-msg[hidden] {
+  display: none !important;
+}
+
+.fm-strength {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fm-strength-bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.fm-strength-fill {
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  transition: width .3s ease, background .3s ease;
+}
+
+.fm-strength small {
+  color: var(--secondary-text);
+  font-size: .78rem;
+}
+
+/* ----- messages ----- */
+
+.fm-settings-msg {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  font-size: var(--fs-sm, .875rem);
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.fm-settings-msg.error {
+  border-color: color-mix(in srgb, var(--error) 40%, var(--border));
+  background: color-mix(in srgb, var(--error) 10%, var(--surface-card));
+  color: var(--error);
+}
+
+.fm-settings-msg.success {
+  border-color: color-mix(in srgb, var(--success) 40%, var(--border));
+  background: color-mix(in srgb, var(--success) 10%, var(--surface-card));
+  color: var(--success);
+}
+
+.fm-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* ============ BUTTONS ============ */
+
+.fm-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius, 10px);
+  background: var(--primary-color);
+  color: #fff;
+  font: inherit;
+  font-size: var(--fs-sm, .875rem);
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter .2s ease, background .2s ease, border-color .2s ease, color .2s ease;
+}
+
+.fm-button:hover:not(:disabled) {
+  filter: brightness(.93);
+}
+
+.fm-button:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.fm-button:disabled {
+  opacity: .7;
+  cursor: not-allowed;
+}
+
+.fm-button-secondary {
+  border-color: var(--border);
+  background: var(--surface-card);
+  color: var(--primary-text);
+}
+
+.fm-button-secondary:hover:not(:disabled) {
+  filter: none;
+  border-color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 8%, var(--surface-card));
+  color: var(--primary-color);
+}
+
+/* ============ RESPONSIVE ============ */
+
+@media (max-width: 1000px) {
+  .fm-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .fm-settings-panel {
+    padding: 16px;
+  }
+
+  .fm-settings-panel-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .fm-profile-head {
+    flex-wrap: wrap;
+  }
+
+  .fm-settings-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fm-settings-actions .fm-button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fm-switch span,
+  .fm-switch span::before,
+  .fm-form-input,
+  .fm-strength-fill,
+  .fm-button {
+    transition: none !important;
+  }
+}

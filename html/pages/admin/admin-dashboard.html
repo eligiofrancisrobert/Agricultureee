@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -18,27 +19,25 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600&amp;family=Poppins:wght@300;400;500;600&amp;display=swap"
         rel="stylesheet">
-    <!-- Shared and page-specific stylesheets. -->
     <link rel="stylesheet" href="../../../css/feature/style.css">
     <link rel="stylesheet" href="../../../css/admin/admin-dash.css">
     <link rel="stylesheet" href="../../../css/admin/staff.css">
     <link rel="stylesheet" href="../../../css/admin/shell.css">
-    <!-- Restore the saved theme before page content renders. -->
+    <link rel="stylesheet" href="../../../css/admin/audit.css">
+    <link rel="stylesheet" href="../../../css/admin/assigned-agricultural-technicians.css">
     <script>
-        // Apply saved theme before paint
         document.documentElement.dataset.theme = localStorage.getItem('theme') || 'light';
     </script>
 </head>
 
 <body>
     <div class="shell">
-        <!-- Role navigation and account actions -->
         <aside class="sidebar">
             <div class="logo">
                 <h1>T<span>ani</span>kala</h1>
                 <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
             </div>
-            <!-- Admin sections -->
+
             <nav class="nav" aria-label="Admin sections">
                 <a href="#dashboard" data-view="dashboard"><svg viewBox="0 0 24 24">
                         <rect x="3" y="3" width="7" height="9" rx="1.5" />
@@ -46,10 +45,12 @@
                         <rect x="14" y="12" width="7" height="9" rx="1.5" />
                         <rect x="3" y="16" width="7" height="5" rx="1.5" />
                     </svg>Dashboard</a>
+
                 <a href="#applications" data-view="applications"><svg viewBox="0 0 24 24">
                         <rect x="5" y="4" width="14" height="17" rx="2" />
                         <path d="M9 4h6v3H9zM9 12l2 2 4-4" />
                     </svg>Applications</a>
+
                 <a href="#staff" data-view="staff"><svg viewBox="0 0 24 24">
                         <circle cx="9" cy="8" r="3.5" />
                         <path
@@ -57,6 +58,7 @@
                     </svg>
                     <span>Staff</span>
                 </a>
+
                 <div class="nav-group">
                     <button type="button" class="nav-parent" id="usersParent" aria-expanded="false"
                         aria-controls="usersMenu"><svg viewBox="0 0 24 24">
@@ -66,6 +68,7 @@
                         </svg>Users<svg class="chev" viewBox="0 0 24 24">
                             <path d="m6 9 6 6 6-6" />
                         </svg></button>
+
                     <div class="submenu" id="usersMenu" hidden>
                         <a href="#users" data-sub="">All users</a>
                         <a href="#users/pending" data-sub="pending">Pending <span id="pendingCount"
@@ -75,10 +78,12 @@
                         <a href="#users/rejected" data-sub="rejected">Rejected</a>
                     </div>
                 </div>
+
                 <a href="#audit" data-view="audit"><svg viewBox="0 0 24 24">
                         <path d="M4 6h16M4 12h16M4 18h10" />
                         <circle cx="18" cy="18" r="2" />
                     </svg>Audit logs</a>
+
                 <a href="#settings" data-view="settings"><svg viewBox="0 0 24 24">
                         <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
                         <circle cx="15" cy="7" r="2" />
@@ -89,19 +94,8 @@
             <button type="button" id="logoutButton" class="nav-logout">Log out</button>
         </aside>
 
-        <!-- Main page content -->
         <main class="main">
-            <!-- Page header and account controls -->
             <header class="topbar">
-                <label class="search">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" aria-hidden="true">
-                        <circle cx="11" cy="11" r="7" />
-                        <path d="m20 20-3.5-3.5" />
-                    </svg>
-                    <input id="adminSearch" type="search" placeholder="Search name or email" autocomplete="off">
-                </label>
-
                 <div class="topbar-right">
                     <div class="chip">
                         <span id="todayLabel"></span>
@@ -112,6 +106,7 @@
                             </svg>
                         </button>
                     </div>
+
                     <a class="bell" href="#applications" data-view="applications" aria-label="Pending applications">
                         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
                             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -119,18 +114,17 @@
                         </svg>
                         <span id="bellCount" hidden>0</span>
                     </a>
+
                     <span class="avatar" aria-hidden="true">AD</span>
                 </div>
             </header>
 
-            <!-- Dashboard view rendered by page scripts. -->
             <div id="view" role="region" aria-live="polite"></div>
         </main>
     </div>
 
-    <!-- Transient notifications inserted by page scripts. -->
     <div id="toast" class="toast" role="status" hidden></div>
-    <!-- Page-specific behavior scripts. -->
+
     <script type="module" src="../../../js/admin/main.js"></script>
     <script type="module" src="../../../js/admin/sidebar-menu.js"></script>
 </body>

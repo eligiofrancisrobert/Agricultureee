@@ -12,6 +12,7 @@ const otpForm = document.getElementById("otpForm");
 const otpEmail = document.getElementById("otpEmail");
 const otpError = document.getElementById("otpError");
 const otpVerifyButton = document.getElementById("otpVerifyButton");
+const otpCooldown = document.getElementById("otpCooldown");
 const otpDigits = [...document.querySelectorAll(".otp-digit")];
 const otpCancel = document.getElementById("otpCancel");
 const otpClose = document.getElementById("otpClose");
@@ -19,6 +20,9 @@ const otpClose = document.getElementById("otpClose");
 let otpSubmitting = false;
 let otpCancelled = false;
 let verifiedSession = null;
+
+let otpCooldownInterval = null;
+let otpCooldownUntil = 0;
 
 /** Clear credentials whenever this login page is entered or left. */
 function clearLoginCredentials() {
@@ -39,12 +43,102 @@ function showMessage(text, isError = false) {
     message.classList.toggle("error", isError);
 }
 
+/** Update the Verify button according to the current state. */
+function updateVerifyButton() {
+    if (otpSubmitting) {
+        otpVerifyButton.disabled = true;
+        otpVerifyButton.textContent = "Verifying...";
+        return;
+    }
+
+    if (otpCooldownUntil > Date.now()) {
+        otpVerifyButton.disabled = true;
+        otpVerifyButton.textContent = "Verify code";
+        return;
+    }
+
+    otpVerifyButton.disabled = false;
+    otpVerifyButton.textContent = "Verify code";
+}
+
+/** Stop the OTP cooldown timer. */
+function stopOtpCooldown() {
+    if (otpCooldownInterval !== null) {
+        clearInterval(otpCooldownInterval);
+        otpCooldownInterval = null;
+    }
+
+    otpCooldownUntil = 0;
+
+    if (otpCooldown) {
+        otpCooldown.hidden = true;
+        otpCooldown.textContent = "";
+    }
+
+    updateVerifyButton();
+}
+
+/** Render the remaining cooldown using the server timestamp. */
+function updateOtpCooldown() {
+    const remaining = Math.max(
+        0,
+        Math.ceil((otpCooldownUntil - Date.now()) / 1000)
+    );
+
+    if (remaining <= 0) {
+        stopOtpCooldown();
+        return;
+    }
+
+    otpCooldown.hidden = false;
+    otpCooldown.textContent =
+        `Please wait ${remaining} seconds before trying again.`;
+
+    updateVerifyButton();
+}
+
+/** Start the OTP retry cooldown without creating duplicate timers. */
+function startOtpCooldown(cooldownUntil, retryAfter = 60) {
+    if (otpCooldownInterval !== null) {
+        clearInterval(otpCooldownInterval);
+        otpCooldownInterval = null;
+    }
+
+    const serverDeadline = cooldownUntil
+        ? new Date(cooldownUntil).getTime()
+        : NaN;
+
+    otpCooldownUntil = Number.isFinite(serverDeadline)
+        ? serverDeadline
+        : Date.now() + Number(retryAfter) * 1000;
+
+    // Do not show the same cooldown as an error message.
+    otpError.hidden = true;
+    otpError.textContent = "";
+
+    updateOtpCooldown();
+
+    if (otpCooldownUntil > Date.now()) {
+        otpCooldownInterval = setInterval(
+            updateOtpCooldown,
+            250
+        );
+    }
+}
+
 /** Reset and open the one-time-code dialog for the submitted email. */
 function openOtpModal(email) {
+    stopOtpCooldown();
+
+    otpSubmitting = false;
     otpEmail.textContent = email;
     otpError.hidden = true;
     otpError.textContent = "";
     otpForm.reset();
+
+    otpVerifyButton.disabled = false;
+    otpVerifyButton.textContent = "Verify code";
+
     otpModal.hidden = false;
     otpCancelled = false;
 
@@ -56,6 +150,7 @@ function closeOtpModal() {
     if (otpSubmitting) return;
 
     otpCancelled = true;
+    stopOtpCooldown();
     otpModal.hidden = true;
 }
 
@@ -159,14 +254,12 @@ async function getApprovedDestination(userId) {
     }
 
     if (staff) {
-        // Only Active staff accounts (status_id = 1) may continue.
         if (staff.status_id !== 1) {
             throw new Error(
                 "Your staff account is inactive or unavailable. Contact the administrator."
             );
         }
 
-        // Retrieve the staff role.
         const { data: role, error: roleError } = await supabase
             .from("staff_roles")
             .select("role_name")
@@ -239,7 +332,7 @@ async function getApprovedDestination(userId) {
     const rolePages = {
         farmer: "./pages/farmer/farmer-dashboard.html",
         buyer: "./pages/buyers/browse-produce.html",
-        supplier: "./pages/supplier-dashboard.html"
+        supplier: "./pages/supplier/supplier-dashboard.html"
     };
 
     const destination = rolePages[profile.role];
@@ -251,6 +344,7 @@ async function getApprovedDestination(userId) {
     return destination;
 }
 
+/** Invoke the OTP Edge Function and preserve cooldown information. */
 async function invokeOtpFunction(body) {
     const { data, error } = await supabase.functions.invoke(
         "email-otp-login",
@@ -258,23 +352,41 @@ async function invokeOtpFunction(body) {
     );
 
     if (error) {
-        let details = "";
+        let responseBody = {};
 
         try {
             if (error.context && typeof error.context.json === "function") {
-                const responseBody = await error.context.clone().json();
-                details = responseBody.error || JSON.stringify(responseBody);
+                responseBody = await error.context.clone().json();
             }
         } catch {
             // Keep the original Supabase error if the response is not JSON.
         }
 
-        console.error("OTP function error:", details || error);
-        throw new Error(details || error.message);
+        console.error("OTP function error:", responseBody || error);
+
+        const otpError = new Error(
+            responseBody.error || error.message
+        );
+
+        otpError.cooldown = responseBody.cooldown === true;
+        otpError.retryAfter = responseBody.retryAfter;
+        otpError.cooldownUntil = responseBody.cooldownUntil;
+        otpError.locked = responseBody.locked === true;
+
+        throw otpError;
     }
 
     if (!data?.success) {
-        throw new Error(data?.error || "The OTP request failed.");
+        const otpError = new Error(
+            data?.error || "The OTP request failed."
+        );
+
+        otpError.cooldown = data?.cooldown === true;
+        otpError.retryAfter = data?.retryAfter;
+        otpError.cooldownUntil = data?.cooldownUntil;
+        otpError.locked = data?.locked === true;
+
+        throw otpError;
     }
 
     return data;
@@ -308,7 +420,9 @@ form.addEventListener("submit", async event => {
         const challengeId = requestData.challengeId;
 
         if (!challengeId) {
-            throw new Error("The server did not return an OTP challenge.");
+            throw new Error(
+                "The server did not return an OTP challenge."
+            );
         }
 
         passwordInput.value = "";
@@ -330,6 +444,11 @@ form.addEventListener("submit", async event => {
             otpForm.onsubmit = async otpEvent => {
                 otpEvent.preventDefault();
 
+                if (otpCooldownUntil > Date.now()) {
+                    updateOtpCooldown();
+                    return;
+                }
+
                 const code = getOtpValue();
 
                 if (!/^\d{6}$/.test(code)) {
@@ -340,8 +459,7 @@ form.addEventListener("submit", async event => {
                 if (otpSubmitting) return;
 
                 otpSubmitting = true;
-                otpVerifyButton.disabled = true;
-                otpVerifyButton.textContent = "Verifying...";
+                updateVerifyButton();
 
                 try {
                     // STEP 3: Verify the OTP.
@@ -361,22 +479,35 @@ form.addEventListener("submit", async event => {
                     }
 
                     verifiedSession = verifyData.session;
+
+                    stopOtpCooldown();
                     otpModal.hidden = true;
+
                     finish(code);
                 } catch (error) {
-                    setOtpError(
-                        error.message || "Invalid code. Please try again."
-                    );
-
                     otpDigits.forEach(input => {
                         input.value = "";
                     });
 
-                    otpDigits[0].focus();
+                    if (error.cooldown || error.locked) {
+                        // Show only the cooldown, not the server error.
+                        otpError.hidden = true;
+                        otpError.textContent = "";
+
+                        startOtpCooldown(
+                            error.cooldownUntil,
+                            error.retryAfter || 60
+                        );
+                    } else {
+                        setOtpError(
+                            error.message || "Invalid code. Please try again."
+                        );
+
+                        otpDigits[0].focus();
+                    }
                 } finally {
                     otpSubmitting = false;
-                    otpVerifyButton.disabled = false;
-                    otpVerifyButton.textContent = "Verify code";
+                    updateVerifyButton();
                 }
             };
 
@@ -394,7 +525,9 @@ form.addEventListener("submit", async event => {
         });
 
         if (otp === null) {
-            showMessage("Verification cancelled. Please log in again.");
+            showMessage(
+                "Verification cancelled. Please log in again."
+            );
             return;
         }
 
@@ -426,6 +559,7 @@ form.addEventListener("submit", async event => {
         );
 
         window.location.replace(destination);
+
     } catch (error) {
         console.error("Login error:", error);
 
@@ -437,6 +571,7 @@ form.addEventListener("submit", async event => {
             error.message || "Unable to log in. Please try again.",
             true
         );
+
     } finally {
         button.disabled = false;
         button.textContent = "Log in →";

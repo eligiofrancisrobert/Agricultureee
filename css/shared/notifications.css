@@ -1,0 +1,251 @@
+/* ============================================================
+   TANIKALA - SHARED NOTIFICATION CENTER
+   Farm Manager and Warehouse Officer only.
+   Uses the Tanikala design tokens so it follows light/dark mode:
+   --surface-card, --background, --border, --primary-text,
+   --secondary-text, --primary-color, --primary-hover, --error,
+   --on-image, --radius, --space-*, --fs-*.
+   ============================================================ */
+
+.notification-center {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* ---- Bell ---- */
+.notification-bell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--surface-card);
+    color: var(--primary-text);
+    cursor: pointer;
+    transition: background-color .25s ease, border-color .25s ease, color .25s ease;
+}
+
+.notification-bell:hover,
+.notification-bell[aria-expanded="true"] {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.notification-bell:focus-visible,
+.notification-item:focus-visible,
+.notification-mark-all:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.notification-bell svg {
+    width: 21px;
+    height: 21px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.notification-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    display: grid;
+    place-items: center;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 5px;
+    border: 2px solid var(--surface-card);
+    border-radius: 20px;
+    background: var(--primary-color);
+    color: var(--on-image, #fff);
+    font-family: 'Poppins', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.notification-count[hidden],
+.notification-panel[hidden] {
+    display: none !important;
+}
+
+/* ---- Panel ---- */
+.notification-panel {
+    position: absolute;
+    z-index: 1000;
+    top: calc(100% + 12px);
+    right: 0;
+    width: min(380px, calc(100vw - 32px));
+    max-height: 470px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-card);
+    color: var(--primary-text);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .35);
+}
+
+.notification-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--border);
+}
+
+.notification-panel-title {
+    margin: 0;
+    font-family: 'Outfit', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.notification-mark-all {
+    padding: 5px 0;
+    border: 0;
+    background: transparent;
+    color: var(--primary-color);
+    font-family: 'Poppins', sans-serif;
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    cursor: pointer;
+    transition: color .2s ease;
+}
+
+.notification-mark-all:hover:not(:disabled) {
+    color: var(--primary-hover);
+}
+
+.notification-mark-all:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+/* ---- List ---- */
+.notification-list {
+    max-height: 390px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.notification-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
+    color: inherit;
+    font-family: 'Poppins', sans-serif;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color .2s ease;
+}
+
+.notification-item:last-child {
+    border-bottom: 0;
+}
+
+.notification-item:hover {
+    background: var(--background);
+}
+
+.notification-item.is-unread {
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+}
+
+.notification-item.is-unread:hover {
+    background: color-mix(in srgb, var(--primary-color) 16%, transparent);
+}
+
+.notification-item-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    gap: 5px;
+}
+
+.notification-item-title {
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.notification-item.is-read .notification-item-title {
+    font-weight: 500;
+}
+
+.notification-item-message {
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.notification-item-date {
+    color: var(--secondary-text);
+    font-size: .7rem;
+    opacity: .8;
+}
+
+.notification-unread-dot {
+    flex: 0 0 8px;
+    width: 8px;
+    height: 8px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: var(--primary-color);
+}
+
+/* ---- Empty / error ---- */
+.notification-empty,
+.notification-error {
+    margin: 0;
+    padding: var(--space-lg) var(--space-md);
+    color: var(--secondary-text);
+    font-size: var(--fs-xs);
+    text-align: center;
+}
+
+.notification-error {
+    color: var(--error);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 480px) {
+    .notification-panel {
+        position: fixed;
+        top: 72px;
+        right: 12px;
+        width: calc(100vw - 24px);
+        max-height: min(470px, calc(100vh - 90px));
+    }
+
+    .notification-list {
+        max-height: calc(min(470px, 100vh - 90px) - 60px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .notification-bell,
+    .notification-item,
+    .notification-mark-all {
+        transition: none;
+    }
+}

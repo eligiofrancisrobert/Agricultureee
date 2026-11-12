@@ -1,9 +1,5 @@
 import { supabase } from "../connection.js";
-const _origSignOut = supabase.auth.signOut.bind(supabase.auth);
-supabase.auth.signOut = (...args) => {
-    alert("signOut called from:\n" + new Error().stack);
-    return _origSignOut(...args);
-};
+
 /* ============================================================
    ACCOUNTANT - shared module
    Theme, auth guard (role: "Accountant"), logout, toast, formatters.
@@ -14,7 +10,7 @@ supabase.auth.signOut = (...args) => {
 
 const THEME_KEY = "theme";
 const LOGIN_URL = "../../login.html";
-const ACCOUNTANT_ROLE = "Accountant";
+const ACCOUNTANT_ROLE_ID = "accountant";
 
 /* ============ THEME (same behavior as farmer main.js) ============ */
 
@@ -126,8 +122,6 @@ function setupLogout() {
     const button = document.getElementById("logoutBtn");
     if (!button) return;
 
-    const defaultHTML = button.innerHTML;
-
     button.addEventListener("click", async () => {
         if (button.disabled) return;
 
@@ -135,14 +129,55 @@ function setupLogout() {
         button.textContent = "Logging out...";
 
         try {
+            // Sign out from Supabase.
             const { error } = await supabase.auth.signOut();
+
             if (error) throw error;
+
+            // Replace current history entry.
             window.location.replace(LOGIN_URL);
+
         } catch (error) {
             console.error("Logout failed:", error);
+
             button.disabled = false;
-            button.innerHTML = defaultHTML;
+            button.textContent = "Logout";
+
             showToast("Unable to log out. Please try again.", "error");
+        }
+    });
+}
+
+/* ============ SESSION GUARD ============ */
+
+let sessionGuardReady = false;
+
+function setupSessionGuard() {
+    if (sessionGuardReady) return;
+    sessionGuardReady = true;
+
+    window.addEventListener("pageshow", async () => {
+        try {
+            const {
+                data: { session },
+                error
+            } = await supabase.auth.getSession();
+
+            if (error || !session) {
+                window.location.replace(LOGIN_URL);
+            }
+        } catch (error) {
+            console.error("Session validation failed:", error);
+            window.location.replace(LOGIN_URL);
+        }
+    });
+    window.addEventListener("pagehide", () => {
+        // Prevent protected page from being restored from bfcache.
+        // This does not sign out the user.
+    });
+    supabase.auth.onAuthStateChange(event => {
+        if (event === "SIGNED_OUT") {
+            window.location.replace(LOGIN_URL);
         }
     });
 }
@@ -155,40 +190,79 @@ function setupLogout() {
 export async function initAccountantPage() {
     initializeTheme();
     setupLogout();
+    setupSessionGuard();
 
-    const {
-        data: { user },
-        error: authError
-    } = await supabase.auth.getUser();
+    try {
+        const {
+            data: { user },
+            error: authError
+        } = await supabase.auth.getUser();
 
-    console.log("auth:", { userId: user?.id, authError });
+        console.log("Accountant authentication:", {
+            userId: user?.id,
+            authError
+        });
 
-    if (authError || !user) {
-        window.location.replace(LOGIN_URL);
-        return null;
+        if (authError || !user) {
+            window.location.replace(LOGIN_URL);
+            return null;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("id, role, status")
+            .eq("id", user.id)
+            .maybeSingle();
+
+        if (profileError) {
+            throw profileError;
+        }
+
+        const role = String(profile?.role ?? "")
+            .trim()
+            .toLowerCase();
+
+        const status = String(profile?.status ?? "")
+            .trim()
+            .toLowerCase();
+
+        const authorized =
+            Boolean(profile) &&
+            role === "accountant" &&
+            ["active", "approved"].includes(status);
+
+        console.log("Accountant access validation:", {
+            userId: user.id,
+            role,
+            status,
+            authorized
+        });
+
+        // Do not sign out a valid Supabase session just because
+        // the profile authorization check failed.
+        if (!authorized) {
+            console.error("Accountant access denied:", profile);
+
+            document.body.innerHTML = `
+                <main style="padding:40px;text-align:center">
+                    <h2>Access Denied</h2>
+                    <p>Your account is not authorized to access this page.</p>
+                    <button onclick="location.replace('../../login.html')">
+                        Return to Login
+                    </button>
+                </main>
+            `;
+
+            return null;
+        }
+
+        setupHeader(user);
+
+        return { user, profile };
+
+    } catch (error) {
+        console.error("Accountant initialization failed:", error);
+
+        throw error;
     }
-
-    const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, role, status")
-        .eq("id", user.id)
-        .maybeSingle();
-
-    console.log("profile:", { profile, profileError });
-
-    if (profileError) throw profileError;
-
-    const role = String(profile?.role ?? "").trim().toLowerCase();
-    const statusOk = ["active", "approved"].includes(profile?.status);
-
-    if (!profile || role !== "accountant" || !statusOk) {
-        console.warn("Accountant access denied:", { profile });
-        await supabase.auth.signOut();
-        window.location.replace(LOGIN_URL);
-        return null;
-    }
-
-    setupHeader(user);
-
-    return { user, profile };
 }

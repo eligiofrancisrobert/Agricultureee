@@ -1,16 +1,40 @@
-import { h, table, person, select, toast, pageHead } from './ui.js';
-import { getLookups, listStaff, createStaff, updateStaff, deleteStaffPermanently, friendlyError } from './staff-api.js';
+
+import {
+    h, table, person, select, toast, pageHead
+} from './ui.js';
+
+import {
+    getLookups,
+    listStaff,
+    listLoginSecurityAccounts,
+    unlockLoginAccount,
+    createStaff,
+    updateStaff,
+    deleteStaffPermanently,
+    friendlyError
+} from './staff-api.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Replace and display a modal dialog, removing it when it closes. */
 function openModal(id, label, ...kids) {
     document.getElementById(id)?.remove();
-    const dialog = h('dialog', { id, class: 'details staff-dialog', 'aria-label': label }, ...kids);
+
+    const dialog = h(
+        'dialog',
+        { id, class: 'details staff-dialog', 'aria-label': label },
+        ...kids
+    );
+
     dialog.addEventListener('close', () => dialog.remove());
-    dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
+
+    dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) dialog.close();
+    });
+
     document.body.append(dialog);
     dialog.showModal();
+
     return dialog;
 }
 
@@ -19,10 +43,21 @@ const STATUS_UI = {
     inactive: ['rejected', 'Inactive'],
     suspended: ['staff-suspended', 'Suspended'],
     deleted: ['staff-deleted', 'Deleted'],
+    locked: ['staff-locked', 'Locked'],
 };
+
 const statusBadge = (a) => {
+    if (a.isLocked) {
+        return h('span', {
+            class: 'badge staff-locked'
+        }, 'Locked');
+    }
+
     const [cls, label] = STATUS_UI[a.status] ?? ['', a.status];
-    return h('span', { class: `badge ${cls}` }, label);
+
+    return h('span', {
+        class: `badge ${cls}`
+    }, label);
 };
 
 /** Build the add/edit form, validate its values, and pass valid data to onSave. */
@@ -62,11 +97,16 @@ function openForm({ account, roles, statuses, isDuplicate, onSave }) {
 
             passwordIn.type = showPassword ? 'text' : 'password';
             passwordToggle.textContent = showPassword ? 'Hide' : 'Show';
+
             passwordToggle.setAttribute(
                 'aria-label',
                 showPassword ? 'Hide password' : 'Show password'
             );
-            passwordToggle.setAttribute('aria-pressed', String(showPassword));
+
+            passwordToggle.setAttribute(
+                'aria-pressed',
+                String(showPassword)
+            );
         }
     }, 'Show');
 
@@ -81,7 +121,11 @@ function openForm({ account, roles, statuses, isDuplicate, onSave }) {
         name: 'role',
         'aria-required': 'true'
     },
-        h('option', { value: '', selected: !account }, 'Select a role'),
+        h('option', {
+            value: '',
+            selected: !account
+        }, 'Select a role'),
+
         roles.map((r) => h('option', {
             value: String(r.id),
             selected: r.id === account?.roleId
@@ -89,9 +133,13 @@ function openForm({ account, roles, statuses, isDuplicate, onSave }) {
     );
 
     const defaultStatus = account?.statusId ??
-        statuses.find((s) => s.name.toLowerCase() === 'active')?.id;
+        statuses.find(
+            (s) => s.name.toLowerCase() === 'active'
+        )?.id;
 
-    const statusSel = h('select', { name: 'status' },
+    const statusSel = h('select', {
+        name: 'status'
+    },
         statuses.map((s) => h('option', {
             value: String(s.id),
             selected: s.id === defaultStatus
@@ -111,7 +159,10 @@ function openForm({ account, roles, statuses, isDuplicate, onSave }) {
     const errEls = Object.fromEntries(
         Object.keys(fields).map((k) => [
             k,
-            h('small', { class: 'err', hidden: true })
+            h('small', {
+                class: 'err',
+                hidden: true
+            })
         ])
     );
 
@@ -134,7 +185,11 @@ function openForm({ account, roles, statuses, isDuplicate, onSave }) {
 
             errEls[k].textContent = msg ?? '';
             errEls[k].hidden = !msg;
-            fields[k].setAttribute('aria-invalid', String(Boolean(msg)));
+
+            fields[k].setAttribute(
+                'aria-invalid',
+                String(Boolean(msg))
+            );
         }
 
         const text = summary ??
@@ -158,9 +213,11 @@ function openForm({ account, roles, statuses, isDuplicate, onSave }) {
         if (!v.email) {
             errors.email = 'Email address is required.';
         } else if (!EMAIL_RE.test(v.email)) {
-            errors.email = 'Enter a valid email address, like name@example.com.';
+            errors.email =
+                'Enter a valid email address, like name@example.com.';
         } else if (isDuplicate(v.email, account?.id)) {
-            errors.email = 'Another staff account already uses this email.';
+            errors.email =
+                'Another staff account already uses this email.';
         }
 
         if (!editing) {
@@ -190,7 +247,9 @@ function openForm({ account, roles, statuses, isDuplicate, onSave }) {
                     }
                 ];
 
-                const failedRule = passwordPolicy.find(rule => !rule.test);
+                const failedRule = passwordPolicy.find(
+                    (rule) => !rule.test
+                );
 
                 if (failedRule) {
                     errors.password = failedRule.message;
@@ -229,6 +288,7 @@ function openForm({ account, roles, statuses, isDuplicate, onSave }) {
                 name: nameIn.value.trim().replace(/\s+/g, ' '),
                 email: emailIn.value.trim().toLowerCase(),
                 statusId: Number(statusSel.value) || null,
+
                 ...(!editing ? {
                     roleId: Number(roleSel.value) || null,
                     password: passwordIn.value
@@ -260,165 +320,361 @@ function openForm({ account, roles, statuses, isDuplicate, onSave }) {
                 toast(msg);
 
                 submit.disabled = false;
-                submit.textContent = editing ? 'Save changes' : 'Add account';
+                submit.textContent = editing
+                    ? 'Save changes'
+                    : 'Add account';
             }
         }
     },
         formError,
         field('name', 'Full name'),
         field('email', 'Email address'),
+
         ...(!editing ? [
             field('password', 'Password (min. 15 characters)'),
             field('role', 'Role')
         ] : []),
+
         field('status', 'Account status'),
+
         h('div', { class: 'staff-buttons' },
             h('button', {
                 class: 'btn ghost',
                 type: 'button',
                 onclick: () => dialog.close()
             }, 'Cancel'),
-            submit)
+
+            submit
+        )
     );
 
     const dialog = openModal(
         'staffFormDialog',
         editing ? 'Edit staff account' : 'Add staff account',
+
         h('div', { class: 'card-head' },
-            h('h2', {}, editing ? 'Edit staff account' : 'Add staff account')
+            h('h2', {},
+                editing ? 'Edit staff account' : 'Add staff account'
+            )
         ),
+
         form
     );
 
     nameIn.focus();
 }
+
 function confirmDelete(account, onConfirm) {
-    const confirmBtn = h('button', { class: 'btn danger', type: 'button' }, 'Delete account');
-    const dialog = openModal('staffDeleteDialog', 'Confirm delete',
-        h('div', { class: 'card-head' }, h('h2', {}, 'Delete account?')),
-        h('p', {}, `${account.name} (${account.email}) will be marked as deleted and hidden from the list. You can restore it later from the "Deleted" status filter.`),
+    const confirmBtn = h(
+        'button',
+        {
+            class: 'btn danger',
+            type: 'button'
+        },
+        'Delete account'
+    );
+
+    const dialog = openModal(
+        'staffDeleteDialog',
+        'Confirm delete',
+
+        h('div', { class: 'card-head' },
+            h('h2', {}, 'Delete account?')
+        ),
+
+        h('p', {},
+            `${account.name} (${account.email}) will be marked as deleted and hidden from the list. You can restore it later from the "Deleted" status filter.`
+        ),
+
         h('div', { class: 'staff-buttons' },
-            h('button', { class: 'btn ghost', type: 'button', onclick: () => dialog.close() }, 'Cancel'),
-            confirmBtn));
+            h('button', {
+                class: 'btn ghost',
+                type: 'button',
+                onclick: () => dialog.close()
+            }, 'Cancel'),
+
+            confirmBtn
+        )
+    );
+
     confirmBtn.addEventListener('click', async () => {
         if (confirmBtn.disabled) return;
+
         confirmBtn.disabled = true;
         confirmBtn.textContent = 'Deleting...';
+
         await onConfirm();
         dialog.close();
     });
 }
 
 function confirmPermanentDelete(account, onConfirm, seconds = 5) {
-    const confirmBtn = h('button', { class: 'btn danger', type: 'button', disabled: true }, `Delete permanently (${seconds})`);
-    const dialog = openModal('staffPurgeDialog', 'Confirm permanent delete',
-        h('div', { class: 'card-head' }, h('h2', {}, 'Delete permanently?')),
-        h('p', {}, `${account.name} (${account.email}) will be erased for good, along with their sign-in login if they have one. This can't be undone.`),
+    const confirmBtn = h(
+        'button',
+        {
+            class: 'btn danger',
+            type: 'button',
+            disabled: true
+        },
+        `Delete permanently (${seconds})`
+    );
+
+    const dialog = openModal(
+        'staffPurgeDialog',
+        'Confirm permanent delete',
+
+        h('div', { class: 'card-head' },
+            h('h2', {}, 'Delete permanently?')
+        ),
+
+        h('p', {},
+            `${account.name} (${account.email}) will be erased for good, along with their sign-in login if they have one. This can't be undone.`
+        ),
+
         h('div', { class: 'staff-buttons' },
-            h('button', { class: 'btn ghost', type: 'button', onclick: () => dialog.close() }, 'Cancel'),
-            confirmBtn));
+            h('button', {
+                class: 'btn ghost',
+                type: 'button',
+                onclick: () => dialog.close()
+            }, 'Cancel'),
+
+            confirmBtn
+        )
+    );
 
     let left = seconds;
+
     const timer = setInterval(() => {
         left -= 1;
+
         if (left > 0) {
-            confirmBtn.textContent = `Delete permanently (${left})`;
+            confirmBtn.textContent =
+                `Delete permanently (${left})`;
         } else {
             clearInterval(timer);
             confirmBtn.disabled = false;
             confirmBtn.textContent = 'Delete permanently';
         }
     }, 1000);
+
     dialog.addEventListener('close', () => clearInterval(timer));
 
     confirmBtn.addEventListener('click', async () => {
         if (confirmBtn.disabled) return;
+
         confirmBtn.disabled = true;
         confirmBtn.textContent = 'Deleting...';
+
         const ok = await onConfirm();
-        if (ok) dialog.close();
-        else { confirmBtn.disabled = false; confirmBtn.textContent = 'Delete permanently'; }
+
+        if (ok) {
+            dialog.close();
+        } else {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Delete permanently';
+        }
     });
 }
 
 export async function render(root, ctx) {
+    let lookups = {
+        roles: [],
+        statuses: []
+    };
 
-    let lookups = { roles: [], statuses: [] };
     let accounts = [];
-    const filter = { role: 'all', status: 'current' };
+
+    const filter = {
+        role: 'all',
+        status: 'current'
+    };
 
     const holder = h('div');
-    const count = h('p', { class: 'muted staff-count' });
-    const toolbar = h('div', { class: 'toolbar' });
+    const count = h('p', {
+        class: 'muted staff-count'
+    });
+
+    const toolbar = h('div', {
+        class: 'toolbar'
+    });
 
     const search = h('input', {
-        type: 'search', class: 'staff-search', placeholder: 'Search name or email',
-        'aria-label': 'Search staff by name or email', value: ctx?.query ?? '',
+        type: 'search',
+        class: 'staff-search',
+        placeholder: 'Search name or email',
+        'aria-label': 'Search staff by name or email',
+        value: ctx?.query ?? '',
         oninput: () => draw(),
     });
 
-    const statusIdFor = (key) => lookups.statuses.find((s) => s.name.toLowerCase() === key)?.id;
+    const statusIdFor = (key) =>
+        lookups.statuses.find(
+            (s) => s.name.toLowerCase() === key
+        )?.id;
+
+    /** Unlock a staff member's login without changing staff account status. */
+    const unlockAccount = async (a, btn) => {
+        if (!a.userId) {
+            toast(
+                'This staff account has no linked authentication user.'
+            );
+            return;
+        }
+
+        if (!window.confirm(
+            `Unlock the login account of ${a.name}?`
+        )) {
+            return;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Unlocking...';
+        }
+
+        try {
+            await unlockLoginAccount(a.userId);
+
+            a.isLocked = false;
+            a.failedAttempts = 0;
+            a.lockedAt = null;
+            a.lockedReason = null;
+
+            toast(`${a.name}'s login account has been unlocked.`);
+        } catch (err) {
+            console.error('Staff account unlock failed:', err);
+            toast(friendlyError(err));
+
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Unlock Account';
+            }
+        }
+
+        draw();
+    };
 
     const draw = () => {
         const q = search.value.trim().toLowerCase();
+
         const rows = accounts.filter((a) =>
-            (filter.role === 'all' || String(a.roleId) === filter.role) &&
+            (filter.role === 'all' ||
+                String(a.roleId) === filter.role) &&
+
             (filter.status === 'all' ? true
-                : filter.status === 'current' ? a.status !== 'deleted'
+                : filter.status === 'current'
+                    ? a.status !== 'deleted'
                     : a.status === filter.status) &&
-            `${a.name} ${a.email}`.toLowerCase().includes(q));
 
-        const roleCell = (a) => h(
-            'span',
-            { class: 'staff-role' },
-            a.role || 'Unassigned'
-        );;
-
-        const assignMunicipalityBtn = h(
-            'button',
-            {
-                class: 'btn ghost',
-                type: 'button',
-                hidden: true,
-                onclick: () => {
-                    window.location.href = './assigned-farm-managers.html';
-                },
-            },
-            'Assign Municipality'
+            `${a.name} ${a.email}`.toLowerCase().includes(q)
         );
+
+        const roleCell = (a) =>
+            h('span', {
+                class: 'staff-role'
+            }, a.role || 'Unassigned');
 
         const actionsCell = (a) => a.status === 'deleted'
             ? h('div', { class: 'actions' },
-                h('button', { class: 'btn ghost', type: 'button', onclick: (e) => setStatus(a, 'active', e.currentTarget) }, 'Restore'),
-                h('button', { class: 'btn danger', type: 'button', onclick: () => confirmPermanentDelete(a, () => purge(a)) }, 'Delete permanently'))
-            : h('div', { class: 'actions' },
-                h('button', { class: 'btn ghost', type: 'button', onclick: () => openEdit(a) }, 'Edit'),
+
                 h('button', {
-                    class: 'btn ghost', type: 'button',
-                    onclick: (e) => setStatus(a, a.status === 'active' ? 'suspended' : 'active', e.currentTarget)
-                }, a.status === 'active' ? 'Suspend' : 'Reactivate'),
-                h('button', { class: 'btn danger', type: 'button', onclick: () => confirmDelete(a, () => setStatus(a, 'deleted')) }, 'Delete'));
+                    class: 'btn ghost',
+                    type: 'button',
+                    onclick: (e) => setStatus(
+                        a,
+                        'active',
+                        e.currentTarget
+                    )
+                }, 'Restore'),
 
-        holder.replaceChildren(table([
-            { label: 'Name', cell: person },
-            { label: 'Email', cell: (a) => a.email },
-            { label: 'Role', cell: roleCell },
-            { label: 'Status', cell: statusBadge },
-            { label: 'Actions', cell: actionsCell },
-        ], rows, accounts.length ? 'No staff accounts match your search or filter.' : 'No staff accounts yet. Use "Add Account" to create one.'));
+                h('button', {
+                    class: 'btn danger',
+                    type: 'button',
+                    onclick: () => confirmPermanentDelete(
+                        a,
+                        () => purge(a)
+                    )
+                }, 'Delete permanently')
+            )
 
-        count.textContent = `Showing ${rows.length} of ${accounts.length} account${accounts.length === 1 ? '' : 's'}`;
+            : h('div', { class: 'actions' },
+
+                h('button', {
+                    class: 'btn ghost',
+                    type: 'button',
+                    onclick: () => openEdit(a)
+                }, 'Edit'),
+
+                ...(a.isLocked ? [
+                    h('button', {
+                        class: 'btn',
+                        type: 'button',
+                        onclick: (e) => unlockAccount(
+                            a,
+                            e.currentTarget
+                        )
+                    }, 'Unlock Account')
+                ] : []),
+
+                h('button', {
+                    class: 'btn ghost',
+                    type: 'button',
+                    onclick: (e) => setStatus(
+                        a,
+                        a.status === 'active'
+                            ? 'suspended'
+                            : 'active',
+                        e.currentTarget
+                    )
+                },
+                    a.status === 'active'
+                        ? 'Suspend'
+                        : 'Reactivate'
+                ),
+
+                h('button', {
+                    class: 'btn danger',
+                    type: 'button',
+                    onclick: () => confirmDelete(
+                        a,
+                        () => setStatus(a, 'deleted')
+                    )
+                }, 'Delete')
+            );
+
+        holder.replaceChildren(
+            table([
+                { label: 'Name', cell: person },
+                { label: 'Email', cell: (a) => a.email },
+                { label: 'Role', cell: roleCell },
+                { label: 'Status', cell: statusBadge },
+                { label: 'Actions', cell: actionsCell },
+            ],
+                rows,
+
+                accounts.length
+                    ? 'No staff accounts match your search or filter.'
+                    : 'No staff accounts yet. Use "Add Account" to create one.'
+            )
+        );
+
+        count.textContent =
+            `Showing ${rows.length} of ${accounts.length} account${accounts.length === 1 ? '' : 's'}`;
     };
 
     const replace = (row) => {
-        accounts = accounts.map((a) => (a.id === row.id ? row : a));
+        accounts = accounts.map((a) =>
+            a.id === row.id ? row : a
+        );
     };
 
     const purge = async (account) => {
         try {
             await deleteStaffPermanently(account.id);
 
-            accounts = accounts.filter((a) => a.id !== account.id);
+            accounts = accounts.filter(
+                (a) => a.id !== account.id
+            );
 
             toast(`${account.name} was permanently deleted.`);
             draw();
@@ -434,7 +690,13 @@ export async function render(root, ctx) {
     const formOptions = (extra) => ({
         roles: lookups.roles,
         statuses: lookups.statuses,
-        isDuplicate: (email, ignoreId) => accounts.some((a) => a.id !== ignoreId && a.email.toLowerCase() === email.toLowerCase()),
+
+        isDuplicate: (email, ignoreId) =>
+            accounts.some((a) =>
+                a.id !== ignoreId &&
+                a.email.toLowerCase() === email.toLowerCase()
+            ),
+
         ...extra,
     });
 
@@ -448,8 +710,19 @@ export async function render(root, ctx) {
 
     const openEdit = (a) => openForm(formOptions({
         account: a,
+
         onSave: async (v) => {
-            replace(await updateStaff(a.id, v));
+            const updated = await updateStaff(a.id, v);
+
+            replace({
+                ...a,
+                ...updated,
+                isLocked: a.isLocked,
+                failedAttempts: a.failedAttempts,
+                lockedAt: a.lockedAt,
+                lockedReason: a.lockedReason
+            });
+
             toast(`Updated ${v.name}.`);
             draw();
         },
@@ -457,81 +730,173 @@ export async function render(root, ctx) {
 
     const setStatus = async (a, key, btn) => {
         const statusId = statusIdFor(key);
-        if (!statusId) { toast(`The "${key}" status was not found in the database.`); return; }
+
+        if (!statusId) {
+            toast(
+                `The "${key}" status was not found in the database.`
+            );
+            return;
+        }
+
         if (btn) btn.disabled = true;
+
         try {
-            replace(await updateStaff(a.id, { statusId }));
+            const updated = await updateStaff(a.id, {
+                statusId
+            });
+
+            replace({
+                ...a,
+                ...updated,
+                isLocked: a.isLocked,
+                failedAttempts: a.failedAttempts,
+                lockedAt: a.lockedAt,
+                lockedReason: a.lockedReason
+            });
+
             toast(`${a.name} is now ${key}.`);
         } catch (err) {
             console.error('Status change failed:', err);
             toast(friendlyError(err));
         }
+
         draw();
     };
 
-    const addBtn = h('button', { class: 'btn', type: 'button', disabled: true, onclick: openAdd }, 'Add Account');
+    const addBtn = h('button', {
+        class: 'btn',
+        type: 'button',
+        disabled: true,
+        onclick: openAdd
+    }, 'Add Account');
+
     const assignMunicipalityBtn = h('button', {
         class: 'btn',
         type: 'button',
+        hidden: true,
         onclick: () => {
-            window.location.href = './assigned-farm-managers.html';
+            window.location.href =
+                './assigned-farm-managers.html';
         }
     }, 'Assign Municipality');
-
-    assignMunicipalityBtn.hidden = true;
 
     const assignFarmLocationBtn = h('button', {
         class: 'btn',
         type: 'button',
+        hidden: true,
         onclick: () => {
-            window.location.href = './assigned-warehouse-officers.html';
+            window.location.href =
+                './assigned-warehouse-officers.html';
         }
     }, 'Assign Farm Location');
-
-    assignFarmLocationBtn.hidden = true;
 
     const assignAccountantFarmBtn = h('button', {
         class: 'btn',
         type: 'button',
+        hidden: true,
         onclick: () => {
-            window.location.href = './assigned-accountants.html';
+            window.location.href =
+                './assigned-accountants.html';
         }
     }, 'Assign Farm Location');
 
-    assignAccountantFarmBtn.hidden = true;
+    // Agricultural Technician farm assignment button.
+    const assignTechnicianFarmsBtn = h('button', {
+        class: 'btn',
+        type: 'button',
+        hidden: true,
+        onclick: () => {
+            window.location.href =
+                './assigned-agricultural-technicians.html';
+        }
+    }, 'Assign Farms');
 
+    const updateAssignmentButtons = (roleId) => {
+        const selectedRole = lookups.roles.find(
+            (r) => String(r.id) === roleId
+        );
 
+        const roleName = selectedRole?.name
+            ?.toLowerCase()
+            .trim();
+
+        assignMunicipalityBtn.hidden =
+            roleName !== 'farm manager';
+
+        assignFarmLocationBtn.hidden =
+            roleName !== 'warehouse officer';
+
+        assignAccountantFarmBtn.hidden =
+            roleName !== 'accountant';
+
+        assignTechnicianFarmsBtn.hidden =
+            roleName !== 'agricultural technician';
+    };
 
     const load = async () => {
-        holder.replaceChildren(h('p', { class: 'muted' }, 'Loading staff accounts...'));
+        holder.replaceChildren(
+            h('p', {
+                class: 'muted'
+            }, 'Loading staff accounts...')
+        );
+
         count.textContent = '';
+
         try {
-            [lookups, accounts] = await Promise.all([getLookups(), listStaff()]);
+            const [
+                loadedLookups,
+                loadedAccounts,
+                securityAccounts
+            ] = await Promise.all([
+                getLookups(),
+                listStaff(),
+                listLoginSecurityAccounts()
+            ]);
+
+            lookups = loadedLookups;
+
+            const securityByUserId = new Map(
+                securityAccounts.map((s) => [
+                    s.user_id,
+                    {
+                        isLocked: Boolean(s.locked_at),
+                        failedAttempts: s.failed_attempts ?? 0,
+                        lockedAt: s.locked_at ?? null,
+                        lockedReason: s.locked_reason ?? null
+                    }
+                ])
+            );
+
+            accounts = loadedAccounts.map((a) => ({
+                ...a,
+
+                ...(securityByUserId.get(a.userId) ?? {
+                    isLocked: false,
+                    failedAttempts: 0,
+                    lockedAt: null,
+                    lockedReason: null
+                })
+            }));
+
             toolbar.replaceChildren(
                 search,
+
                 select(
-                    [['all', 'All roles'], ...lookups.roles.map(
-                        (r) => [String(r.id), r.name]
-                    )],
+                    [
+                        ['all', 'All roles'],
+                        ...lookups.roles.map(
+                            (r) => [String(r.id), r.name]
+                        )
+                    ],
                     filter.role,
                     (v) => {
                         filter.role = v;
-
-                        const selectedRole = lookups.roles.find(
-                            (r) => String(r.id) === v
-                        );
-
-                        const roleName = selectedRole?.name?.toLowerCase().trim();
-
-                        assignMunicipalityBtn.hidden = roleName !== 'farm manager';
-                        assignFarmLocationBtn.hidden = roleName !== 'warehouse officer';
-                        assignAccountantFarmBtn.hidden = roleName !== 'accountant';
-
-
+                        updateAssignmentButtons(v);
                         draw();
                     },
                     'Filter by role'
                 ),
+
                 select(
                     [
                         ['current', 'All except deleted'],
@@ -548,23 +913,57 @@ export async function render(root, ctx) {
                     },
                     'Filter by status'
                 ),
+
                 assignMunicipalityBtn,
                 assignFarmLocationBtn,
-                assignAccountantFarmBtn
+                assignAccountantFarmBtn,
+                assignTechnicianFarmsBtn
             );
+
             addBtn.disabled = false;
+
+            updateAssignmentButtons(filter.role);
             draw();
+
         } catch (err) {
-            console.error('Failed to load staff accounts:', err);
+            console.error(
+                'Failed to load staff accounts:',
+                err
+            );
+
             holder.replaceChildren(
-                h('p', { class: 'msg error' }, `${friendlyError(err)} Could not load staff accounts.`),
-                h('button', { class: 'btn ghost staff-retry', type: 'button', onclick: load }, 'Retry'));
+                h('p', {
+                    class: 'msg error'
+                },
+                    `${friendlyError(err)} Could not load staff accounts.`
+                ),
+
+                h('button', {
+                    class: 'btn ghost staff-retry',
+                    type: 'button',
+                    onclick: load
+                }, 'Retry')
+            );
         }
     };
 
     root.append(
-        pageHead('Staff accounts', 'Create and manage staff accounts.', addBtn),
-        h('section', { class: 'card' }, toolbar, holder, count));
+        pageHead(
+            'Staff accounts',
+            'Create and manage staff accounts.',
+            addBtn
+        ),
+
+        h('section', {
+            class: 'card'
+        },
+            toolbar,
+            holder,
+            count
+        )
+    );
+
     toolbar.append(search);
+
     await load();
 }

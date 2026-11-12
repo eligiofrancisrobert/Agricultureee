@@ -1,0 +1,333 @@
+/* ==========================================================
+   DASHBOARD (Agricultural Technician)
+   Built on the shared admin tokens, so it follows the
+   light / dark theme automatically (:root[data-theme="dark"]).
+
+   Tokens used (from the global stylesheet):
+   --bg --card --text --muted --primary --primary-dark
+   --amber --red --mint --shadow --r --border --success
+   --warning --error --surface-card --primary-color
+   ========================================================== */
+
+.at-dashboard-content {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(18px, 2vw, 26px);
+    min-width: 0;
+    color: var(--text);
+}
+
+.at-dashboard-loading {
+    padding: 48px 16px;
+    color: var(--muted);
+    text-align: center;
+}
+
+/* ---------- Metric cards (same look as .tile) ---------- */
+.at-dashboard-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 14px;
+}
+
+.at-metric-card {
+    --metric-color: var(--primary);
+
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--metric-color);
+    border-radius: var(--r);
+    background: color-mix(in srgb, var(--metric-color) 8%, var(--card));
+    box-shadow: var(--shadow);
+    transition: transform .2s, border-color .2s;
+}
+
+.at-metric-card:hover {
+    border-color: var(--metric-color);
+    transform: translateY(-2px);
+}
+
+.at-metric-card-top {
+    flex-shrink: 0;
+}
+
+.at-metric-icon {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--metric-color) 20%, var(--card));
+    font-size: 1.4rem;
+    line-height: 1;
+}
+
+.at-metric-card-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.at-metric-card-content > p {
+    font-size: .78rem;
+}
+
+.at-metric-card-content > span {
+    font-size: .72rem;
+    overflow-wrap: anywhere;
+}
+
+.at-metric-value {
+    color: var(--text);
+    font: 600 1.8rem 'Outfit', sans-serif;
+    line-height: 1.15;
+}
+
+/* ---------- Panels (same look as .fm-panel) ---------- */
+.at-dashboard-panel {
+    min-width: 0;
+    padding: 22px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+}
+
+.at-dashboard-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.at-dashboard-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.at-dashboard-section-header > div {
+    min-width: 0;
+}
+
+.at-dashboard-section-header h2 {
+    font-size: 1.15rem;
+}
+
+.at-dashboard-section-header p {
+    margin-top: 2px;
+    font-size: .85rem;
+}
+
+.at-dashboard-view-all {
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: var(--mint);
+    color: var(--primary-dark);
+    font-size: .78rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background .2s;
+}
+
+.at-dashboard-view-all:hover {
+    background: var(--border);
+}
+
+.at-dashboard-empty {
+    padding: 32px 16px;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    text-align: center;
+}
+
+/* ---------- Tables ---------- */
+.at-dashboard-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.at-dashboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .85rem;
+}
+
+.at-dashboard-table th {
+    padding: 11px 14px;
+    background: var(--bg);
+    color: var(--muted);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .03em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.at-dashboard-table td {
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    vertical-align: middle;
+}
+
+.at-dashboard-table tbody tr {
+    transition: background .15s;
+}
+
+.at-dashboard-table tbody tr:hover {
+    background: color-mix(in srgb, var(--primary-color) 6%, var(--card));
+}
+
+/* ---------- Status badges ---------- */
+.at-status-badge {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: var(--mint);
+    color: var(--text);
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    white-space: nowrap;
+}
+
+.at-status-success {
+    background: color-mix(in srgb, var(--success) 22%, var(--surface-card));
+}
+
+.at-status-warning {
+    background: color-mix(in srgb, var(--warning) 26%, var(--surface-card));
+}
+
+.at-status-danger {
+    background: color-mix(in srgb, var(--error) 22%, var(--surface-card));
+}
+
+.at-status-critical {
+    background: var(--red);
+    color: #fff;
+}
+
+.at-status-neutral {
+    background: var(--mint);
+    color: var(--muted);
+}
+
+/* ---------- Quick actions ---------- */
+.at-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    gap: 12px;
+}
+
+.at-quick-action {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card);
+    color: inherit;
+    text-decoration: none;
+    transition: border-color .2s, background .2s, transform .2s;
+}
+
+.at-quick-action:hover {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary-color) 8%, var(--card));
+    transform: translateY(-2px);
+}
+
+.at-quick-action:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.at-quick-action-icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: var(--mint);
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.at-quick-action-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.at-quick-action-content strong {
+    font-size: .9rem;
+    font-weight: 600;
+}
+
+.at-quick-action-content small {
+    color: var(--muted);
+    font-size: .75rem;
+    line-height: 1.35;
+}
+
+.at-quick-action-arrow {
+    color: var(--primary-dark);
+    font-size: 1.1rem;
+    transition: transform .2s;
+}
+
+.at-quick-action:hover .at-quick-action-arrow {
+    transform: translateX(4px);
+}
+
+/* ---------- Error state (same as .msg.error) ---------- */
+.at-dashboard-panel .msg.error {
+    margin-bottom: 12px;
+    padding: 14px 18px;
+    border: 1px solid var(--red);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--error) 8%, var(--card));
+    color: var(--red);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .at-metric-card,
+    .at-quick-action,
+    .at-quick-action-arrow {
+        transition: none;
+    }
+}
+
+/* ---------- Responsive (same breakpoints as the admin shell) ---------- */
+@media (max-width: 560px) {
+    .at-dashboard-panel {
+        padding: 16px 14px;
+    }
+
+    .at-metric-card {
+        padding: 14px;
+    }
+
+    .at-metric-value {
+        font-size: 1.5rem;
+    }
+
+    .at-dashboard-view-all {
+        align-self: flex-start;
+    }
+}

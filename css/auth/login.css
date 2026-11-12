@@ -233,6 +233,40 @@
     font-size: 14px;
 }
 
+
+/* ============ OTP COOLDOWN ============ */
+
+.otp-cooldown {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    margin: 0 0 14px;
+    padding: 11px 14px;
+    border: 1px solid #E9DCC5;
+    border-radius: 10px;
+    background: #F1E8D9;
+    color: #70491C;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+.otp-cooldown[hidden] {
+    display: none !important;
+}
+
+.otp-cooldown strong {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.otp-verify:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+
 @keyframes otpAppear {
     from {
         opacity: 0;

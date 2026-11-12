@@ -1,0 +1,117 @@
+/* =========================================================
+   TANIKALA - SUPPLIER DASHBOARD
+   ========================================================= */
+
+#view {
+  .dashboard-welcome {
+    padding: var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background:
+      linear-gradient(135deg,
+        color-mix(in srgb, var(--primary-color) 14%, var(--surface-card)),
+        var(--surface-card));
+    box-shadow: 0 2px 10px rgba(101, 53, 40, .08);
+  }
+
+  .section-eyebrow {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--primary-color);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+  }
+
+  .dashboard-welcome h2 {
+    margin: 0 0 6px;
+    color: var(--primary-text);
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  .dashboard-welcome p {
+    margin: 0;
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, .875rem);
+  }
+
+  /* ============ STAT CARDS ============ */
+
+  .supplier-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-md, 20px);
+  }
+
+  .supplier-stat-card {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-card);
+    box-shadow: 0 2px 10px rgba(101, 53, 40, .08);
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  }
+
+  .supplier-stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 9px 22px rgba(101, 53, 40, .13);
+    border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border));
+  }
+
+  .supplier-stat-card span {
+    display: block;
+    color: var(--secondary-text);
+    font-size: .78rem;
+  }
+
+  .supplier-stat-card h3 {
+    margin: 2px 0 0;
+    color: var(--primary-text);
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .stat-icon {
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    font-size: 1.15rem;
+    --stat: var(--primary-color);
+    background: color-mix(in srgb, var(--stat) 14%, var(--surface-card));
+    color: var(--stat);
+  }
+
+  .stat-icon.orange { --stat: var(--primary-color); }
+  .stat-icon.green  { --stat: var(--success, #3f8f5a); }
+  .stat-icon.blue   { --stat: #3b82f6; }
+  .stat-icon.purple { --stat: #8b5cf6; }
+}
+
+@media (max-width: 1200px) {
+  #view .supplier-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  #view .supplier-stat-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #view .supplier-stat-card {
+    transition: none !important;
+  }
+}

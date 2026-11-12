@@ -1,0 +1,674 @@
+/* ============================================================
+   AGRICULTURAL TECHNICIAN SHELL
+   Uses shared design tokens from css/feature/style.css
+   Sidebar sections are updated; main, topbar, toast, and shared
+   elements are unchanged.
+   ============================================================ */
+
+body {
+    margin: 0;
+    font-family: 'Poppins', system-ui, sans-serif;
+    color: var(--primary-text);
+}
+
+[hidden] {
+    display: none !important;
+}
+
+.shell {
+    --sidebar-w: 270px;
+    --topbar-h: 72px;
+    --main-pad-x: var(--space-lg, 32px);
+    --main-pad-b: var(--space-xl, 48px);
+    --topbar-pad-x: var(--space-lg, 32px);
+
+    display: grid;
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: var(--background);
+    color: var(--primary-text);
+}
+
+/* ============================================================
+   SIDEBAR
+   Logo and Log out stay put; only the nav list scrolls.
+   Selectors use .sidebar .nav > a so they win over generic
+   link styles from the shared stylesheet.
+   ============================================================ */
+
+.sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 110;
+    height: 100vh;
+    height: 100dvh;                         /* accounts for mobile browser bars */
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md, 20px);
+    padding: var(--space-md, 20px);
+    overflow: hidden;
+    border-right: 1px solid var(--primary-hover);
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.sidebar .logo {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: var(--space-xs, 8px);
+    padding: 0 var(--space-xs, 8px) var(--space-md, 20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.sidebar .logo h1 {
+    margin: 0;
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+.sidebar .logo h1 span {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.sidebar .logo-image {
+    width: auto;
+    height: 36px;
+    object-fit: contain;
+}
+
+/* NAVIGATION */
+
+.nav {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;                          /* lets the list scroll inside the flex column */
+    gap: 4px;
+
+    /* Padding + matching negative margin give the focus ring room
+       without shifting the layout. */
+    margin: -4px calc(var(--space-xs, 8px) * -1);
+    padding: 4px var(--space-xs, 8px);
+
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.sidebar .nav > a {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm, 12px);
+    min-height: 44px;                       /* comfortable touch target */
+    box-sizing: border-box;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: var(--fs-md, 0.95rem);
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+        background-color 0.2s ease,
+        color 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.sidebar .nav > a svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.sidebar .nav > a:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+}
+
+.sidebar .nav > a.active,
+.sidebar .nav > a[aria-current="page"] {
+    background: #fff;
+    color: var(--primary-color);
+    font-weight: 600;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+}
+
+/* Keyboard focus */
+
+.sidebar .nav > a:focus-visible,
+.nav-logout:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+/* LOGOUT */
+
+.nav-logout {
+    flex-shrink: 0;
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 999px;
+    background: transparent;
+    color: #fff;
+    font-family: inherit;
+    font-size: var(--fs-md, 0.95rem);
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        background-color 0.2s ease,
+        color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.nav-logout:hover:not(:disabled) {
+    border-color: #fff;
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.nav-logout:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ============================================================
+   DARK SIDEBAR
+============================================================ */
+
+:root[data-theme="dark"] .sidebar {
+    border-right: 1px solid var(--border);
+    background: var(--surface-card);
+    color: var(--primary-text);
+}
+
+:root[data-theme="dark"] .sidebar .logo {
+    border-bottom-color: var(--border);
+}
+
+:root[data-theme="dark"] .sidebar .logo h1 {
+    color: var(--primary-text);
+}
+
+:root[data-theme="dark"] .sidebar .logo h1 span {
+    color: var(--secondary);
+}
+
+:root[data-theme="dark"] .nav {
+    scrollbar-color: var(--border) transparent;
+}
+
+/* Inactive items are borderless so the active one stands out */
+
+:root[data-theme="dark"] .sidebar .nav > a {
+    border-color: transparent;
+    background: transparent;
+    color: var(--secondary-text);
+}
+
+:root[data-theme="dark"] .sidebar .nav > a:hover {
+    background: color-mix(in srgb, var(--secondary) 10%, var(--surface-card));
+    color: var(--primary-text);
+}
+
+:root[data-theme="dark"] .sidebar .nav > a.active,
+:root[data-theme="dark"] .sidebar .nav > a[aria-current="page"] {
+    border-color: color-mix(in srgb, var(--primary-color) 35%, transparent);
+    background: color-mix(in srgb, var(--primary-color) 16%, var(--surface-card));
+    color: var(--primary-color);
+    box-shadow: none;
+}
+
+:root[data-theme="dark"] .sidebar .nav > a:focus-visible,
+:root[data-theme="dark"] .nav-logout:focus-visible {
+    outline-color: var(--primary-color);
+}
+
+/* Log out: quiet by default, turns red on hover so it reads as an exit action */
+
+:root[data-theme="dark"] .nav-logout {
+    border-color: var(--border);
+    background: transparent;
+    color: var(--secondary-text);
+}
+
+:root[data-theme="dark"] .nav-logout:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--error) 55%, var(--border));
+    background: color-mix(in srgb, var(--error) 10%, transparent);
+    color: var(--error);
+}
+
+/* ============================================================
+   MAIN
+============================================================ */
+
+.main {
+    min-width: 0;
+    box-sizing: border-box;
+    display: grid;
+    align-content: start;
+    gap: var(--space-lg, 32px);
+    padding: 0 var(--main-pad-x) var(--main-pad-b);
+}
+
+.main > :not(.topbar) {
+    width: 100%;
+    max-width: 1500px;
+    margin-inline: auto;
+    box-sizing: border-box;
+}
+
+.main > .topbar + * {
+    margin-top: calc(var(--space-xl, 48px) - var(--space-lg, 32px));
+}
+
+#view {
+    display: grid;
+    align-content: start;
+    gap: var(--space-lg, 32px);
+    min-width: 0;
+}
+
+/* ============================================================
+   TOPBAR
+============================================================ */
+
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: var(--topbar-h);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md, 20px);
+    margin-inline: calc(var(--main-pad-x) * -1);
+    padding: 0 var(--topbar-pad-x);
+    border-bottom: 1px solid var(--border);
+    background: var(--background);
+}
+
+.search {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm, 12px);
+    flex: 1;
+    min-width: 0;
+    max-width: 460px;
+    height: 44px;
+    box-sizing: border-box;
+    padding: 0 var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-card);
+    color: var(--secondary-text);
+}
+
+.search:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+.search input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+}
+
+.search input::placeholder {
+    color: var(--secondary-text);
+    opacity: 0.7;
+}
+
+.topbar-right {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: var(--space-sm, 12px);
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm, 12px);
+    padding: 6px 6px 6px var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-card);
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+    white-space: nowrap;
+}
+
+.icon-btn {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--surface-card);
+    color: var(--primary-text);
+    cursor: pointer;
+}
+
+.avatar {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: #fff;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+}
+
+/* ============================================================
+   SHARED ELEMENTS
+============================================================ */
+
+.muted {
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+}
+
+.msg {
+    padding: var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-card);
+    color: var(--secondary-text);
+    font-size: var(--fs-sm);
+    text-align: center;
+}
+
+.msg.error {
+    border-color: color-mix(in srgb, var(--error) 40%, var(--border));
+    color: var(--error);
+}
+
+/* TOAST */
+
+.toast {
+    position: fixed;
+    right: var(--space-lg, 32px);
+    bottom: var(--space-lg, 32px);
+    z-index: 10000;
+    min-width: 240px;
+    max-width: min(380px, calc(100% - 32px));
+    box-sizing: border-box;
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--success);
+    border-radius: var(--radius, 10px);
+    background: var(--surface-card);
+    color: var(--primary-text);
+    font-size: var(--fs-sm);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.toast.error,
+.toast--error {
+    border-left-color: var(--error);
+}
+
+.toast.warning,
+.toast--warning {
+    border-left-color: var(--warning);
+}
+
+/* ============================================================
+   HAMBURGER MENU
+   Hidden on desktop; shown at <= 900px (see RESPONSIVE).
+   Behavior: js/agricultural-technician/sidebar-menu.js
+============================================================ */
+
+.menu-toggle,
+.menu-close {
+    display: none;
+    place-items: center;
+    flex-shrink: 0;
+    padding: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease;
+}
+
+.menu-toggle svg,
+.menu-close svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Hamburger button (in the topbar) */
+
+.menu-toggle {
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--border);
+    background: var(--surface-card);
+    color: var(--primary-text);
+}
+
+.menu-toggle:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.menu-toggle:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Close button (inside the drawer, next to the logo) */
+
+.menu-close {
+    width: 40px;
+    height: 40px;
+    margin-left: auto;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: transparent;
+    color: #fff;
+}
+
+.menu-close:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.menu-close:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+:root[data-theme="dark"] .menu-close {
+    border-color: var(--border);
+    color: var(--secondary-text);
+}
+
+:root[data-theme="dark"] .menu-close:hover {
+    background: color-mix(in srgb, var(--secondary) 10%, var(--surface-card));
+    color: var(--primary-text);
+}
+
+:root[data-theme="dark"] .menu-close:focus-visible {
+    outline-color: var(--primary-color);
+}
+
+/* Dimmed page behind the open drawer (only visible on small screens) */
+
+.sidebar-backdrop {
+    display: none;
+}
+
+/* Stops the page behind the drawer from scrolling */
+
+body.menu-locked {
+    overflow: hidden;
+}
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+
+@media (max-width: 1100px) {
+    .shell {
+        --sidebar-w: 230px;
+        --topbar-pad-x: var(--space-md, 20px);
+    }
+}
+
+/* Tablet and phone: the sidebar becomes a slide-in drawer opened by
+   the hamburger button. The .menu-open class is toggled by JS. */
+
+@media (max-width: 900px) {
+    .shell {
+        grid-template-columns: minmax(0, 1fr);
+        --main-pad-x: var(--space-md, 20px);
+        --main-pad-b: var(--space-lg, 32px);
+    }
+
+    .menu-toggle,
+    .menu-close {
+        display: grid;
+    }
+
+    /* Drawer: off-screen and hidden from keyboard/screen readers until opened */
+
+    .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 1100;
+        width: min(300px, 85vw);
+        height: 100vh;
+        height: 100dvh;
+        transform: translateX(-100%);
+        visibility: hidden;
+        transition:
+            transform 0.25s ease,
+            visibility 0s linear 0.25s,
+            box-shadow 0.25s ease;
+    }
+
+    .shell.menu-open .sidebar {
+        transform: none;
+        visibility: visible;
+        box-shadow: 0 0 48px rgba(0, 0, 0, 0.4);
+        transition-delay: 0s;
+    }
+
+    /* Backdrop */
+
+    .sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1090;
+        display: block;
+        background: rgba(20, 17, 14, 0.55);
+        backdrop-filter: blur(2px);
+        opacity: 0;
+        visibility: hidden;
+        transition:
+            opacity 0.25s ease,
+            visibility 0s linear 0.25s;
+    }
+
+    .shell.menu-open .sidebar-backdrop {
+        opacity: 1;
+        visibility: visible;
+        transition-delay: 0s;
+    }
+}
+
+@media (max-width: 600px) {
+    .shell {
+        --main-pad-x: 16px;
+        --main-pad-b: 16px;
+        --topbar-pad-x: 16px;
+    }
+
+    .main,
+    #view {
+        gap: 24px;
+    }
+
+    /* Phone topbar:
+       row 1 = hamburger, date + theme toggle, avatar
+       row 2 = search (full width)
+       `order` rearranges them without touching the HTML. */
+
+    .topbar {
+        height: auto;
+        flex-wrap: wrap;
+        gap: var(--space-sm, 12px);
+        padding: var(--space-sm, 12px) 16px;
+    }
+
+    .menu-toggle {
+        order: 1;
+    }
+
+    .topbar-right {
+        order: 2;
+        flex: 1 1 0;
+        min-width: 0;
+        justify-content: space-between;
+    }
+
+    .search {
+        order: 3;
+        flex: 1 1 100%;
+        max-width: none;
+    }
+
+    #todayLabel {
+        font-size: var(--fs-xs);
+    }
+
+    .avatar {
+        width: 38px;
+        height: 38px;
+    }
+
+    .toast {
+        right: 16px;
+        bottom: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shell *,
+    .toast {
+        transition: none !important;
+        animation: none !important;
+    }
+}

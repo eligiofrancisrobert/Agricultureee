@@ -3,7 +3,7 @@ import {
     createHarvestContributionsSection
 } from './harvest-contributions.js';
 
-const LOW_STOCK_THRESHOLD = 5;
+const LOW_STOCK_THRESHOLD = 10;
 const STORAGE_BUCKET = 'warehouse-inventory-photos';
 const MAX_PHOTO_SIZE = 3 * 1024 * 1024;
 const SIGNED_URL_EXPIRY = 3600;
@@ -457,6 +457,8 @@ async function createInventoryCard({
     details = [],
     onEdit,
     onDelete,
+    onReplenish,
+    replenishPending = false,
     deleteLabel = 'Delete'
 }) {
     const card = el('article', 'wo-inventory-card');
@@ -511,6 +513,26 @@ async function createInventoryCard({
         button(deleteLabel, 'wo-inventory-delete', onDelete)
     );
 
+    if (replenishPending) {
+        const pendingButton = button(
+            'Request Pending',
+            'wo-inventory-replenish-pending',
+            () => { }
+        );
+
+        pendingButton.disabled = true;
+        actions.append(pendingButton);
+
+    } else if (typeof onReplenish === 'function') {
+        actions.append(
+            button(
+                'Replenish',
+                'wo-inventory-replenish',
+                onReplenish
+            )
+        );
+    }
+
     back.append(backHeader, list, actions);
 
     function setFlipped(flipped) {
@@ -560,7 +582,7 @@ function getToolStatus(quantity) {
     return { text: 'Available', className: 'available' };
 }
 
-function createToolCard(item, onEdit, onDelete) {
+function createToolCard(item, onEdit, onDelete, onReplenish) {
     const quantity = Number(item.tool_quantity || 0);
     const status = getToolStatus(quantity);
     const quantityText = `${formatNumber(quantity)} ${item.tool_unit || ''}`.trim();
@@ -575,7 +597,10 @@ function createToolCard(item, onEdit, onDelete) {
             { label: 'Last Updated', value: formatDate(item.updated_at) }
         ],
         onEdit: () => onEdit(item),
-        onDelete: () => onDelete(item)
+        onDelete: () => onDelete(item),
+        onReplenish: quantity <= LOW_STOCK_THRESHOLD
+            ? () => onReplenish(item)
+            : null
     });
 }
 
@@ -751,6 +776,14 @@ async function renderToolForm(category, item, onSaved) {
 /* =========================================================
 WAREHOUSE RPC DATA
 ========================================================= */
+
+/**
+ * Load warehouse people and remove duplicate person entries.
+ *
+ * A person may be associated with multiple farms.
+ * Keep all farm associations while returning only one
+ * dropdown entry per person_id.
+ */
 async function getWarehousePeople() {
     const { data, error } = await supabase.rpc(
         'warehouse_inventory_get_people'
@@ -758,14 +791,49 @@ async function getWarehousePeople() {
 
     if (error) throw error;
 
-    return (data || []).map(person => ({
-        farm_id: person.farm_id,
-        farm_name: person.farm_name,
-        person_id: person.person_id,
-        person_name: person.person_name,
-        relationship_type: person.relationship_type
-    }));
+    const peopleMap = new Map();
+
+    (data || []).forEach(person => {
+        const personId = String(person.person_id || '').trim();
+
+        if (!personId) return;
+
+        if (!peopleMap.has(personId)) {
+            peopleMap.set(personId, {
+                person_id: personId,
+                person_name: person.person_name,
+                relationship_type: person.relationship_type,
+                farm_ids: [],
+                farm_names: []
+            });
+        }
+
+        const uniquePerson = peopleMap.get(personId);
+
+        if (
+            person.farm_id
+            && !uniquePerson.farm_ids.includes(person.farm_id)
+        ) {
+            uniquePerson.farm_ids.push(person.farm_id);
+        }
+
+        if (
+            person.farm_name
+            && !uniquePerson.farm_names.includes(person.farm_name)
+        ) {
+            uniquePerson.farm_names.push(person.farm_name);
+        }
+    });
+
+    return Array.from(peopleMap.values()).sort((a, b) =>
+        String(a.person_name || '').localeCompare(
+            String(b.person_name || ''),
+            undefined,
+            { sensitivity: 'base' }
+        )
+    );
 }
+
 async function getWarehousePlantings() {
     const { data, error } = await supabase.rpc(
         'warehouse_inventory_get_plantings'
@@ -787,7 +855,7 @@ async function getWarehousePlantings() {
 }
 
 function personLabel(person) {
-    return `${person.person_name} — ${person.farm_name}`;
+    return person.person_name || 'Unknown person';
 }
 
 function plantingLabel(planting) {
@@ -797,7 +865,10 @@ function plantingLabel(planting) {
 function getSelectedPerson(people, personId, farmId = null) {
     return people.find(person => (
         person.person_id === personId
-        && (!farmId || person.farm_id === farmId)
+        && (
+            !farmId
+            || person.farm_ids.includes(farmId)
+        )
     ));
 }
 
@@ -816,7 +887,7 @@ async function renderEquipmentBorrowForm(item, people, onSaved) {
 
     const personSelect = createSelect(
         people.map(person => ({
-            value: `${person.farm_id}|${person.person_id}`,
+            value: person.person_id,
             label: personLabel(person)
         })),
         'Select borrower'
@@ -872,13 +943,10 @@ async function renderEquipmentBorrowForm(item, people, onSaved) {
         saveButton.textContent = 'Processing...';
 
         try {
-            const selected = personSelect.value.split('|');
-            const farmId = selected[0];
-            const borrowerId = selected[1];
-
+            const borrowerId = personSelect.value;
             const quantity = Number(quantityInput.value);
 
-            if (!borrowerId || !farmId) {
+            if (!borrowerId) {
                 throw new Error('Please select a borrower.');
             }
 
@@ -943,7 +1011,7 @@ async function renderEquipmentReturnForm(borrow, remaining, people, onSaved) {
 
     const returnedBySelect = createSelect(
         people.map(person => ({
-            value: `${person.farm_id}|${person.person_id}`,
+            value: person.person_id,
             label: personLabel(person)
         })),
         'Select person returning equipment'
@@ -1034,8 +1102,7 @@ async function renderEquipmentReturnForm(borrow, remaining, people, onSaved) {
         saveButton.textContent = 'Processing...';
 
         try {
-            const selected = returnedBySelect.value.split('|');
-            const returnedBy = selected[1];
+            const returnedBy = returnedBySelect.value;
 
             const quantityReturned = Number(quantityInput.value);
             const quantityUsable = Number(usableInput.value);
@@ -1109,6 +1176,7 @@ async function renderEquipmentIncidentForm(
         { value: 'lost', label: 'Lost' },
         { value: 'damaged', label: 'Damaged' }
     ], 'Select incident type');
+    typeSelect.required = true;
 
     const quantityInput = createInput({
         type: 'number',
@@ -1511,22 +1579,26 @@ async function renderSupplyUsageForm(category, item, onSaved) {
 
     const methodInput = createInput({
         name: 'application_method',
-        placeholder: 'e.g. Broadcasting, spraying, drenching'
+        placeholder: 'e.g. Broadcasting, spraying, drenching',
+        required: true
     });
 
     const notesInput = el('textarea');
     notesInput.name = 'notes';
     notesInput.rows = 3;
+    notesInput.required = true;
     notesInput.placeholder = 'Additional notes';
 
     const growthStageInput = createInput({
         name: 'growth_stage',
-        placeholder: 'e.g. Seedling, vegetative, flowering'
+        placeholder: 'e.g. Seedling, vegetative, flowering',
+        required: true
     });
 
     const targetPestInput = createInput({
         name: 'target_pest',
-        placeholder: 'Target pest or disease'
+        placeholder: 'Target pest or disease',
+        required: true
     });
 
     const photoField = createPhotoInput(
@@ -1584,11 +1656,12 @@ async function renderSupplyUsageForm(category, item, onSaved) {
 
     const personSelect = createSelect(
         people.map(person => ({
-            value: `${person.farm_id}|${person.person_id}`,
+            value: person.person_id,
             label: personLabel(person)
         })),
         'Select farmer or worker'
     );
+    personSelect.required = true;
 
     // Show only plantings that are not yet harvested.
     plantings = plantings.filter(planting => (
@@ -1604,9 +1677,9 @@ async function renderSupplyUsageForm(category, item, onSaved) {
             ? 'Select crop / planting'
             : 'No unharvested plantings available'
     );
+    plantingSelect.required = true;
 
-    // When a planting is selected, automatically choose its assigned farmer
-    // when that farmer is present in the people RPC results.
+    // Automatically select the assigned farmer when a planting is selected.
     plantingSelect.addEventListener('change', () => {
         const planting = getSelectedPlanting(
             plantings,
@@ -1622,7 +1695,7 @@ async function renderSupplyUsageForm(category, item, onSaved) {
         );
 
         if (matchingPerson) {
-            personSelect.value = `${matchingPerson.farm_id}|${matchingPerson.person_id}`;
+            personSelect.value = matchingPerson.person_id;
         }
     });
 
@@ -1631,11 +1704,11 @@ async function renderSupplyUsageForm(category, item, onSaved) {
         createField('Farm Planting', plantingSelect, true),
         createField('Quantity Used', quantityInput, true),
         createField('Application Date', applicationDateInput, true),
-        createField('Application Method', methodInput),
+        createField('Application Method', methodInput, true),
         ...(isFertilizer
-            ? [createField('Growth Stage', growthStageInput)]
-            : [createField('Target Pest / Disease', targetPestInput)]),
-        createField('Notes', notesInput),
+            ? [createField('Growth Stage', growthStageInput, true)]
+            : [createField('Target Pest / Disease', targetPestInput, true)]),
+        createField('Notes', notesInput, true),
         photoField.wrapper,
         actions
     );
@@ -1652,9 +1725,7 @@ async function renderSupplyUsageForm(category, item, onSaved) {
         let uploadedPhotoPath = null;
 
         try {
-            const selectedPerson = personSelect.value.split('|');
-            const farmId = selectedPerson[0];
-            const personId = selectedPerson[1];
+            const personId = personSelect.value;
 
             const planting = getSelectedPlanting(
                 plantings,
@@ -1663,7 +1734,7 @@ async function renderSupplyUsageForm(category, item, onSaved) {
 
             const quantity = Number(quantityInput.value);
 
-            if (!personId || !farmId) {
+            if (!personId) {
                 throw new Error('Please select a farmer or worker.');
             }
 
@@ -1671,7 +1742,13 @@ async function renderSupplyUsageForm(category, item, onSaved) {
                 throw new Error('Please select a farm planting.');
             }
 
-            if (planting.farm_id !== farmId) {
+            const selectedPerson = getSelectedPerson(
+                people,
+                personId,
+                planting.farm_id
+            );
+
+            if (!selectedPerson) {
                 throw new Error(
                     'The selected person and planting must belong to the same farm.'
                 );
@@ -1679,6 +1756,22 @@ async function renderSupplyUsageForm(category, item, onSaved) {
 
             if (!Number.isFinite(quantity) || quantity <= 0) {
                 throw new Error('Usage quantity must be greater than zero.');
+            }
+
+            if (!methodInput.value.trim()) {
+                throw new Error('Please enter the application method.');
+            }
+
+            if (!notesInput.value.trim()) {
+                throw new Error('Please enter the notes.');
+            }
+
+            if (isFertilizer && !growthStageInput.value.trim()) {
+                throw new Error('Please enter the growth stage.');
+            }
+
+            if (!isFertilizer && !targetPestInput.value.trim()) {
+                throw new Error('Please enter the target pest or disease.');
             }
 
             if (quantity > quantityAvailable) {
@@ -1722,9 +1815,7 @@ async function renderSupplyUsageForm(category, item, onSaved) {
 
             if (error) throw error;
 
-            // Do not update warehouse_tools_inventory manually.
-            // The database stock trigger handles the deduction.
-
+            // The database stock trigger handles the stock deduction.
             await onSaved();
             closeModal();
 
@@ -1872,6 +1963,144 @@ async function renderSupplyHistory(
     container.replaceChildren(section);
 }
 
+
+async function renderReplenishmentRequestForm(category, item, onSaved) {
+    const form = el('form', 'wo-inventory-form');
+
+    const message = el('p', 'wo-inventory-form-message');
+
+    const quantityInput = createInput({
+        type: 'number',
+        name: 'requested_quantity',
+        min: 1,
+        step: 1,
+        required: true,
+        placeholder: 'Enter requested quantity'
+    });
+
+    const reasonInput = el('textarea');
+    reasonInput.name = 'request_reason';
+    reasonInput.rows = 3;
+    reasonInput.maxLength = 500;
+    reasonInput.required = true;
+    reasonInput.placeholder = 'Explain why replenishment is needed';
+
+    const actions = el('div', 'wo-inventory-form-actions');
+
+    const submitButton = el(
+        'button',
+        'wo-inventory-save',
+        'Submit Request'
+    );
+    submitButton.type = 'submit';
+
+    actions.append(
+        submitButton,
+        button('Cancel', 'wo-inventory-cancel', closeModal)
+    );
+
+    form.append(
+        el('h3', '', 'Request Replenishment'),
+        el(
+            'p',
+            'muted',
+            `Submit a replenishment request for ${item.tool_name}.`
+        ),
+        el('p', 'muted', `Category: ${category}`),
+        el(
+            'p',
+            'muted',
+            `Current Stock: ${formatNumber(item.tool_quantity)} ${item.tool_unit || ''}`
+        ),
+        createField('Requested Quantity', quantityInput, true),
+        createField('Reason', reasonInput, true),
+        actions,
+        message
+    );
+
+    form.addEventListener('submit', async event => {
+        event.preventDefault();
+
+        const requestedQuantity = Number(quantityInput.value);
+        const reason = reasonInput.value.trim();
+
+        if (
+            !Number.isInteger(requestedQuantity) ||
+            requestedQuantity <= 0
+        ) {
+            setFormMessage(
+                message,
+                'Enter a valid quantity greater than zero.'
+            );
+            return;
+        }
+
+        if (!reason) {
+            setFormMessage(message, 'Please provide a reason.');
+            return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.textContent = 'Submitting...';
+
+
+        try {
+            console.log('Submitting replenishment request:', {
+                category,
+                tool_id: item.tool_id,
+                requested_quantity: requestedQuantity
+            });
+
+            const { data, error } = await supabase.rpc(
+                'wo_create_replenishment_request',
+                {
+                    p_tool_id: item.tool_id,
+                    p_requested_quantity: requestedQuantity,
+                    p_request_reason: reason
+                }
+            );
+
+            if (error) throw error;
+
+            if (data?.success === false) {
+                throw new Error(data.message || 'Unable to submit replenishment request.');
+            }
+
+            console.log('Replenishment request submitted:', data);
+
+            closeModal();
+
+            await onSaved();
+
+            alert('Replenishment request submitted successfully.');
+
+        } catch (error) {
+            console.error('Replenishment request failed:', error);
+
+            const errorMessage = error.message || '';
+
+            let userMessage = 'Unable to submit replenishment request. Please try again.';
+
+            if (
+                error.code === '23505' ||
+                errorMessage.includes('uq_warehouse_replenishment_pending_tool') ||
+                errorMessage.toLowerCase().includes('duplicate key')
+            ) {
+                userMessage =
+                    'This item already has a pending replenishment request. Please wait for the Farm Manager to review it before submitting another request.';
+            }
+
+            setFormMessage(message, userMessage);
+
+            submitButton.disabled = false;
+            submitButton.textContent = 'Submit Request';
+        }
+
+    });
+
+    openModal(form);
+}
+
 /* =========================================================
 TOOL INVENTORY PAGE
 ========================================================= */
@@ -1890,7 +2119,6 @@ async function renderToolsInventory(root, config, ctx) {
     const toolbar = el('div', 'wo-inventory-toolbar');
     const summaryGrid = el('div', 'wo-stats-grid');
     const cardGrid = el('div', 'wo-inventory-card-grid');
-
     const historyContainer = el('div', 'wo-inventory-history');
 
     const addButton = button(
@@ -1992,7 +2220,13 @@ async function renderToolsInventory(root, config, ctx) {
         const cards = await Promise.all(
             filteredItems.map(item => createToolCard(
                 item,
-                selected => renderToolForm(category, selected, load),
+
+                selected => renderToolForm(
+                    category,
+                    selected,
+                    load
+                ),
+
                 async selected => {
                     if (!confirm(
                         `Delete "${selected.tool_name}" from inventory?`
@@ -2013,7 +2247,13 @@ async function renderToolsInventory(root, config, ctx) {
 
                     await deleteInventoryPhoto(selected.photo_path);
                     await load();
-                }
+                },
+
+                selected => renderReplenishmentRequestForm(
+                    category,
+                    selected,
+                    load
+                )
             ))
         );
 
@@ -2039,7 +2279,6 @@ async function renderToolsInventory(root, config, ctx) {
                 loadEquipmentHistory()
             ]);
 
-            // Add a borrowing action to every equipment inventory card.
             const equipmentItems = inventory.filter(item => (
                 Number(item.tool_quantity) > 0
             ));
@@ -2179,7 +2418,6 @@ async function renderToolsInventory(root, config, ctx) {
                 plantings
             );
 
-            // Keep the usage actions and history together.
             historyContainer.prepend(
                 usageToolbar,
                 usageGrid
@@ -2269,6 +2507,7 @@ async function renderProduceEditForm(item, onSaved) {
     });
 
     statusSelect.value = item.produce_status || 'available';
+
     statusLabel.append(statusSelect);
 
     const currentPhotoUrl = await getPhotoUrl(item.photo_path);
@@ -2304,6 +2543,7 @@ async function renderProduceEditForm(item, onSaved) {
         saveButton.textContent = 'Saving...';
 
         let uploadedPhotoPath = null;
+        let databaseUpdated = false;
 
         try {
             const payload = {
@@ -2322,24 +2562,55 @@ async function renderProduceEditForm(item, onSaved) {
                 payload.photo_path = uploadedPhotoPath;
             }
 
-            const { error } = await supabase
+            // Update and return the affected record.
+            const { data: updatedRecord, error } = await supabase
                 .from('warehouse_produce_inventory')
                 .update(payload)
-                .eq('produce_id', item.produce_id);
+                .eq('produce_id', item.produce_id)
+                .select('produce_id, photo_path, produce_status')
+                .maybeSingle();
 
             if (error) throw error;
 
-            if (uploadedPhotoPath && item.photo_path) {
-                await deleteInventoryPhoto(item.photo_path);
+            // Supabase update may succeed without affecting any rows.
+            if (!updatedRecord) {
+                throw new Error(
+                    'No produce record was updated. Check the record ID and UPDATE permissions.'
+                );
             }
 
+            databaseUpdated = true;
+
+            console.log('Produce inventory successfully updated:', updatedRecord);
+
+            // Reload inventory so the updated photo path is displayed.
             await onSaved();
+
+            // Delete the previous image only after the database update succeeds.
+            if (
+                uploadedPhotoPath &&
+                item.photo_path &&
+                item.photo_path !== uploadedPhotoPath
+            ) {
+                const { error: deleteError } = await supabase.storage
+                    .from(STORAGE_BUCKET)
+                    .remove([item.photo_path]);
+
+                if (deleteError) {
+                    console.warn(
+                        'Previous produce photo could not be deleted:',
+                        deleteError
+                    );
+                }
+            }
+
             closeModal();
 
         } catch (error) {
             console.error('Produce update failed:', error);
 
-            if (uploadedPhotoPath) {
+            // Delete the new upload only if the database was NOT updated.
+            if (uploadedPhotoPath && !databaseUpdated) {
                 await deleteInventoryPhoto(uploadedPhotoPath);
             }
 
@@ -2457,19 +2728,19 @@ async function renderHarvestInventory(root, config, ctx) {
         const { data: confirmedHarvests, error: harvestError } = await supabase
             .from('harvested_crops')
             .select(`
-                        harvest_id,
-                        harvested_date,
-                        harvest_quantity,
-                        harvest_unit,
-                        confirmation_status,
-                        verified_quantity,
-                        verification_notes,
-                        planting_id,
-                        farm_plantings!harvested_crops_planting_id_fkey (
-        crop_name,
-        products ( product_name )
-    )
-                    `)
+                harvest_id,
+                harvested_date,
+                harvest_quantity,
+                harvest_unit,
+                confirmation_status,
+                verified_quantity,
+                verification_notes,
+                planting_id,
+                farm_plantings!harvested_crops_planting_id_fkey (
+                    crop_name,
+                    products ( product_name )
+                )
+            `)
             .eq('confirmation_status', 'confirmed')
             .order('harvested_date', { ascending: false });
 
@@ -2671,6 +2942,7 @@ async function renderHarvestInventory(root, config, ctx) {
                 eligibleRowsUI
             )
         );
+
         await harvestContributions.load();
     }
 

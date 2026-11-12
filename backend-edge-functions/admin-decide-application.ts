@@ -9,7 +9,6 @@ const allowedOrigins = [
   "https://eligiofrancisrobert.github.io",
 ];
 
-/** Build CORS headers and reflect only origins explicitly trusted by the app. */
 function cors(origin: string | null): Record<string, string> {
   const headers: Record<string, string> = {
     "Access-Control-Allow-Headers":
@@ -26,17 +25,12 @@ function cors(origin: string | null): Record<string, string> {
   return headers;
 }
 
-/**
- * Read a required server-side secret.
- * @throws {Error} When the named environment variable is absent or empty.
- */
 function env(name: string): string {
   const value = Deno.env.get(name);
   if (!value) throw new Error(`Missing server secret: ${name}`);
   return value;
 }
 
-/** Serialize a JSON response using the status and headers selected by the handler. */
 function response(
   body: unknown,
   status: number,
@@ -45,7 +39,6 @@ function response(
   return new Response(JSON.stringify(body), { status, headers });
 }
 
-/** Escape untrusted text before embedding it in an HTML email body. */
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -56,7 +49,6 @@ function escapeHtml(value: string): string {
   })[char] ?? char);
 }
 
-/** Create the SMTP transport from deployment-provided server secrets. */
 function createMailer() {
   return nodemailer.createTransport({
     host: env("SMTP_HOSTNAME"),
@@ -69,8 +61,6 @@ function createMailer() {
   });
 }
 
-// Handle browser preflight first, then authenticate and authorize every decision
-// before changing a profile. This service-role client must never trust the UI alone.
 Deno.serve(async (req: Request) => {
   const headers = cors(req.headers.get("origin"));
 
@@ -128,7 +118,6 @@ Deno.serve(async (req: Request) => {
       return response({ error: "Administrator access required." }, 403, headers);
     }
 
-    // Normalize and constrain input before using it in a database query or email.
     const body = await req.json();
     const userId = String(body?.userId ?? "").trim();
     const requestedStatus = String(body?.status ?? "").trim().toLowerCase();
@@ -170,7 +159,6 @@ Deno.serve(async (req: Request) => {
       return response({ error: "Applicant not found." }, 404, headers);
     }
 
-    // Avoid duplicate writes and notifications when an account already matches.
     const previousStatus = applicant.status;
     const nextStatus = databaseStatus[requestedStatus];
 
@@ -198,8 +186,6 @@ Deno.serve(async (req: Request) => {
     }
 
     // Only email actual application decisions, not suspensions/reactivations.
-    // Only application approval/rejection transitions trigger email; other
-    // administrative status changes are persisted without notifying the user.
     const shouldSendApproval =
       requestedStatus === "active" &&
       ["pending", "rejected"].includes(previousStatus);
@@ -224,7 +210,6 @@ Deno.serve(async (req: Request) => {
       }, 200, headers);
     }
 
-    // Prepare plain-text and escaped HTML variants for the same decision notice.
     const name = updated.full_name || "Tanikala applicant";
     const safeName = escapeHtml(name);
     const loginUrl =
@@ -282,8 +267,6 @@ Tanikala Team`;
        <p>Thank you,<br>Tanikala Team</p>
      </div>`;
 
-    // Status changes are durable even if SMTP fails, so mail failure is reported
-    // separately rather than suggesting that the database update was rolled back.
     try {
       await createMailer().sendMail({
         from: {

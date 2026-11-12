@@ -1,0 +1,575 @@
+/* ==========================================================
+   AUDIT LOGS (Admin)
+   Built on the shared admin tokens, so it follows the
+   light / dark theme automatically (:root[data-theme="dark"]).
+
+   Tokens used (from the global stylesheet):
+   --bg --card --text --muted --primary --primary-dark
+   --amber --red --mint --shadow --r --border --success
+   --warning --error --surface-card --primary-color
+   ========================================================== */
+
+.audit-page {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(16px, 2vw, 24px);
+    min-width: 0;
+    color: var(--text);
+}
+
+/* ---------- Metric cards (same look as .tile) ---------- */
+.audit-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 14px;
+}
+
+.audit-metric {
+    --mc: var(--primary);
+
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--mc);
+    border-radius: var(--r);
+    background: color-mix(in srgb, var(--mc) 8%, var(--card));
+    box-shadow: var(--shadow);
+    transition: transform .2s, border-color .2s;
+}
+
+.audit-metric:hover {
+    border-color: var(--mc);
+    transform: translateY(-2px);
+}
+
+.audit-metric--brown {
+    --mc: var(--primary);
+}
+
+.audit-metric--green {
+    --mc: var(--success);
+}
+
+.audit-metric--blue {
+    --mc: #6486b5;
+}
+
+.audit-metric--orange {
+    --mc: var(--amber, var(--warning));
+}
+
+.audit-metric-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.audit-metric-icon {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--mc) 20%, var(--card));
+    color: var(--mc);
+    font-size: 1.05rem;
+    line-height: 1;
+}
+
+.audit-metric-label {
+    color: var(--muted);
+    font-size: .78rem;
+    font-weight: 500;
+}
+
+.audit-metric-value {
+    color: var(--text);
+    font: 600 1.8rem 'Outfit', sans-serif;
+    line-height: 1.15;
+}
+
+.audit-metric-description {
+    color: var(--muted);
+    font-size: .74rem;
+}
+
+/* ---------- Toolbar ---------- */
+.audit-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+}
+
+.audit-toolbar-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.audit-toolbar-heading > div {
+    min-width: 0;
+}
+
+.audit-toolbar-heading h2 {
+    font-size: 1.15rem;
+}
+
+.audit-toolbar-heading p {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: .85rem;
+}
+
+.audit-result-count {
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: var(--mint);
+    color: var(--primary-dark);
+    font-size: .75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.audit-toolbar-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+/* Search pill */
+.audit-search {
+    flex: 1 1 320px;
+    min-width: 200px;
+    max-width: 440px;
+    min-height: 48px;
+    padding: 0 20px 0 48px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background-color: var(--card);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 18px center;
+    color: var(--text);
+    transition: border-color .2s;
+}
+
+.audit-search::placeholder {
+    color: var(--muted);
+}
+
+.audit-search:hover,
+.audit-search:focus {
+    border-color: var(--primary);
+}
+
+/* Action filter (select comes from ui.js) */
+.audit-toolbar-controls select {
+    flex: 0 1 220px;
+    min-width: 160px;
+    min-height: 42px;
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color .2s;
+}
+
+.audit-toolbar-controls select:hover,
+.audit-toolbar-controls select:focus {
+    border-color: var(--primary);
+}
+
+/* ---------- Table card ---------- */
+.audit-table-card {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+}
+
+.audit-table-wrap {
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.audit-table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .85rem;
+}
+
+.audit-table-wrap th {
+    padding: 12px 16px;
+    background: var(--bg);
+    color: var(--muted);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .03em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.audit-table-wrap td {
+    padding: 13px 16px;
+    border-top: 1px solid var(--border);
+    vertical-align: middle;
+}
+
+.audit-table-wrap tbody tr {
+    transition: background .15s;
+}
+
+.audit-table-wrap tbody tr:hover {
+    background: color-mix(in srgb, var(--primary-color) 6%, var(--card));
+}
+
+/* Actor cell */
+.audit-actor {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.audit-actor strong {
+    font-size: .88rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.audit-actor span {
+    color: var(--muted);
+    font-size: .75rem;
+    overflow-wrap: anywhere;
+}
+
+/* View details button */
+.audit-view-button {
+    padding: 6px 12px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--primary-dark);
+    font-size: .8rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background .2s;
+}
+
+.audit-view-button:hover {
+    background: var(--mint);
+}
+
+/* ---------- Action badges ----------
+   The class suffix is the action text, so common verbs are
+   matched by keyword. */
+.audit-action-badge {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: var(--mint);
+    color: var(--text);
+    font-size: .75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Sign-in / create / approve */
+.audit-action-badge[class*="login"],
+.audit-action-badge[class*="sign-in"],
+.audit-action-badge[class*="create"],
+.audit-action-badge[class*="insert"],
+.audit-action-badge[class*="add"],
+.audit-action-badge[class*="approve"] {
+    background: color-mix(in srgb, var(--success) 22%, var(--surface-card));
+}
+
+/* Update / edit */
+.audit-action-badge[class*="update"],
+.audit-action-badge[class*="edit"],
+.audit-action-badge[class*="change"] {
+    background: color-mix(in srgb, #6486b5 24%, var(--surface-card));
+}
+
+/* Password / security / reset */
+.audit-action-badge[class*="password"],
+.audit-action-badge[class*="reset"],
+.audit-action-badge[class*="security"] {
+    background: color-mix(in srgb, var(--warning) 26%, var(--surface-card));
+}
+
+/* Delete / failed / reject / suspend */
+.audit-action-badge[class*="delete"],
+.audit-action-badge[class*="remove"],
+.audit-action-badge[class*="fail"],
+.audit-action-badge[class*="reject"],
+.audit-action-badge[class*="suspend"],
+.audit-action-badge[class*="deactivate"] {
+    background: color-mix(in srgb, var(--error) 22%, var(--surface-card));
+}
+
+/* Account lockdown: solid red as a warning (placed after the
+   other rules so it wins if the action text matches several) */
+.audit-action-badge[class*="lockdown"],
+.audit-action-badge[class*="lockout"],
+.audit-action-badge[class*="account-locked"],
+.audit-action-badge[class*="--locked"] {
+    border: 1px solid #c62828;
+    background: #d32f2f;
+    color: #fff;
+}
+
+/* Sign-out */
+.audit-action-badge[class*="logout"],
+.audit-action-badge[class*="sign-out"] {
+    background: var(--mint);
+    color: var(--muted);
+}
+
+/* ---------- Details dialog ---------- */
+.audit-detail-dialog {
+    width: min(100% - 24px, 720px);
+    max-height: min(90vh, 900px);
+    max-height: min(90dvh, 900px);
+    margin: auto;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface-card);
+    color: var(--text);
+    box-shadow: 0 24px 80px rgb(0 0 0 / 22%);
+}
+
+.audit-detail-dialog[open] {
+    display: flex;
+    flex-direction: column;
+    animation: auditModalIn .22s ease-out;
+}
+
+.audit-detail-dialog::backdrop {
+    background: rgb(20 18 16 / 55%);
+    backdrop-filter: blur(5px);
+}
+
+.audit-detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 22px 24px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.audit-detail-header > div {
+    min-width: 0;
+}
+
+.audit-eyebrow {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--muted);
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+}
+
+.audit-detail-header h2 {
+    font-size: 1.25rem;
+    letter-spacing: -.02em;
+}
+
+/* Close button (same as .icon-btn) */
+.audit-close-button {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--mint);
+    color: var(--primary-dark);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background .2s, transform .2s;
+}
+
+.audit-close-button:hover {
+    background: var(--border);
+    transform: rotate(90deg);
+}
+
+.audit-detail-content {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-height: 0;
+    padding: 20px 24px 24px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+/* Summary: styled like .tile */
+.audit-detail-summary {
+    padding: 14px 16px;
+    border-top: 3px solid var(--primary);
+    border-radius: 0 0 8px 8px;
+    background: color-mix(in srgb, var(--primary-color) 10%, var(--card));
+}
+
+.audit-detail-summary-label {
+    display: block;
+    color: var(--primary-dark);
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+}
+
+.audit-detail-summary h3 {
+    margin-top: 2px;
+    font-size: 1.15rem;
+    overflow-wrap: anywhere;
+}
+
+.audit-detail-summary p {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: .85rem;
+    overflow-wrap: anywhere;
+}
+
+.audit-detail-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.audit-detail-section > h3 {
+    font-size: .95rem;
+}
+
+.audit-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+    gap: 10px;
+}
+
+/* Detail boxes (same as .stat-box) */
+.audit-detail-item {
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.audit-detail-label {
+    display: block;
+    color: var(--muted);
+    font-size: .75rem;
+}
+
+.audit-detail-value {
+    display: block;
+    font-size: .88rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* Previous / new values */
+.audit-detail-data {
+    max-height: 220px;
+    margin: 0;
+    padding: 12px 14px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--text);
+    font: .78rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+@keyframes auditModalIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .audit-detail-dialog[open],
+    .audit-metric,
+    .audit-close-button {
+        animation: none;
+        transition: none;
+    }
+}
+
+/* ---------- Responsive (same breakpoints as the admin shell) ---------- */
+@media (max-width: 560px) {
+    .audit-toolbar {
+        padding: 16px 14px;
+    }
+
+    .audit-toolbar-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .audit-search {
+        flex: 1 1 100%;
+        max-width: none;
+        min-height: 46px;
+    }
+
+    .audit-toolbar-controls select {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .audit-table-wrap th,
+    .audit-table-wrap td {
+        padding: 11px 12px;
+    }
+
+    .audit-detail-dialog {
+        border-radius: 16px;
+    }
+
+    .audit-detail-header {
+        padding: 18px 16px 14px;
+    }
+
+    .audit-detail-content {
+        padding: 16px;
+    }
+}
