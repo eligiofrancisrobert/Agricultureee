@@ -511,15 +511,8 @@ export async function getStats() {
     };
 }
 
-// --- Audit logs & settings ---------------------------------------------------
+// --- Audit logs ---------------------------------------------------
 
-const settings = {
-    requireApproval: true,
-    allowFarmer: true,
-    allowBuyer: true,
-    allowSupplier: true,
-    maintenance: false
-};
 
 const log = (action, target) => {
     console.info('Audit event:', action, target);
@@ -675,12 +668,4 @@ export async function getLogs() {
                 new Date(a.time).getTime()
         )
         .slice(0, 500);
-}
-
-export const getSettings = async () => structuredClone(settings);
-
-export async function saveSettings(values) {
-    Object.assign(settings, values);
-    log('Updated settings', 'Platform');
-    return structuredClone(settings);
 }

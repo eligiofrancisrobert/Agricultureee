@@ -7,7 +7,6 @@ const TITLES = {
     applications: 'Applications',
     users: 'Users',
     audit: 'Audit logs',
-    settings: 'Settings',
     staff: 'Staff accounts',
 };
 

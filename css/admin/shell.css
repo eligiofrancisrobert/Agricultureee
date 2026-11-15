@@ -439,11 +439,6 @@
         min-height: 44px;
     }
 
-    .settings-list li {
-        align-items: flex-start;
-        gap: 14px;
-    }
-
     .delete-modal-actions {
         flex-direction: column-reverse;
     }
