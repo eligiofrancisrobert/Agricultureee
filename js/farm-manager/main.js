@@ -1,6 +1,7 @@
 
 import { supabase } from '../connection.js';
 import { h, toast } from '../admin/ui.js';
+import { hasPermission } from '../admin/permissions.js';
 import {
     initNotifications,
     cleanupNotifications
@@ -20,6 +21,20 @@ const TITLES = {
     reports: 'Reports',
     settings: 'Settings',
     'browse-products': 'Browse Products'
+};
+
+// Permission required for each route.
+const ROUTE_PERMISSIONS = {
+    dashboard: 'dashboard.view',
+    farms: 'farms.view',
+    workers: 'staff.view',
+    'farm-actions': 'plantings.manage',
+    'plant-now': 'plantings.manage',
+    crops: 'plantings.view',
+    harvest: 'harvests.view',
+    reports: 'reports.view',
+    settings: 'settings.view',
+    'browse-products': 'inventory.view'
 };
 
 const root = document.getElementById('view');
@@ -87,6 +102,62 @@ async function requireFarmManager() {
     }
 
     return staff;
+}
+
+// ============================================================
+// PERMISSION CHECKING
+// ============================================================
+
+async function canAccessRoute(key) {
+    const permission = ROUTE_PERMISSIONS[key];
+
+    if (!permission) {
+        console.error(`No permission mapping found for route: ${key}`);
+        return false;
+    }
+
+    return await hasPermission(permission);
+}
+
+
+async function updateNavigationPermissions() {
+    const links = document.querySelectorAll('.nav > a');
+
+    await Promise.all(
+        [...links].map(async (anchor) => {
+            const key = anchor.dataset.view;
+            const permission = ROUTE_PERMISSIONS[key];
+
+            // Leave unrelated navigation links unchanged.
+            if (!permission) return;
+
+            try {
+                const allowed = await hasPermission(permission);
+
+                anchor.hidden = !allowed;
+                anchor.setAttribute(
+                    'aria-hidden',
+                    String(!allowed)
+                );
+            } catch (error) {
+                console.error(
+                    `Failed to check navigation permission: ${key}`,
+                    error
+                );
+
+                anchor.hidden = true;
+            }
+        })
+    );
+}
+
+
+function showAccessDenied() {
+    root.replaceChildren(
+        h('section', { class: 'msg error' },
+            'You do not have permission to access this page.'
+        )
+    );
 }
 
 // ============================================================
@@ -237,7 +308,6 @@ async function setupShoppingCart() {
         location.hash = 'browse-products/cart';
     });
 
-    // Place the cart immediately before the notification bell.
     const notificationCenter = topbar.querySelector(
         '.notification-center'
     );
@@ -305,10 +375,21 @@ async function show() {
     document.title = `${TITLES[key]} | Tanikala Farm Manager`;
 
     root.replaceChildren(
-        h('p', { class: 'muted' }, 'Loading...')
+        h('p', { class: 'muted' }, 'Checking permissions...')
     );
 
     try {
+        const allowed = await canAccessRoute(key);
+
+        if (!allowed) {
+            showAccessDenied();
+            return;
+        }
+
+        root.replaceChildren(
+            h('p', { class: 'muted' }, 'Loading...')
+        );
+
         const view = await import(`./${key}.js`);
 
         if (typeof view.render !== 'function') {
@@ -372,7 +453,7 @@ async function boot() {
     checking = false;
 
     if (!staff) {
-        await supabase.auth.signOut().catch(() => {});
+        await supabase.auth.signOut().catch(() => { });
         location.replace('../../login.html');
         return;
     }
@@ -394,6 +475,8 @@ async function boot() {
     authorized = true;
 
     html.classList.add('fm-authorized');
+
+    await updateNavigationPermissions();
 
     await setupNotifications();
     await setupShoppingCart();

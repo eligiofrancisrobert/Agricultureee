@@ -1,14 +1,19 @@
 
 import { supabase } from '../connection.js';
 import { h, toast } from '../admin/ui.js';
+import { hasPermission } from '../admin/permissions.js';
+
 import {
     initNotifications,
     cleanupNotifications
 } from '../shared/notifications.js';
 
+// =====================================================
+// CONFIGURATION
+// =====================================================
+
 const WAREHOUSE_OFFICER_ROLE_ID = 2;
 const ACTIVE_STATUS_ID = 1;
-
 
 const TITLES = {
     dashboard: 'Dashboard',
@@ -21,6 +26,29 @@ const TITLES = {
     settings: 'Settings'
 };
 
+const ROUTE_PERMISSIONS = {
+    dashboard: 'dashboard.view',
+    'harvest-records': 'harvests.view',
+    'fertilizer-inventory': 'inventory.view',
+    'pesticide-inventory': 'inventory.view',
+    equipment: 'inventory.view',
+    'harvest-inventory': 'harvests.view',
+    deliveries: 'inventory.view',
+    settings: 'settings.view'
+};
+
+// Inventory pages use the shared parent module.
+// The category is passed through ctx.inventoryType.
+const INVENTORY_ROUTES = new Set([
+    'fertilizer-inventory',
+    'pesticide-inventory',
+    'equipment',
+    'harvest-inventory'
+]);
+
+// =====================================================
+// ELEMENTS
+// =====================================================
 
 const root = document.getElementById('view');
 const search = document.getElementById('woSearch');
@@ -29,17 +57,110 @@ const html = document.documentElement;
 
 const ctx = {
     query: '',
-    staff: null
+    staff: null,
+    inventoryType: null
 };
+
+// =====================================================
+// STATE
+// =====================================================
 
 let authorized = false;
 let checking = false;
 let activeViewModule = null;
+let navigationSequence = 0;
+
+const permissionCache = new Map();
+
+let notificationInitialized = false;
+let notificationInitializing = false;
+
+// =====================================================
+// ROUTING
+// =====================================================
 
 const route = () => {
     const name = location.hash.slice(1).split('/')[0];
     return TITLES[name] ? name : 'dashboard';
 };
+
+function getRoutePermission(key) {
+    return ROUTE_PERMISSIONS[key] || null;
+}
+
+async function loadViewModule(key) {
+    if (INVENTORY_ROUTES.has(key)) {
+        ctx.inventoryType = key;
+
+        return import('./inventory-template.js');
+    }
+
+    ctx.inventoryType = null;
+
+    return import(`./${key}.js`);
+}
+
+// =====================================================
+// PERMISSION CACHE
+// =====================================================
+
+async function loadRoutePermissions() {
+    permissionCache.clear();
+
+    const permissions = [
+        ...new Set(
+            Object.values(ROUTE_PERMISSIONS).filter(Boolean)
+        )
+    ];
+
+    const results = await Promise.all(
+        permissions.map(async (permission) => {
+            try {
+                const allowed = await hasPermission(permission);
+                return [permission, Boolean(allowed)];
+            } catch (error) {
+                console.error(
+                    `Permission check failed: ${permission}`,
+                    error
+                );
+
+                return [permission, false];
+            }
+        })
+    );
+
+    results.forEach(([permission, allowed]) => {
+        permissionCache.set(permission, allowed);
+    });
+}
+
+function canAccessRoute(key) {
+    const permission = getRoutePermission(key);
+
+    if (!permission) return false;
+
+    return permissionCache.get(permission) === true;
+}
+
+function updateNavigationPermissions() {
+    document.querySelectorAll('.nav > a').forEach((anchor) => {
+        const key = anchor.dataset.view;
+
+        if (!key || !TITLES[key]) {
+            anchor.hidden = true;
+            return;
+        }
+
+        const allowed = canAccessRoute(key);
+
+        anchor.hidden = !allowed;
+        anchor.setAttribute('aria-hidden', String(!allowed));
+    });
+}
+
+// =====================================================
+// AUTHENTICATION
+// =====================================================
 
 async function requireWarehouseOfficer() {
     const {
@@ -67,37 +188,134 @@ async function requireWarehouseOfficer() {
     return staff;
 }
 
-async function show() {
-    if (!authorized) return;
+// =====================================================
+// PAGE CLEANUP
+// =====================================================
 
-    if (activeViewModule?.cleanup) {
-        activeViewModule.cleanup();
+function cleanupActivePage() {
+    if (!activeViewModule) return;
+
+    try {
+        if (typeof activeViewModule.cleanup === 'function') {
+            activeViewModule.cleanup();
+        } else if (
+            typeof activeViewModule.cleanupInventoryPage === 'function'
+        ) {
+            activeViewModule.cleanupInventoryPage();
+        }
+    } catch (error) {
+        console.error('Page cleanup failed:', error);
     }
 
     activeViewModule = null;
+}
 
+// =====================================================
+// ACCESS DENIED
+// =====================================================
+
+function renderAccessDenied(
+    message = 'You do not have permission to access this page.'
+) {
+    if (!root) return;
+
+    root.replaceChildren(
+        h('div', { class: 'msg error' }, message)
+    );
+}
+
+// =====================================================
+// PAGE LOADING
+// =====================================================
+
+async function show() {
+    if (!authorized || !root) return;
+
+    const sequence = ++navigationSequence;
     const key = route();
 
+    cleanupActivePage();
+
     document.querySelectorAll('.nav > a').forEach((anchor) => {
-        anchor.classList.toggle('active', anchor.dataset.view === key);
+        anchor.classList.toggle(
+            'active',
+            anchor.dataset.view === key
+        );
     });
 
-    document.title = `${TITLES[key]} | Tanikala Warehouse Officer`;
+    document.title =
+        `${TITLES[key]} | Tanikala Warehouse Officer`;
+
+    if (!canAccessRoute(key)) {
+        renderAccessDenied(
+            `You do not have permission to view ${TITLES[key]}.`
+        );
+
+        return;
+    }
 
     root.replaceChildren(
         h('p', { class: 'muted' }, 'Loading...')
     );
 
     try {
-        const view = await import(`./${key}.js`);
+        const view = await loadViewModule(key);
+
+        if (sequence !== navigationSequence) {
+            view.cleanup?.();
+            view.cleanupInventoryPage?.();
+            return;
+        }
+
+        const renderPage =
+            view.render ||
+            view.renderInventoryPage;
+
+        if (typeof renderPage !== 'function') {
+            throw new TypeError(
+                `Page module for "${key}" does not export render() or renderInventoryPage().`
+            );
+        }
 
         activeViewModule = view;
 
         root.replaceChildren();
 
-        await view.render(root, ctx);
-    } catch (err) {
-        console.error('Failed to load Warehouse Officer page:', err);
+        if (INVENTORY_ROUTES.has(key)) {
+            await renderPage(root, {
+                type: key === 'harvest-inventory'
+                    ? 'harvest'
+                    : 'tools',
+                category: key === 'equipment'
+                    ? 'Equipment'
+                    : key === 'fertilizer-inventory'
+                        ? 'Fertilizer'
+                        : key === 'pesticide-inventory'
+                            ? 'Pesticide'
+                            : null
+            }, ctx);
+        } else {
+            await renderPage(root, ctx);
+        }
+
+        if (sequence !== navigationSequence) {
+            if (activeViewModule === view) {
+                cleanupActivePage();
+            } else {
+                view.cleanup?.();
+                view.cleanupInventoryPage?.();
+            }
+        }
+
+    } catch (error) {
+        console.error(
+            'Failed to load Warehouse Officer page:',
+            error
+        );
+
+        if (sequence !== navigationSequence) return;
+
+        cleanupActivePage();
 
         root.replaceChildren(
             h(
@@ -109,18 +327,40 @@ async function show() {
     }
 }
 
+// =====================================================
+// NOTIFICATIONS
+// =====================================================
+
 async function setupNotifications() {
-    cleanupNotifications();
+    if (notificationInitialized || notificationInitializing) {
+        return;
+    }
+
+    notificationInitializing = true;
 
     try {
         await initNotifications(supabase);
+        notificationInitialized = true;
     } catch (error) {
         console.error(
             'Failed to initialize Warehouse Officer notifications:',
             error
         );
+    } finally {
+        notificationInitializing = false;
     }
 }
+
+function stopNotifications() {
+    cleanupNotifications();
+
+    notificationInitialized = false;
+    notificationInitializing = false;
+}
+
+// =====================================================
+// BOOT
+// =====================================================
 
 async function boot() {
     if (checking) return;
@@ -128,16 +368,18 @@ async function boot() {
     checking = true;
     authorized = false;
 
+    navigationSequence++;
+
     html.classList.remove('wo-authorized');
 
-    cleanupNotifications();
+    stopNotifications();
+    cleanupActivePage();
 
     try {
         const staff = await requireWarehouseOfficer();
 
         if (!staff) {
-            await supabase.auth.signOut().catch(() => { });
-
+            await supabase.auth.signOut().catch(() => {});
             location.replace('../../login.html');
             return;
         }
@@ -156,23 +398,38 @@ async function boot() {
                 .toUpperCase();
         }
 
+        await loadRoutePermissions();
+
         authorized = true;
 
         html.classList.add('wo-authorized');
 
-        await setupNotifications();
+        updateNavigationPermissions();
+
         await show();
+
+        void setupNotifications();
+
     } catch (error) {
-        console.error('Warehouse Officer initialization failed:', error);
+        console.error(
+            'Warehouse Officer initialization failed:',
+            error
+        );
 
         authorized = false;
+
         html.classList.remove('wo-authorized');
 
         toast('Unable to initialize your account. Please refresh.');
+
     } finally {
         checking = false;
     }
 }
+
+// =====================================================
+// CHROME / GLOBAL EVENTS
+// =====================================================
 
 function setupChrome() {
     const todayLabel = document.getElementById('todayLabel');
@@ -192,7 +449,9 @@ function setupChrome() {
     if (themeToggle) {
         themeToggle.addEventListener('click', () => {
             const next =
-                html.dataset.theme === 'dark' ? 'light' : 'dark';
+                html.dataset.theme === 'dark'
+                    ? 'light'
+                    : 'dark';
 
             html.dataset.theme = next;
 
@@ -211,18 +470,18 @@ function setupChrome() {
 
                 if (route() === 'dashboard' && ctx.query) {
                     location.hash = 'harvest-records';
-                } else {
-                    show();
                 }
             }, 200);
         });
     }
 
-    window.addEventListener('hashchange', show);
+    window.addEventListener('hashchange', () => {
+        void show();
+    });
 
     window.addEventListener('pageshow', (event) => {
         if (event.persisted) {
-            boot();
+            void boot();
         }
     });
 
@@ -233,7 +492,7 @@ function setupChrome() {
             logoutButton.disabled = true;
             logoutButton.textContent = 'Logging out...';
 
-            cleanupNotifications();
+            stopNotifications();
 
             try {
                 const { error } = await supabase.auth.signOut();
@@ -241,18 +500,23 @@ function setupChrome() {
                 if (error) throw error;
 
                 authorized = false;
+                navigationSequence++;
+
+                cleanupActivePage();
+                permissionCache.clear();
 
                 html.classList.remove('wo-authorized');
 
                 location.replace('../../login.html');
-            } catch (err) {
-                console.error('Logout failed:', err);
+
+            } catch (error) {
+                console.error('Logout failed:', error);
 
                 logoutButton.disabled = false;
                 logoutButton.textContent = 'Log out';
 
                 if (authorized) {
-                    await setupNotifications();
+                    void setupNotifications();
                 }
 
                 toast('Logout failed. Please try again.');
@@ -261,5 +525,9 @@ function setupChrome() {
     }
 }
 
+// =====================================================
+// START APPLICATION
+// =====================================================
+
 setupChrome();
-boot();
+void boot();

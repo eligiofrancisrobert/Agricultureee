@@ -1,7 +1,7 @@
+
 import { supabase } from "../connection.js";
 
 // ---------- THEME ----------
-// Same key as js/feature/theme.js ("theme"), shared by every farmer page.
 
 const THEME_KEY = "theme";
 
@@ -30,8 +30,6 @@ function applyTheme(theme) {
 
     if (toggle) {
         toggle.addEventListener("click", event => {
-            // Stop any other theme handler on this button so the theme
-            // is never toggled twice by one click.
             event.stopImmediatePropagation();
 
             const next =
@@ -49,13 +47,14 @@ function applyTheme(theme) {
         });
     }
 
-    // Keep other open pages in sync.
     window.addEventListener("storage", event => {
         if (event.key === THEME_KEY && event.newValue) {
             applyTheme(event.newValue);
         }
     });
 })();
+
+// ---------- DOM ELEMENTS ----------
 
 const activityList = document.getElementById("activityList");
 const farmerName = document.getElementById("farmerName");
@@ -68,10 +67,12 @@ let currentUser = null;
 let activitiesRealtimeChannel = null;
 let activitiesReloadTimer = null;
 
-// Statuses where the farmer can still accept / decline.
-const DECIDABLE_STATUSES = ["pending"];
 const EVIDENCE_MAX_SIZE = 10 * 1024 * 1024;
-const EVIDENCE_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+const EVIDENCE_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "application/pdf"
+];
 
 // ---------- HELPERS ----------
 
@@ -79,7 +80,9 @@ function createElement(tag, className = "", text = "") {
     const element = document.createElement(tag);
 
     if (className) element.className = className;
-    if (text) element.textContent = text;
+    if (text !== undefined && text !== null) {
+        element.textContent = text;
+    }
 
     return element;
 }
@@ -108,6 +111,24 @@ function formatDate(dateValue) {
     });
 }
 
+function formatDateTime(dateValue) {
+    if (!dateValue) return "Not specified";
+
+    const date = new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) {
+        return "Not specified";
+    }
+
+    return date.toLocaleString("en-PH", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit"
+    });
+}
+
 function displayMessage(message, className = "empty-state") {
     activityList.replaceChildren(
         createElement("div", className, message)
@@ -125,14 +146,24 @@ function getFarmerDisplayName(user, profile) {
     );
 }
 
-// One label-on-top / value-below block.
 function createDetail(label, value) {
     const wrapper = createElement("div", "detail");
+
     wrapper.append(
         createElement("span", "detail-label", label),
         createElement("span", "detail-value", value || "Not specified")
     );
+
     return wrapper;
+}
+
+function getLocalDateValue() {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+
+    return new Date(now.getTime() - offset)
+        .toISOString()
+        .slice(0, 10);
 }
 
 // ---------- FARMER PROFILE ----------
@@ -163,7 +194,9 @@ async function loadFarmerProfile(user) {
 
     const name = getFarmerDisplayName(user, profile);
 
-    if (farmerName) farmerName.textContent = name;
+    if (farmerName) {
+        farmerName.textContent = name;
+    }
 
     if (farmerAvatar) {
         farmerAvatar.textContent = name.charAt(0).toUpperCase();
@@ -189,7 +222,9 @@ async function loadFarms(farmIds) {
         return new Map();
     }
 
-    return new Map((farms || []).map(farm => [farm.id, farm]));
+    return new Map(
+        (farms || []).map(farm => [farm.id, farm])
+    );
 }
 
 // ---------- LINKED PLANTINGS ----------
@@ -220,110 +255,404 @@ async function loadPlantings(plantingIds) {
         return new Map();
     }
 
-    return new Map((plantings || []).map(p => [p.id, p]));
+    return new Map(
+        (plantings || []).map(planting => [planting.id, planting])
+    );
+}
+
+// ---------- COMPLETION AND REVISION HISTORY ----------
+
+async function loadCompletionHistory(actionIds) {
+    if (!actionIds.length) return new Map();
+
+    const { data: completions, error: completionError } = await supabase
+        .from("farm_action_completions")
+        .select(`
+            completion_id,
+            action_id,
+            farmer_id,
+            completion_notes,
+            actual_completion_date,
+            submission_number,
+            submitted_at
+        `)
+        .in("action_id", actionIds)
+        .order("submission_number", { ascending: false });
+
+    if (completionError) {
+        console.error(
+            "Completion history loading error:",
+            completionError
+        );
+
+        return new Map();
+    }
+
+    if (!completions || !completions.length) {
+        return new Map();
+    }
+
+    const completionIds = completions.map(
+        completion => completion.completion_id
+    );
+
+    const { data: verifications, error: verificationError } = await supabase
+        .from("farm_action_verifications")
+        .select(`
+            verification_id,
+            completion_id,
+            manager_id,
+            decision,
+            verification_notes,
+            verified_at
+        `)
+        .in("completion_id", completionIds)
+        .order("verified_at", { ascending: false });
+
+    if (verificationError) {
+        console.error(
+            "Verification history loading error:",
+            verificationError
+        );
+    }
+
+    const verificationMap = new Map();
+
+    (verifications || []).forEach(verification => {
+        if (!verificationMap.has(verification.completion_id)) {
+            verificationMap.set(
+                verification.completion_id,
+                verification
+            );
+        }
+    });
+
+    const historyMap = new Map();
+
+    completions.forEach(completion => {
+        const verification = verificationMap.get(
+            completion.completion_id
+        ) || null;
+
+        const entry = {
+            ...completion,
+            verification
+        };
+
+        if (!historyMap.has(completion.action_id)) {
+            historyMap.set(completion.action_id, []);
+        }
+
+        historyMap.get(completion.action_id).push(entry);
+    });
+
+    return historyMap;
 }
 
 // ---------- ACCEPT / DECLINE ----------
 
 async function updateActivityStatus(activity, newStatus, card, buttons) {
-    buttons.forEach(button => button.disabled = true);
-
-    const response = newStatus === "accepted" ? "accepted" : "declined";
-
-    const { error } = await supabase.rpc("respond_to_farm_action", {
-        p_action_id: activity.action_id,
-        p_response: response,
-        p_response_notes: null
+    buttons.forEach(button => {
+        button.disabled = true;
     });
+
+    const response = newStatus === "accepted"
+        ? "accepted"
+        : "declined";
+
+    const { error } = await supabase.rpc(
+        "respond_to_farm_action",
+        {
+            p_action_id: activity.action_id,
+            p_response: response,
+            p_response_notes: null
+        }
+    );
 
     if (error) {
         console.error("Activity response error:", error);
-        buttons.forEach(button => button.disabled = false);
 
-        const message = card.querySelector(".activity-card__message");
+        buttons.forEach(button => {
+            button.disabled = false;
+        });
+
+        const message = card.querySelector(
+            ".activity-card__message"
+        );
+
         if (message) {
-            message.textContent = error.message || "Unable to respond to this activity.";
+            message.textContent =
+                error.message || "Unable to respond to this activity.";
+
             message.hidden = false;
         }
+
         return;
     }
 
     await loadActivities();
 }
+
+// ---------- START ACTIVITY ----------
 
 async function startActivity(activity, button) {
     button.disabled = true;
 
-    const { error } = await supabase.rpc("start_farm_action", {
-        p_action_id: activity.action_id
-    });
+    const { error } = await supabase.rpc(
+        "start_farm_action",
+        {
+            p_action_id: activity.action_id
+        }
+    );
 
     if (error) {
         console.error("Start activity error:", error);
+
         button.disabled = false;
+
         alert(error.message || "Unable to start this activity.");
+
         return;
     }
 
     await loadActivities();
 }
 
-function getLocalDateValue() {
-    const now = new Date();
-    const offset = now.getTimezoneOffset() * 60000;
-    return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+// ---------- REVISION FEEDBACK DISPLAY ----------
+
+function createRevisionFeedback(activity) {
+    const completion = activity.latestCompletion;
+    const verification = completion?.verification;
+
+    const section = createElement(
+        "section",
+        "activity-revision-feedback"
+    );
+
+    const heading = createElement(
+        "h4",
+        "",
+        "Revision Requested"
+    );
+
+    const description = createElement(
+        "p",
+        "",
+        "Your Farm Manager reviewed your previous submission and requested corrections."
+    );
+
+    section.append(heading, description);
+
+    if (completion) {
+        const previousSubmission = createElement(
+            "div",
+            "activity-previous-submission"
+        );
+
+        previousSubmission.append(
+            createDetail(
+                "Previous submission",
+                `Submission ${completion.submission_number || 1}`
+            ),
+            createDetail(
+                "Submitted on",
+                formatDateTime(completion.submitted_at)
+            ),
+            createDetail(
+                "Completion date",
+                formatDate(completion.actual_completion_date)
+            ),
+            createDetail(
+                "Previous completion notes",
+                completion.completion_notes || "No notes provided."
+            )
+        );
+
+        section.append(previousSubmission);
+    }
+
+    const feedbackBox = createElement(
+        "div",
+        "activity-manager-feedback"
+    );
+
+    feedbackBox.append(
+        createElement("strong", "", "Farm Manager Instructions"),
+        createElement(
+            "p",
+            "",
+            verification?.verification_notes ||
+                "No revision instructions were provided."
+        )
+    );
+
+    if (verification?.verified_at) {
+        feedbackBox.append(
+            createElement(
+                "small",
+                "",
+                `Requested on ${formatDateTime(verification.verified_at)}`
+            )
+        );
+    }
+
+    section.append(feedbackBox);
+
+    return section;
 }
 
-function openCompletionModal(activity) {
-    const overlay = createElement("div", "activity-modal-overlay");
-    const modal = createElement("form", "activity-completion-modal");
+// ---------- COMPLETION MODAL ----------
 
-    const heading = createElement("h2", "", "Submit Activity Completion");
+function openCompletionModal(activity) {
+    const isResubmission =
+        String(activity.status).toLowerCase() === "revision_requested";
+
+    const previousCompletion = activity.latestCompletion;
+    const previousVerification = previousCompletion?.verification;
+
+    const overlay = createElement(
+        "div",
+        "activity-modal-overlay"
+    );
+
+    const modal = createElement(
+        "form",
+        "activity-completion-modal"
+    );
+
+    const heading = createElement(
+        "h2",
+        "",
+        isResubmission
+            ? "Resubmit Activity Completion"
+            : "Submit Activity Completion"
+    );
+
     const description = createElement(
         "p",
         "",
         `Submit your completed work for: ${activity.action_title || "Activity"}`
     );
 
-    const notesLabel = createElement("label", "", "Completion Notes");
+    modal.append(heading, description);
+
+    // Show the manager's revision instructions inside the modal.
+    if (isResubmission) {
+        const revisionBox = createElement(
+            "section",
+            "activity-manager-feedback"
+        );
+
+        revisionBox.append(
+            createElement(
+                "h3",
+                "",
+                "Farm Manager Revision Instructions"
+            ),
+            createElement(
+                "p",
+                "",
+                previousVerification?.verification_notes ||
+                    "Please review your previous submission and make the necessary corrections."
+            )
+        );
+
+        if (previousCompletion) {
+            revisionBox.append(
+                createElement(
+                    "small",
+                    "",
+                    `Previous submission: ${previousCompletion.submission_number || 1}`
+                )
+            );
+        }
+
+        modal.append(revisionBox);
+    }
+
+    const notesLabel = createElement(
+        "label",
+        "",
+        "Completion Notes"
+    );
+
     const notes = createElement("textarea");
+
     notes.required = true;
     notes.rows = 4;
-    notes.placeholder = "Describe the work you completed...";
+    notes.placeholder = isResubmission
+        ? "Describe the corrections you made and the completed work..."
+        : "Describe the work you completed...";
+
     notesLabel.append(notes);
 
-    const dateLabel = createElement("label", "", "Actual Completion Date");
+    const dateLabel = createElement(
+        "label",
+        "",
+        "Actual Completion Date"
+    );
+
     const date = createElement("input");
+
     date.type = "date";
     date.required = true;
     date.value = getLocalDateValue();
     date.max = getLocalDateValue();
+
     dateLabel.append(date);
 
-    const evidenceLabel = createElement("label", "", "Evidence (JPG, PNG, or PDF; maximum 10MB each)");
+    const evidenceLabel = createElement(
+        "label",
+        "",
+        "Evidence (JPG, PNG, or PDF; maximum 10MB each)"
+    );
+
     const evidence = createElement("input");
+
     evidence.type = "file";
-    evidence.accept = ".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf";
+    evidence.accept =
+        ".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf";
     evidence.multiple = true;
+
     evidenceLabel.append(evidence);
 
-    const message = createElement("p", "activity-card__message");
+    const message = createElement(
+        "p",
+        "activity-card__message"
+    );
+
     message.hidden = true;
 
-    const buttons = createElement("div", "activity-actions");
+    const buttons = createElement(
+        "div",
+        "activity-actions"
+    );
 
-    const cancelButton = createElement("button", "btn-reject", "Cancel");
+    const cancelButton = createElement(
+        "button",
+        "btn-reject",
+        "Cancel"
+    );
+
     cancelButton.type = "button";
-    cancelButton.addEventListener("click", () => overlay.remove());
 
-    const submitButton = createElement("button", "btn-approve", "Submit Completion");
+    cancelButton.addEventListener("click", () => {
+        overlay.remove();
+    });
+
+    const submitButton = createElement(
+        "button",
+        "btn-approve",
+        isResubmission
+            ? "Resubmit Completion"
+            : "Submit Completion"
+    );
+
     submitButton.type = "submit";
 
     buttons.append(cancelButton, submitButton);
 
     modal.append(
-        heading,
-        description,
         notesLabel,
         dateLabel,
         evidenceLabel,
@@ -332,6 +661,7 @@ function openCompletionModal(activity) {
     );
 
     let completionId = null;
+
     const uploadedFileKeys = new Set();
 
     modal.addEventListener("submit", async event => {
@@ -347,7 +677,20 @@ function openCompletionModal(activity) {
         if (invalidFile) {
             message.textContent =
                 `${invalidFile.name}: only JPG, PNG, and PDF files up to 10MB are allowed.`;
+
             message.hidden = false;
+
+            return;
+        }
+
+        if (!notes.value.trim()) {
+            message.textContent =
+                "Please provide your completion notes.";
+
+            message.hidden = false;
+
+            notes.focus();
+
             return;
         }
 
@@ -356,14 +699,14 @@ function openCompletionModal(activity) {
         message.hidden = true;
 
         try {
-            // Create the completion only once.
-            // If evidence upload fails, the next attempt reuses this completion.
+            // Create one new completion record.
+            // If evidence upload fails, reuse this completion on retry.
             if (!completionId) {
                 const { data, error } = await supabase.rpc(
                     "submit_farm_action_completion",
                     {
                         p_action_id: activity.action_id,
-                        p_completion_notes: notes.value.trim() || null,
+                        p_completion_notes: notes.value.trim(),
                         p_actual_completion_date: date.value
                     }
                 );
@@ -374,11 +717,18 @@ function openCompletionModal(activity) {
             }
 
             for (const file of files) {
-                const fileKey = `${file.name}:${file.size}:${file.lastModified}`;
+                const fileKey =
+                    `${file.name}:${file.size}:${file.lastModified}`;
 
-                if (uploadedFileKeys.has(fileKey)) continue;
+                if (uploadedFileKeys.has(fileKey)) {
+                    continue;
+                }
 
-                const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+                const safeName = file.name.replace(
+                    /[^a-zA-Z0-9._-]/g,
+                    "_"
+                );
+
                 const filePath =
                     `${currentUser.id}/${completionId}/${crypto.randomUUID()}-${safeName}`;
 
@@ -389,7 +739,9 @@ function openCompletionModal(activity) {
                         upsert: false
                     });
 
-                if (uploadError) throw uploadError;
+                if (uploadError) {
+                    throw uploadError;
+                }
 
                 const { error: insertError } = await supabase
                     .from("farm_action_evidence")
@@ -414,39 +766,56 @@ function openCompletionModal(activity) {
             }
 
             overlay.remove();
+
             await loadActivities();
 
         } catch (error) {
-            console.error("Completion submission error:", error);
+            console.error(
+                "Completion submission error:",
+                error
+            );
 
-            message.textContent =
-                completionId
-                    ? "Completion was created, but evidence upload was incomplete. Select the remaining files and retry."
-                    : error.message || "Unable to submit your completion.";
+            message.textContent = completionId
+                ? "Completion was created, but evidence upload was incomplete. Select the remaining files and retry."
+                : error.message || "Unable to submit your completion.";
 
             message.hidden = false;
+
             submitButton.disabled = false;
             cancelButton.disabled = false;
         }
     });
 
     overlay.append(modal);
+
     document.body.append(overlay);
 }
 
 // ---------- ACTIVITY DISPLAY ----------
 
 function createActivityCard(activity, planting, farm) {
-    const card = createElement("article", "activity-card");
+    const card = createElement(
+        "article",
+        "activity-card"
+    );
+
     card._planting = planting;
     card._farm = farm;
 
-    // --- Header: title + category, status badge ---
-    const header = createElement("div", "activity-card-header");
+    // Header.
+    const header = createElement(
+        "div",
+        "activity-card-header"
+    );
+
     const titleSection = createElement("div");
 
     titleSection.append(
-        createElement("h3", "", activity.action_title || "Untitled Activity"),
+        createElement(
+            "h3",
+            "",
+            activity.action_title || "Untitled Activity"
+        ),
         createElement(
             "p",
             "activity-category",
@@ -467,15 +836,22 @@ function createActivityCard(activity, planting, farm) {
 
     card.append(header);
 
-    // --- Description ---
+    // Description.
     if (activity.description) {
         card.append(
-            createElement("p", "activity-description", activity.description)
+            createElement(
+                "p",
+                "activity-description",
+                activity.description
+            )
         );
     }
 
-    // --- Key details (2 x 2) ---
-    const details = createElement("div", "activity-details");
+    // Activity details.
+    const details = createElement(
+        "div",
+        "activity-details"
+    );
 
     details.append(
         createDetail("Farm", farm?.farm_name || "Unavailable"),
@@ -486,9 +862,12 @@ function createActivityCard(activity, planting, farm) {
 
     card.append(details);
 
-    // --- Planting info: collapsed so the card stays compact ---
+    // Planting information.
     if (planting) {
-        const toggle = createElement("details", "planting-information");
+        const toggle = createElement(
+            "details",
+            "planting-information"
+        );
 
         toggle.append(
             createElement(
@@ -498,7 +877,10 @@ function createActivityCard(activity, planting, farm) {
             )
         );
 
-        const grid = createElement("div", "planting-grid");
+        const grid = createElement(
+            "div",
+            "planting-grid"
+        );
 
         grid.append(
             createDetail("Planting status", planting.status),
@@ -514,47 +896,85 @@ function createActivityCard(activity, planting, farm) {
 
         if (planting.notes) {
             toggle.append(
-                createElement("p", "activity-description", planting.notes)
+                createElement(
+                    "p",
+                    "activity-description",
+                    planting.notes
+                )
             );
         }
 
         card.append(toggle);
     }
 
-    // --- Footer: actions and messages ---
-    const message = createElement("p", "activity-card__message");
+    // Message container.
+    const message = createElement(
+        "p",
+        "activity-card__message"
+    );
+
     message.hidden = true;
+
     card.append(message);
 
-    const status = String(activity.status || "pending").toLowerCase();
-    const actions = createElement("div", "activity-actions");
+    const status = String(
+        activity.status || "pending"
+    ).toLowerCase();
 
+    const actions = createElement(
+        "div",
+        "activity-actions"
+    );
+
+    // Revision feedback.
+    if (status === "revision_requested") {
+        card.append(createRevisionFeedback(activity));
+    }
+
+    // Pending.
     if (status === "pending") {
-        const declineButton = createElement("button", "btn-reject", "Decline");
+        const declineButton = createElement(
+            "button",
+            "btn-reject",
+            "Decline"
+        );
+
         declineButton.type = "button";
 
-        const acceptButton = createElement("button", "btn-approve", "Accept");
+        const acceptButton = createElement(
+            "button",
+            "btn-approve",
+            "Accept"
+        );
+
         acceptButton.type = "button";
 
         declineButton.addEventListener("click", () => {
-            if (!window.confirm("Decline this activity?")) return;
+            if (!window.confirm("Decline this activity?")) {
+                return;
+            }
 
-            updateActivityStatus(activity, "declined", card, [
-                declineButton,
-                acceptButton
-            ]);
+            updateActivityStatus(
+                activity,
+                "declined",
+                card,
+                [declineButton, acceptButton]
+            );
         });
 
         acceptButton.addEventListener("click", () => {
-            updateActivityStatus(activity, "accepted", card, [
-                declineButton,
-                acceptButton
-            ]);
+            updateActivityStatus(
+                activity,
+                "accepted",
+                card,
+                [declineButton, acceptButton]
+            );
         });
 
         actions.append(declineButton, acceptButton);
     }
 
+    // Accepted.
     if (status === "accepted") {
         const startButton = createElement(
             "button",
@@ -563,6 +983,7 @@ function createActivityCard(activity, planting, farm) {
         );
 
         startButton.type = "button";
+
         startButton.addEventListener("click", () => {
             startActivity(activity, startButton);
         });
@@ -570,7 +991,11 @@ function createActivityCard(activity, planting, farm) {
         actions.append(startButton);
     }
 
-    if (status === "in_progress" || status === "revision_requested") {
+    // In progress or revision requested.
+    if (
+        status === "in_progress" ||
+        status === "revision_requested"
+    ) {
         const submitButton = createElement(
             "button",
             "btn-approve",
@@ -580,6 +1005,7 @@ function createActivityCard(activity, planting, farm) {
         );
 
         submitButton.type = "button";
+
         submitButton.addEventListener("click", () => {
             openCompletionModal(activity);
         });
@@ -587,16 +1013,22 @@ function createActivityCard(activity, planting, farm) {
         actions.append(submitButton);
     }
 
+    // Submitted.
     if (status === "submitted") {
+        const latestCompletion = activity.latestCompletion;
+
         card.append(
             createElement(
                 "p",
                 "activity-description",
-                "Your completion has been submitted. Waiting for Farm Manager review."
+                latestCompletion
+                    ? `Submission ${latestCompletion.submission_number || 1} has been submitted. Waiting for Farm Manager review.`
+                    : "Your completion has been submitted. Waiting for Farm Manager review."
             )
         );
     }
 
+    // Verified.
     if (status === "verified") {
         card.append(
             createElement(
@@ -607,6 +1039,7 @@ function createActivityCard(activity, planting, farm) {
         );
     }
 
+    // Declined or cancelled.
     if (status === "declined" || status === "cancelled") {
         card.append(
             createElement(
@@ -626,9 +1059,11 @@ function createActivityCard(activity, planting, farm) {
 
 // ---------- LOAD ASSIGNED ACTIVITIES ----------
 
-/** Fetch activities available to the farmer and render their current statuses. */
 async function loadActivities() {
-    displayMessage("Loading your assigned activities...", "loading-state");
+    displayMessage(
+        "Loading your assigned activities...",
+        "loading-state"
+    );
 
     const { data: activities, error } = await supabase
         .from("farm_actions")
@@ -652,24 +1087,43 @@ async function loadActivities() {
 
     if (error) {
         console.error("Activities loading error:", error);
+
         displayMessage(
             "Unable to load your assigned activities. Please refresh the page or try again later.",
             "error-state"
         );
+
         return;
     }
 
     if (!activities || activities.length === 0) {
-        displayMessage("You currently have no activities assigned to you.");
+        displayMessage(
+            "You currently have no activities assigned to you."
+        );
+
         return;
     }
 
-    const farmIds = activities.map(a => a.farm_id).filter(Boolean);
-    const plantingIds = activities.map(a => a.planting_id).filter(Boolean);
+    const farmIds = activities
+        .map(activity => activity.farm_id)
+        .filter(Boolean);
 
-    const [farmsMap, plantingsMap] = await Promise.all([
+    const plantingIds = activities
+        .map(activity => activity.planting_id)
+        .filter(Boolean);
+
+    const actionIds = activities.map(
+        activity => activity.action_id
+    );
+
+    const [
+        farmsMap,
+        plantingsMap,
+        completionHistoryMap
+    ] = await Promise.all([
         loadFarms(farmIds),
-        loadPlantings(plantingIds)
+        loadPlantings(plantingIds),
+        loadCompletionHistory(actionIds)
     ]);
 
     activityList.replaceChildren();
@@ -683,7 +1137,17 @@ async function loadActivities() {
             ? farmsMap.get(activity.farm_id)
             : null;
 
-        activityList.append(createActivityCard(activity, planting, farm));
+        const history =
+            completionHistoryMap.get(activity.action_id) || [];
+
+        // The history is ordered by submission_number descending.
+        // The first record is the latest submission.
+        activity.latestCompletion = history[0] || null;
+        activity.completionHistory = history;
+
+        activityList.append(
+            createActivityCard(activity, planting, farm)
+        );
     });
 }
 
@@ -697,7 +1161,6 @@ function scheduleActivitiesReload() {
     }, 300);
 }
 
-/** Subscribe to accessible activity changes and reload the activity list. */
 function subscribeToActivityChanges() {
     if (activitiesRealtimeChannel) {
         supabase.removeChannel(activitiesRealtimeChannel);
@@ -706,7 +1169,6 @@ function subscribeToActivityChanges() {
     activitiesRealtimeChannel = supabase
         .channel(`farmer-activities-${currentUser.id}`)
 
-        // Assigned Farm Action changes.
         .on(
             "postgres_changes",
             {
@@ -720,8 +1182,6 @@ function subscribeToActivityChanges() {
             }
         )
 
-        // Changes to planting details linked to accessible activities.
-        // RLS determines which planting records this Farmer can receive.
         .on(
             "postgres_changes",
             {
@@ -734,11 +1194,39 @@ function subscribeToActivityChanges() {
             }
         )
 
-        .subscribe((status) => {
+        .on(
+            "postgres_changes",
+            {
+                event: "*",
+                schema: "public",
+                table: "farm_action_completions"
+            },
+            () => {
+                scheduleActivitiesReload();
+            }
+        )
+
+        .on(
+            "postgres_changes",
+            {
+                event: "*",
+                schema: "public",
+                table: "farm_action_verifications"
+            },
+            () => {
+                scheduleActivitiesReload();
+            }
+        )
+
+        .subscribe(status => {
             if (status === "SUBSCRIBED") {
-                console.log("My Activities Realtime connected.");
+                console.log(
+                    "My Activities Realtime connected."
+                );
             } else if (status === "CHANNEL_ERROR") {
-                console.error("My Activities Realtime connection failed.");
+                console.error(
+                    "My Activities Realtime connection failed."
+                );
             }
         });
 }
@@ -758,7 +1246,9 @@ function initializeLogout() {
     if (!logoutButton) return;
 
     logoutButton.addEventListener("click", async () => {
-        if (logoutLabel) logoutLabel.textContent = "Logging out...";
+        if (logoutLabel) {
+            logoutLabel.textContent = "Logging out...";
+        }
 
         logoutButton.disabled = true;
 
@@ -766,8 +1256,13 @@ function initializeLogout() {
 
         if (error) {
             console.error("Logout error:", error);
-            if (logoutLabel) logoutLabel.textContent = "Log out";
+
+            if (logoutLabel) {
+                logoutLabel.textContent = "Log out";
+            }
+
             logoutButton.disabled = false;
+
             return;
         }
 
@@ -777,21 +1272,26 @@ function initializeLogout() {
 
 // ---------- INITIALIZATION ----------
 
-/** Initialize the activity page after validating the farmer session. */
 async function initializeFarmerActivities() {
     try {
         initializeLogout();
 
         if (todayLabel) {
-            todayLabel.textContent = new Date().toLocaleDateString("en-PH", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric"
-            });
+            todayLabel.textContent = new Date().toLocaleDateString(
+                "en-PH",
+                {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                }
+            );
         }
 
-        const { data: { user }, error } = await supabase.auth.getUser();
+        const {
+            data: { user },
+            error
+        } = await supabase.auth.getUser();
 
         if (error || !user) {
             window.location.replace("../../login.html");
@@ -807,14 +1307,24 @@ async function initializeFarmerActivities() {
         await loadActivities();
 
         subscribeToActivityChanges();
+
     } catch (error) {
-        console.error("Farmer Activities Initialization Error:", error);
+        console.error(
+            "Farmer Activities Initialization Error:",
+            error
+        );
+
         displayMessage(
-            error.message || "Something went wrong while loading the page.",
+            error.message ||
+                "Something went wrong while loading the page.",
             "error-state"
         );
     }
 }
 
 initializeFarmerActivities();
-window.addEventListener("beforeunload", cleanupActivitiesRealtime);
+
+window.addEventListener(
+    "beforeunload",
+    cleanupActivitiesRealtime
+);

@@ -1,39 +1,53 @@
+
 import { supabase } from '../connection.js';
+import { hasPermission } from '../admin/permissions.js';
+
+// =====================================================
+// MODULES
+// =====================================================
 
 const MODULES = [
     {
         title: 'Harvest Records',
         description: 'Review and verify farmers’ harvest submissions.',
         icon: '📋',
-        route: 'harvest-records'
+        route: 'harvest-records',
+        permission: 'harvests.view'
     },
     {
         title: 'Fertilizer Inventory',
         description: 'Monitor fertilizer stocks and availability.',
         icon: '🌱',
-        route: 'fertilizer-inventory'
+        route: 'fertilizer-inventory',
+        permission: 'inventory.view'
     },
     {
         title: 'Pesticide Inventory',
         description: 'Monitor pesticide stocks and availability.',
         icon: '🧪',
-        route: 'pesticide-inventory'
+        route: 'pesticide-inventory',
+        permission: 'inventory.view'
     },
     {
         title: 'Equipment',
         description: 'Monitor available agricultural equipment.',
         icon: '🚜',
-        route: 'equipment'
+        route: 'equipment',
+        permission: 'inventory.view'
     },
     {
         title: 'Harvest Inventory',
         description: 'View verified harvest records.',
         icon: '🌾',
-        route: 'harvest-inventory'
+        route: 'harvest-inventory',
+        permission: 'harvests.view'
     }
 ];
 
-/** Create a DOM node and optionally set its class and text content. */
+// =====================================================
+// HELPERS
+// =====================================================
+
 function element(tag, className, text) {
     const el = document.createElement(tag);
 
@@ -43,11 +57,38 @@ function element(tag, className, text) {
     return el;
 }
 
-/** Count harvest records, optionally limited to a confirmation status. */
+// =====================================================
+// PERMISSIONS
+// =====================================================
+
+async function checkDashboardPermission() {
+    return await hasPermission('dashboard.view');
+}
+
+async function getAccessibleModules() {
+    const results = await Promise.all(
+        MODULES.map(async module => ({
+            module,
+            allowed: await hasPermission(module.permission)
+        }))
+    );
+
+    return results
+        .filter(item => item.allowed)
+        .map(item => item.module);
+}
+
+// =====================================================
+// HARVEST STATISTICS
+// =====================================================
+
 async function getCount(status) {
     let query = supabase
         .from('harvested_crops')
-        .select('harvest_id', { count: 'exact', head: true });
+        .select('harvest_id', {
+            count: 'exact',
+            head: true
+        });
 
     if (status) {
         query = query.eq('confirmation_status', status);
@@ -56,22 +97,30 @@ async function getCount(status) {
     const { count, error } = await query;
 
     if (error) {
-        console.error(`Failed to load ${status || 'harvest'} count:`, error);
+        console.error(
+            `Failed to load ${status || 'harvest'} count:`,
+            error
+        );
+
         return null;
     }
 
     return count ?? 0;
 }
 
-/**
- * Resolve the Warehouse Officer's staff_id.
- * Uses ctx.staff when it already has one; otherwise looks it up
- * from the signed-in user (staff_accounts.user_id -> staff_id).
- */
-async function getOfficerStaffId(ctx) {
-    if (ctx?.staff?.staff_id) return ctx.staff.staff_id;
+// =====================================================
+// WAREHOUSE OFFICER ACCOUNT
+// =====================================================
 
-    const { data: authData, error: authError } = await supabase.auth.getUser();
+async function getOfficerStaffId(ctx) {
+    if (ctx?.staff?.staff_id) {
+        return ctx.staff.staff_id;
+    }
+
+    const {
+        data: authData,
+        error: authError
+    } = await supabase.auth.getUser();
 
     if (authError) throw authError;
 
@@ -90,13 +139,9 @@ async function getOfficerStaffId(ctx) {
     return data?.staff_id ?? null;
 }
 
-/**
- * Load the officer's active farm assignment directly from the same table
- * the admin page writes to (warehouse_officer_farm_assignments.officer_id
- * stores the officer's staff_id).
- * Returns { farm_name, farm_location } or null when none is found.
- */
-
+// =====================================================
+// ASSIGNED FARM
+// =====================================================
 
 async function loadAssignedFarm(ctx) {
     const staffId = await getOfficerStaffId(ctx);
@@ -106,7 +151,7 @@ async function loadAssignedFarm(ctx) {
         return null;
     }
 
-    const { data: assignment, error: assignmentError } = await supabase
+    const { data: assignment, error } = await supabase
         .from('warehouse_officer_farm_assignments')
         .select(`
             farm_id,
@@ -121,26 +166,35 @@ async function loadAssignedFarm(ctx) {
         .limit(1)
         .maybeSingle();
 
-    if (assignmentError) {
+    if (error) {
         console.error('Failed to load WO farm assignment:', {
             staffId,
-            code: assignmentError.code,
-            message: assignmentError.message,
-            details: assignmentError.details,
-            hint: assignmentError.hint
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint
         });
-        throw assignmentError;
+
+        throw error;
     }
 
     if (!assignment) {
-        console.warn('No farm assignment found for staff:', staffId);
+        console.warn(
+            'No farm assignment found for staff:',
+            staffId
+        );
+
         return null;
     }
 
     const farm = assignment.farmer_farms;
 
     if (!farm) {
-        console.error('Assignment exists but related farm was not returned:', assignment);
+        console.error(
+            'Assignment exists but related farm was not returned:',
+            assignment
+        );
+
         return null;
     }
 
@@ -151,22 +205,30 @@ async function loadAssignedFarm(ctx) {
     };
 }
 
-
+// =====================================================
+// STATISTICS CARD
+// =====================================================
 
 function createStat(label, value, description) {
     const card = element('article', 'wo-stat-card');
 
     card.append(
         element('span', 'wo-stat-label', label),
-        element('strong', 'wo-stat-value', value === null ? '—' : value),
+        element(
+            'strong',
+            'wo-stat-value',
+            value === null ? '—' : value
+        ),
         element('small', 'wo-stat-description', description)
     );
 
     return card;
 }
 
-// Assigned Farm Card
-/** Build the assigned-farm summary or its no-assignment message. */
+// =====================================================
+// ASSIGNED FARM CARD
+// =====================================================
+
 function createAssignedFarmCard(farm) {
     const card = element('article', 'wo-assigned-farm-card');
 
@@ -177,12 +239,17 @@ function createAssignedFarmCard(farm) {
         element('div', 'wo-assigned-farm-heading')
     );
 
-    const heading = header.querySelector('.wo-assigned-farm-heading');
+    const heading = header.querySelector(
+        '.wo-assigned-farm-heading'
+    );
 
     heading.append(
         element('h2', '', 'My Assigned Farm'),
-        element('span', 'wo-assigned-farm-status',
-            farm ? 'Assigned' : 'Not Assigned')
+        element(
+            'span',
+            'wo-assigned-farm-status',
+            farm ? 'Assigned' : 'Not Assigned'
+        )
     );
 
     card.append(header);
@@ -201,18 +268,34 @@ function createAssignedFarmCard(farm) {
         return card;
     }
 
-    const details = element('div', 'wo-assigned-farm-details');
-
-    const nameGroup = element('div', 'wo-farm-detail');
-    nameGroup.append(
-        element('span', 'wo-farm-detail-label', 'Farm Name'),
-        element('strong', 'wo-farm-detail-value', farm.farm_name || 'Not available')
+    const details = element(
+        'div',
+        'wo-assigned-farm-details'
     );
 
-    const locationGroup = element('div', 'wo-farm-detail');
+    const nameGroup = element('div', 'wo-farm-detail');
+
+    nameGroup.append(
+        element('span', 'wo-farm-detail-label', 'Farm Name'),
+        element(
+            'strong',
+            'wo-farm-detail-value',
+            farm.farm_name || 'Not available'
+        )
+    );
+
+    const locationGroup = element(
+        'div',
+        'wo-farm-detail'
+    );
+
     locationGroup.append(
         element('span', 'wo-farm-detail-label', 'Farm Location'),
-        element('strong', 'wo-farm-detail-value', farm.farm_location || 'Not available')
+        element(
+            'strong',
+            'wo-farm-detail-value',
+            farm.farm_location || 'Not available'
+        )
     );
 
     details.append(nameGroup, locationGroup);
@@ -220,6 +303,10 @@ function createAssignedFarmCard(farm) {
 
     return card;
 }
+
+// =====================================================
+// MODULE CARD
+// =====================================================
 
 function createModuleCard(module) {
     const card = element('a', 'wo-module-card');
@@ -229,21 +316,77 @@ function createModuleCard(module) {
     card.append(
         element('span', 'wo-module-icon', module.icon),
         element('h3', '', module.title),
-        element('p', '', module.description)
-    );
-
-    card.append(
+        element('p', '', module.description),
         element('span', 'wo-module-link', 'Open module →')
     );
 
     return card;
 }
 
-/** Render the warehouse dashboard and load harvest status totals in parallel. */
+// =====================================================
+// MODULES SECTION
+// =====================================================
+
+function createModulesSection(modules) {
+    const section = element('section', 'wo-modules-section');
+
+    const heading = element('div', 'wo-section-heading');
+
+    heading.append(
+        element('h2', '', 'Warehouse Management'),
+        element(
+            'p',
+            'muted',
+            'View accessible warehouse records and resources.'
+        )
+    );
+
+    section.append(heading);
+
+    const grid = element('div', 'wo-modules-grid');
+
+    if (!modules.length) {
+        grid.append(
+            element(
+                'p',
+                'muted',
+                'No warehouse modules are currently available to your account.'
+            )
+        );
+    } else {
+        modules.forEach(module => {
+            grid.append(createModuleCard(module));
+        });
+    }
+
+    section.append(grid);
+
+    return section;
+}
+
+// =====================================================
+// MAIN RENDER
+// =====================================================
+
 export async function render(root, ctx) {
+    // Dashboard access check.
+    const allowed = await checkDashboardPermission();
+
+    if (!allowed) {
+        root.replaceChildren(
+            element(
+                'p',
+                'msg error',
+                'You do not have permission to view the Warehouse Dashboard.'
+            )
+        );
+
+        return;
+    }
+
     const page = element('section', 'wo-dashboard');
 
-    // Dashboard heading
+    // Dashboard heading.
     const heading = element('div', 'wo-page-heading');
 
     heading.append(
@@ -257,77 +400,119 @@ export async function render(root, ctx) {
 
     page.append(heading);
 
-    // Assigned farm information (shown from ctx first, then refreshed
-    // from the database if ctx did not provide it)
+    // Assigned farm.
     let farmCard = createAssignedFarmCard(ctx.assignedFarm);
 
     page.append(farmCard);
 
-    // Harvest statistics
+    // Harvest statistics.
     const stats = element('div', 'wo-stats-grid');
 
     stats.append(
-        createStat('Pending Harvests', '…', 'Awaiting verification'),
-        createStat('In Progress', '…', 'Currently being checked'),
-        createStat('Verified Harvests', '…', 'Successfully confirmed'),
-        createStat('Rejected Harvests', '…', 'Submissions rejected')
+        createStat(
+            'Pending Harvests',
+            '…',
+            'Awaiting verification'
+        ),
+        createStat(
+            'In Progress',
+            '…',
+            'Currently being checked'
+        ),
+        createStat(
+            'Verified Harvests',
+            '…',
+            'Successfully confirmed'
+        ),
+        createStat(
+            'Rejected Harvests',
+            '…',
+            'Submissions rejected'
+        )
     );
 
     page.append(stats);
 
-    // Warehouse modules
-    const modulesHeading = element('div', 'wo-section-heading');
+    // Add page to root.
+    root.replaceChildren(page);
 
-    modulesHeading.append(
-        element('h2', '', 'Warehouse Management'),
-        element('p', 'muted', 'Manage warehouse records and resources.')
-    );
+    // Load accessible modules.
+    const modulesPromise = getAccessibleModules();
 
-    page.append(modulesHeading);
-
-    const modulesGrid = element('div', 'wo-modules-grid');
-
-    MODULES.forEach(module => {
-        modulesGrid.append(createModuleCard(module));
-    });
-
-    page.append(modulesGrid);
-
-    root.append(page);
-
-    // If ctx has no assigned farm, look it up directly.
-    const farmLookup = ctx.assignedFarm
+    // Load assigned farm.
+    const farmPromise = ctx.assignedFarm
         ? Promise.resolve(ctx.assignedFarm)
         : loadAssignedFarm(ctx).catch(error => {
-            console.error('Failed to load assigned farm:', error);
+            console.error(
+                'Failed to load assigned farm:',
+                error
+            );
+
             return null;
         });
 
-    // Load statistics
-    const [pending, inProgress, confirmed, rejected, assignedFarm] =
-        await Promise.all([
-            getCount('pending'),
-            getCount('in_progress'),
-            getCount('confirmed'),
-            getCount('rejected'),
-            farmLookup
-        ]);
+    // Load harvest statistics.
+    const statisticsPromise = Promise.all([
+        getCount('pending'),
+        getCount('in_progress'),
+        getCount('confirmed'),
+        getCount('rejected')
+    ]);
 
+    const [
+        accessibleModules,
+        assignedFarm,
+        [pending, inProgress, confirmed, rejected]
+    ] = await Promise.all([
+        modulesPromise,
+        farmPromise,
+        statisticsPromise
+    ]);
+
+    // Update assigned farm.
     if (assignedFarm && !ctx.assignedFarm) {
-        const updatedCard = createAssignedFarmCard(assignedFarm);
+        ctx.assignedFarm = assignedFarm;
+
+        const updatedCard = createAssignedFarmCard(
+            assignedFarm
+        );
 
         farmCard.replaceWith(updatedCard);
         farmCard = updatedCard;
     }
 
-    const values = [pending, inProgress, confirmed, rejected];
-
+    // Update statistics.
     stats.replaceChildren(
-        createStat('Pending Harvests', values[0], 'Awaiting verification'),
-        createStat('In Progress', values[1], 'Currently being checked'),
-        createStat('Verified Harvests', values[2], 'Successfully confirmed'),
-        createStat('Rejected Harvests', values[3], 'Submissions rejected')
+        createStat(
+            'Pending Harvests',
+            pending,
+            'Awaiting verification'
+        ),
+        createStat(
+            'In Progress',
+            inProgress,
+            'Currently being checked'
+        ),
+        createStat(
+            'Verified Harvests',
+            confirmed,
+            'Successfully confirmed'
+        ),
+        createStat(
+            'Rejected Harvests',
+            rejected,
+            'Submissions rejected'
+        )
+    );
+
+    // Render only modules the officer can access.
+    page.append(
+        createModulesSection(accessibleModules)
     );
 }
+
+// =====================================================
+// CLEANUP
+// =====================================================
 
 export function cleanup() {}
