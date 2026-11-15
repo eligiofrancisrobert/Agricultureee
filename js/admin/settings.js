@@ -1,139 +1,37 @@
+import { h, toast, pageHead } from './ui.js';
+import { getSettings, saveSettings } from './api.js';
 
-import { h } from './ui.js';
-
-const SECTIONS = [
-    {
-        id: 'account',
-        label: 'Account',
-        description: 'Manage administrator account information.',
-        module: './settings/account.js'
-    },
-    {
-        id: 'security',
-        label: 'Security',
-        description: 'Manage password and security options.',
-        module: './settings/security.js'
-    },
-    {
-        id: 'registration',
-        label: 'Registration',
-        description: 'Manage account registration and approval.',
-        module: './settings/registration.js'
-    },
-    {
-        id: 'permissions',
-        label: 'Roles & Permissions',
-        description: 'Manage system roles and access permissions.',
-        module: './settings/permissions.js'
-    },
-    {
-        id: 'notifications',
-        label: 'Notifications',
-        description: 'Manage system notification preferences.',
-        module: './settings/notifications.js'
-    },
-    {
-        id: 'system',
-        label: 'System',
-        description: 'Manage general system configuration.',
-        module: './settings/system.js'
-    },
-    {
-        id: 'audit-logs',
-        label: 'Audit Logs',
-        description: 'Review system activity and audit records.',
-        module: './settings/audit-logs.js'
-    },
-    {
-        id: 'data-management',
-        label: 'Data Management',
-        description: 'Manage system data and backups.',
-        module: './settings/data-management.js'
-    }
+const OPTIONS = [
+    ['requireApproval', 'Require approval', 'New accounts wait in the queue until an admin approves them.'],
+    ['allowFarmer', 'Open farmer registration', 'Let new farmers submit an application.'],
+    ['allowBuyer', 'Open buyer registration', 'Let new buyers submit an application.'],
+    ['allowSupplier', 'Open supplier registration', 'Let new suppliers submit an application.'],
+    ['maintenance', 'Maintenance mode', 'Only admins can sign in while this is on.'],
 ];
 
+/** Render registration and maintenance settings and save changed checkbox values. */
 export async function render(root) {
-    let activeSection = 'registration';
+    const settings = await getSettings();
 
-    const content = h('div', {
-        class: 'settings-content'
-    });
+    const row = ([key, title, hint]) =>
+        h('li', {},
+            h('div', {}, h('p', {}, title), h('small', {}, hint)),
+            h('label', { class: 'switch' },
+                h('input', { type: 'checkbox', name: key, checked: settings[key], 'aria-label': title }),
+                h('span')));
 
-    const navigation = h('nav', {
-        class: 'settings-navigation',
-        'aria-label': 'Settings sections'
-    });
-
-    const loadSection = async (sectionId) => {
-        const section = SECTIONS.find(item => item.id === sectionId);
-
-        if (!section) return;
-
-        activeSection = sectionId;
-
-        navigation.querySelectorAll('button').forEach(button => {
-            const active = button.dataset.section === activeSection;
-
-            button.classList.toggle('active', active);
-            button.setAttribute('aria-current', active ? 'page' : 'false');
-        });
-
-        content.replaceChildren(
-            h('p', { class: 'muted' }, 'Loading settings...')
-        );
-
-        try {
-            const module = await import(section.module);
-
-            content.replaceChildren();
-            await module.render(content);
-        } catch (error) {
-            console.error('Failed to load settings section:', error);
-
-            content.replaceChildren(
-                h(
-                    'p',
-                    { class: 'msg error' },
-                    'Unable to load this settings section. Check the browser console.'
-                )
-            );
-        }
-    };
-
-    SECTIONS.forEach(section => {
-        const button = h(
-            'button',
-            {
-                type: 'button',
-                class: 'settings-nav-item',
-                dataset: { section: section.id },
-                onclick: () => loadSection(section.id)
-            },
-            h('span', {}, section.label),
-            h('small', {}, section.description)
-        );
-
-        navigation.append(button);
-    });
+    const form = h('form', {
+        onsubmit: async (e) => {
+            e.preventDefault();
+            const values = Object.fromEntries(OPTIONS.map(([k]) => [k, form.elements[k].checked]));
+            await saveSettings(values);
+            toast('Settings saved');
+        },
+    },
+        h('ul', { class: 'settings-list' }, OPTIONS.map(row)),
+        h('div', { class: 'save-row' }, h('button', { class: 'btn', type: 'submit' }, 'Save changes')));
 
     root.append(
-        h(
-            'div',
-            { class: 'settings-page' },
-            h(
-                'header',
-                { class: 'settings-header' },
-                h('h2', {}, 'Settings'),
-                h('p', {}, 'Manage your administrator and system preferences.')
-            ),
-            h(
-                'div',
-                { class: 'settings-layout' },
-                navigation,
-                content
-            )
-        )
-    );
-
-    await loadSection(activeSection);
+        pageHead('Settings', 'Control who can register and when the site is open.'),
+        h('section', { class: 'card' }, form));
 }

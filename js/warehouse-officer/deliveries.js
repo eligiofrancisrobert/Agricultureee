@@ -1,6 +1,5 @@
 
 import { supabase } from '../connection.js';
-import { hasPermission } from '../admin/permissions.js';
 
 const RPC_GET = 'warehouse_officer_get_deliveries';
 const RPC_UPDATE = 'warehouse_officer_update_sale_status';
@@ -24,14 +23,56 @@ let realtimeChannel = null;
 let realtimeReloadTimer = null;
 let realtimeReloadQueued = false;
 let deliveryCountdownInterval = null;
-let eventController = null;
 
-let canViewDeliveries = false;
-let canManageDeliveries = false;
+/* =========================================================
+   REALTIME
+   ========================================================= */
 
-// =====================================================
-// CONSTANTS
-// =====================================================
+/** Subscribe to warehouse sale changes and schedule an order refresh. */
+function subscribeToOrderChanges() {
+    if (realtimeChannel) {
+        supabase.removeChannel(realtimeChannel);
+        realtimeChannel = null;
+    }
+
+    realtimeChannel = supabase
+        .channel('warehouse-deliveries-realtime')
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'warehouse_sales'
+            },
+            () => scheduleRealtimeReload()
+        )
+        .subscribe(status => {
+            if (status === 'SUBSCRIBED') {
+                console.info('[Deliveries] Realtime connected.');
+            }
+
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                console.error('[Deliveries] Realtime connection:', status);
+            }
+        });
+}
+
+function scheduleRealtimeReload() {
+    clearTimeout(realtimeReloadTimer);
+
+    realtimeReloadTimer = setTimeout(() => {
+        if (state.loading || state.updating) {
+            realtimeReloadQueued = true;
+            return;
+        }
+
+        loadOrders({ silent: true });
+    }, 300);
+}
+
+/* =========================================================
+   CONSTANTS
+   ========================================================= */
 
 const STATUS_LABELS = {
     pending: 'Pending',
@@ -90,9 +131,7 @@ const statusLabel = status =>
     STATUS_LABELS[status] || status || 'Unknown';
 
 const statusClass = status =>
-    String(status || 'pending')
-        .toLowerCase()
-        .replace(/[^a-z0-9_-]/g, '');
+    String(status || 'pending').toLowerCase().replace(/[^a-z0-9_-]/g, '');
 
 const getItems = order =>
     Array.isArray(order?.items) ? order.items : [];
@@ -100,47 +139,9 @@ const getItems = order =>
 const getBuyerDisplay = order =>
     order.business_name || order.buyer_name || 'Unknown Buyer';
 
-// =====================================================
-// PERMISSIONS
-// =====================================================
-
-async function checkPermissions() {
-    const [view, manage] = await Promise.all([
-        hasPermission('inventory.view'),
-        hasPermission('supplies.issue')
-    ]);
-
-    canViewDeliveries = view === true;
-    canManageDeliveries = manage === true;
-
-    return canViewDeliveries;
-}
-
-async function verifyViewPermission() {
-    canViewDeliveries =
-        await hasPermission('inventory.view') === true;
-
-    return canViewDeliveries;
-}
-
-async function verifyManagePermission() {
-    canManageDeliveries =
-        await hasPermission('supplies.issue') === true;
-
-    if (!canManageDeliveries) {
-        state.error =
-            'You do not have permission to manage deliveries or issue supplies.';
-
-        renderPage();
-        return false;
-    }
-
-    return true;
-}
-
-// =====================================================
-// DATE AND TIME HELPERS
-// =====================================================
+/* =========================================================
+   DATE AND TIME HELPERS
+   ========================================================= */
 
 function getLocalDateValue(date = new Date()) {
     const year = date.getFullYear();
@@ -190,9 +191,9 @@ function formatDeliveryCountdown(milliseconds) {
     return `${hours}h ${minutes}m ${seconds}s`;
 }
 
-// =====================================================
-// FILTERS
-// =====================================================
+/* =========================================================
+   FILTERS
+   ========================================================= */
 
 function applyFilters() {
     const search = state.search.trim().toLowerCase();
@@ -214,38 +215,36 @@ function applyFilters() {
             );
 
         const matchesStatus =
-            state.status === 'all' ||
-            order.sale_status === state.status;
+            state.status === 'all' || order.sale_status === state.status;
 
         const matchesPayment =
-            state.payment === 'all' ||
-            order.payment_status === state.payment;
+            state.payment === 'all' || order.payment_status === state.payment;
 
         return matchesSearch && matchesStatus && matchesPayment;
     });
 }
 
-// =====================================================
-// STATISTICS
-// =====================================================
+/* =========================================================
+   STATISTICS
+   ========================================================= */
 
 function renderStats() {
     const total = state.orders.length;
 
     const pending = state.orders.filter(
-        order => order.sale_status === 'pending'
+        o => o.sale_status === 'pending'
     ).length;
 
     const preparing = state.orders.filter(
-        order => ['confirmed', 'processing'].includes(order.sale_status)
+        o => ['confirmed', 'processing'].includes(o.sale_status)
     ).length;
 
     const shipping = state.orders.filter(
-        order => ['ready_for_shipment', 'shipped'].includes(order.sale_status)
+        o => ['ready_for_shipment', 'shipped'].includes(o.sale_status)
     ).length;
 
     const delivered = state.orders.filter(
-        order => ['delivered', 'completed'].includes(order.sale_status)
+        o => ['delivered', 'completed'].includes(o.sale_status)
     ).length;
 
     return `
@@ -283,9 +282,9 @@ function renderStats() {
     `;
 }
 
-// =====================================================
-// ORDER CARDS
-// =====================================================
+/* =========================================================
+   ORDER CARDS
+   ========================================================= */
 
 function renderOrderCard(order) {
     const items = getItems(order);
@@ -299,7 +298,7 @@ function renderOrderCard(order) {
             <div class="delivery-order-top">
                 <div>
                     <span class="delivery-order-reference">
-                        ORDER #${escapeHTML(String(order.sale_id || '').slice(0, 8).toUpperCase())}
+                        ORDER #${escapeHTML(order.sale_id.slice(0, 8).toUpperCase())}
                     </span>
 
                     <h3>${escapeHTML(getBuyerDisplay(order))}</h3>
@@ -380,22 +379,11 @@ function renderOrderList() {
     `;
 }
 
-// =====================================================
-// ORDER STATUS CONTROL
-// =====================================================
+/* =========================================================
+   ORDER STATUS CONTROL
+   ========================================================= */
 
 function renderStatusControl(order) {
-    if (!canManageDeliveries) {
-        return `
-            <div class="delivery-status-control">
-                <label>Order Status</label>
-                <p class="delivery-status-hint">
-                    View-only access. You cannot update this order.
-                </p>
-            </div>
-        `;
-    }
-
     const allowed = NEXT_STATUSES[order.sale_status] || [];
     const disabled = state.updating || allowed.length === 0;
 
@@ -427,22 +415,21 @@ function renderStatusControl(order) {
 
             <p class="delivery-status-hint">
                 ${allowed.length
-                    ? 'Select the next allowed status.'
-                    : order.sale_status === 'shipped'
-                        ? 'Payment confirmation is required before this order can be marked as delivered.'
-                        : 'This order has reached its final status.'}
+            ? 'Select the next allowed status.'
+            : order.sale_status === 'shipped'
+                ? 'Payment confirmation is required before this order can be marked as delivered.'
+                : 'This order has reached its final status.'}
             </p>
         </div>
     `;
 }
 
-// =====================================================
-// PAYMENT CONFIRMATION
-// =====================================================
+/* =========================================================
+   PAYMENT CONFIRMATION
+   ========================================================= */
 
 function canConfirmCashPayment(order) {
     return (
-        canManageDeliveries &&
         order?.sale_status === 'shipped' &&
         String(order?.payment_status || '').toLowerCase() === 'unpaid' &&
         Number(order?.total_amount) > 0 &&
@@ -450,6 +437,7 @@ function canConfirmCashPayment(order) {
     );
 }
 
+/** Build the cash-payment confirmation section for eligible deliveries. */
 function renderCashPaymentConfirmation(order) {
     if (order?.sale_status !== 'shipped') return '';
 
@@ -515,24 +503,6 @@ function renderCashPaymentConfirmation(order) {
         `;
     }
 
-    if (!canManageDeliveries) {
-        return `
-            <div class="delivery-cash-payment-box">
-                <div class="delivery-cash-payment-info">
-                    <span class="delivery-info-label">Payment</span>
-                    <h4>Awaiting Payment Confirmation</h4>
-                    <p>
-                        The scheduled delivery time has been reached.
-                        You have view-only access and cannot confirm payment.
-                    </p>
-                    <strong class="delivery-cash-payment-amount">
-                        ${money(order.total_amount)}
-                    </strong>
-                </div>
-            </div>
-        `;
-    }
-
     return `
         <div class="delivery-cash-payment-box">
             <div class="delivery-cash-payment-info">
@@ -540,6 +510,7 @@ function renderCashPaymentConfirmation(order) {
                 <h4>Expected Delivery Time Reached</h4>
 
                 <p>
+                    The scheduled delivery date and time has been reached.
                     Confirm only after receiving the full payment.
                 </p>
 
@@ -561,14 +532,14 @@ function renderCashPaymentConfirmation(order) {
     `;
 }
 
-// =====================================================
-// SHIPMENT MODAL
-// =====================================================
+/* =========================================================
+   SHIPMENT MODAL
+   ========================================================= */
 
 function renderShipmentModal() {
     const schedule = state.shipmentSchedule;
 
-    if (!schedule || !canManageDeliveries) return '';
+    if (!schedule) return '';
 
     const order = state.orders.find(
         item => item.sale_id === schedule.saleId
@@ -588,7 +559,7 @@ function renderShipmentModal() {
                 <div class="delivery-modal-header">
                     <div>
                         <span class="delivery-order-reference">
-                            ORDER #${escapeHTML(String(order.sale_id).slice(0, 8).toUpperCase())}
+                            ORDER #${escapeHTML(order.sale_id.slice(0, 8).toUpperCase())}
                         </span>
 
                         <h2 id="shipment-modal-title">Schedule Shipment</h2>
@@ -685,9 +656,9 @@ function renderShipmentModal() {
     `;
 }
 
-// =====================================================
-// ORDER DETAILS MODAL
-// =====================================================
+/* =========================================================
+   ORDER DETAILS MODAL
+   ========================================================= */
 
 function renderModal() {
     const order = state.selectedOrder;
@@ -895,15 +866,14 @@ function renderModal() {
     `;
 }
 
-// =====================================================
-// PAGE RENDERING
-// =====================================================
+/* =========================================================
+   PAGE RENDERING
+   ========================================================= */
 
 function renderPage() {
     if (!rootElement) return;
 
-    const farm =
-        rootElement.dataset.farmName || 'Assigned Farm';
+    const farm = rootElement.dataset.farmName || 'Assigned Farm';
 
     rootElement.innerHTML = `
         <main class="deliveries-page">
@@ -911,7 +881,7 @@ function renderPage() {
                 <div>
                     <span class="deliveries-eyebrow">WAREHOUSE OPERATIONS</span>
                     <h2>Deliveries</h2>
-                    <p>Monitor orders from your assigned farm.</p>
+                    <p>Manage and monitor orders from your assigned farm.</p>
                 </div>
             </div>
 
@@ -978,23 +948,17 @@ function renderPage() {
                     </select>
                 </div>
 
-                ${!canManageDeliveries ? `
-                    <p class="delivery-status-hint">
-                        View-only access. You can inspect orders but cannot update delivery statuses or payments.
-                    </p>
-                ` : ''}
-
                 ${state.error
-                    ? `<div class="delivery-error">${escapeHTML(state.error)}</div>`
-                    : ''}
+            ? `<div class="delivery-error">${escapeHTML(state.error)}</div>`
+            : ''}
 
                 <div class="delivery-results-count">
                     Showing ${state.filteredOrders.length} of ${state.orders.length} orders
                 </div>
 
                 ${state.loading && !state.orders.length
-                    ? '<div class="delivery-loading">Loading orders...</div>'
-                    : renderOrderList()}
+            ? '<div class="delivery-loading">Loading orders...</div>'
+            : renderOrderList()}
             </section>
         </main>
 
@@ -1003,86 +967,81 @@ function renderPage() {
     `;
 
     bindPageEvents();
+
+    // IMPORTANT: Start the live countdown whenever the page/modal is rendered.
+    // This allows the Payment Received button to appear automatically.
     startDeliveryCountdown();
 }
 
-// =====================================================
-// PAGE EVENTS
-// =====================================================
+/* =========================================================
+   PAGE EVENTS
+   ========================================================= */
 
 function bindPageEvents() {
-    eventController?.abort();
+    const searchInput = rootElement.querySelector('#deliverySearch');
 
-    eventController = new AbortController();
+    searchInput?.addEventListener('input', event => {
+        state.search = event.target.value;
 
-    const { signal } = eventController;
+        applyFilters();
 
-    rootElement.querySelector('#deliverySearch')
-        ?.addEventListener('input', event => {
-            state.search = event.target.value;
+        const cursor = event.target.selectionStart;
 
-            const cursor = event.target.selectionStart;
+        renderPage();
 
-            applyFilters();
-            renderPage();
+        const nextInput = rootElement.querySelector('#deliverySearch');
 
-            const nextInput =
-                rootElement.querySelector('#deliverySearch');
-
-            nextInput?.focus();
-            nextInput?.setSelectionRange(cursor, cursor);
-        }, { signal });
+        nextInput?.focus();
+        nextInput?.setSelectionRange(cursor, cursor);
+    });
 
     rootElement.querySelector('#deliveryStatusFilter')
         ?.addEventListener('change', event => {
             state.status = event.target.value;
-
             applyFilters();
             renderPage();
-        }, { signal });
+        });
 
     rootElement.querySelector('#deliveryPaymentFilter')
         ?.addEventListener('change', event => {
             state.payment = event.target.value;
-
             applyFilters();
             renderPage();
-        }, { signal });
-
-    rootElement.querySelectorAll('[data-action="view-order"]')
-        .forEach(button => {
-            button.addEventListener('click', () => {
-                state.selectedOrder = state.orders.find(
-                    order => order.sale_id === button.dataset.orderId
-                ) || null;
-
-                state.error = null;
-                renderPage();
-            }, { signal });
         });
 
+    rootElement.querySelectorAll('[data-action="view-order"]').forEach(button => {
+        button.addEventListener('click', () => {
+            state.selectedOrder = state.orders.find(
+                order => order.sale_id === button.dataset.orderId
+            ) || null;
+
+            state.error = null;
+            renderPage();
+        });
+    });
+
     rootElement.querySelector('[data-action="refresh"]')
-        ?.addEventListener('click', () => loadOrders(), { signal });
+        ?.addEventListener('click', () => loadOrders());
 
     rootElement.querySelector('[data-action="close-modal-button"]')
-        ?.addEventListener('click', closeModal, { signal });
+        ?.addEventListener('click', closeModal);
 
     rootElement.querySelector('[data-action="close-modal"]')
         ?.addEventListener('click', event => {
             if (event.target === event.currentTarget) {
                 closeModal();
             }
-        }, { signal });
+        });
 
     rootElement.querySelector('#deliveryStatusSelect')
-        ?.addEventListener('change', handleStatusChange, { signal });
+        ?.addEventListener('change', handleStatusChange);
 
     rootElement.querySelector('[data-action="confirm-cash-payment"]')
-        ?.addEventListener('click', handleCashPaymentConfirmation, { signal });
+        ?.addEventListener('click', handleCashPaymentConfirmation);
 
     rootElement.querySelectorAll('[data-action="close-shipment-button"]')
         .forEach(button => {
-            button.addEventListener('click', closeShipmentModal, { signal });
+            button.addEventListener('click', closeShipmentModal);
         });
 
     rootElement.querySelector('[data-action="close-shipment-modal"]')
@@ -1090,67 +1049,52 @@ function bindPageEvents() {
             if (event.target === event.currentTarget) {
                 closeShipmentModal();
             }
-        }, { signal });
+        });
 
     rootElement.querySelector('#shipmentScheduleForm')
-        ?.addEventListener('submit', handleShipmentScheduleSubmit, { signal });
+        ?.addEventListener('submit', handleShipmentScheduleSubmit);
 }
 
-// =====================================================
-// LIVE DELIVERY COUNTDOWN
-// =====================================================
+/* =========================================================
+   LIVE DELIVERY COUNTDOWN
+   ========================================================= */
 
 function startDeliveryCountdown() {
     stopDeliveryCountdown();
 
-    const order = state.selectedOrder;
-
-    if (
-        !order ||
-        order.sale_status !== 'shipped' ||
-        String(order.payment_status || '').toLowerCase() !== 'unpaid' ||
-        !rootElement?.querySelector('[data-delivery-countdown]')
-    ) {
-        return;
-    }
-
     deliveryCountdownInterval = setInterval(() => {
-        const countdown = rootElement?.querySelector(
-            '[data-delivery-countdown]'
+        const order = state.selectedOrder;
+
+        if (!order || order.sale_status !== 'shipped') return;
+
+        const paymentBox = rootElement?.querySelector(
+            '.delivery-cash-payment-box'
         );
 
-        if (!countdown) {
-            stopDeliveryCountdown();
-            return;
-        }
+        if (!paymentBox) return;
 
-        const remaining = getDeliveryRemainingTime(order);
+        // Re-render the payment panel every second.
+        // Once expected_delivery_at is reached, the button appears.
+        paymentBox.outerHTML = renderCashPaymentConfirmation(order);
 
-        if (remaining === null || remaining <= 0) {
-            stopDeliveryCountdown();
-
-            // Re-render once the scheduled delivery time is reached.
-            // This reveals the payment confirmation button when permitted.
-            renderPage();
-            return;
-        }
-
-        countdown.textContent =
-            formatDeliveryCountdown(remaining);
+        // Rebind the button after replacing the payment panel.
+        rootElement
+            ?.querySelector('[data-action="confirm-cash-payment"]')
+            ?.addEventListener('click', handleCashPaymentConfirmation);
 
     }, 1000);
 }
 
 function stopDeliveryCountdown() {
-    if (deliveryCountdownInterval !== null) {
+    if (deliveryCountdownInterval) {
         clearInterval(deliveryCountdownInterval);
         deliveryCountdownInterval = null;
     }
 }
 
-// =====================================================
-// MODAL CONTROLS
-// =====================================================
+/* =========================================================
+   MODAL CONTROLS
+   ========================================================= */
 
 function closeModal() {
     if (state.updating) return;
@@ -1170,14 +1114,13 @@ function closeShipmentModal() {
     renderPage();
 }
 
-// =====================================================
-// CONFIRM PAYMENT
-// =====================================================
+/* =========================================================
+   CONFIRM PAYMENT
+   ========================================================= */
 
+/** Confirm cash payment through the warehouse payment RPC. */
 async function handleCashPaymentConfirmation(event) {
     if (state.updating) return;
-
-    if (!(await verifyManagePermission())) return;
 
     const saleId = event.currentTarget.dataset.orderId;
 
@@ -1195,10 +1138,11 @@ async function handleCashPaymentConfirmation(event) {
 
     const confirmed = window.confirm(
         `Confirm that the full payment of ${money(order.total_amount)} has been received?\n\n` +
-        `Order: #${String(order.sale_id).slice(0, 8).toUpperCase()}\n` +
+        `Order: #${order.sale_id.slice(0, 8).toUpperCase()}\n` +
         `Buyer: ${getBuyerDisplay(order)}\n\n` +
         `This will mark the payment as PAID and the order as DELIVERED.\n` +
-        `Partial payment is not allowed.\n\nContinue?`
+        `Partial payment is not allowed.\n\n` +
+        `Continue?`
     );
 
     if (!confirmed) return;
@@ -1215,7 +1159,6 @@ async function handleCashPaymentConfirmation(event) {
                 p_sale_id: saleId
             }
         );
-
         console.log('[Payment Confirmation] RPC data:', data);
         console.log('[Payment Confirmation] RPC error:', error);
 
@@ -1227,12 +1170,18 @@ async function handleCashPaymentConfirmation(event) {
             );
         }
 
+        console.info(
+            '[Deliveries] Payment confirmed:',
+            saleId
+        );
+
         await loadOrders();
 
-        state.selectedOrder = state.orders.find(
+        const updatedOrder = state.orders.find(
             item => item.sale_id === saleId
-        ) || null;
+        );
 
+        state.selectedOrder = updatedOrder || null;
         state.error = null;
 
     } catch (error) {
@@ -1243,9 +1192,11 @@ async function handleCashPaymentConfirmation(event) {
 
         await loadOrders();
 
-        state.selectedOrder = state.orders.find(
+        const currentOrder = state.orders.find(
             item => item.sale_id === saleId
-        ) || null;
+        );
+
+        state.selectedOrder = currentOrder || null;
 
     } finally {
         state.updating = false;
@@ -1259,22 +1210,17 @@ async function handleCashPaymentConfirmation(event) {
     }
 }
 
-// =====================================================
-// UPDATE ORDER STATUS
-// =====================================================
+/* =========================================================
+   UPDATE ORDER STATUS
+   ========================================================= */
 
+/** Advance an order to the selected permitted delivery status. */
 async function handleStatusChange(event) {
-    if (state.updating) return;
-
-    if (!(await verifyManagePermission())) return;
-
     const select = event.currentTarget;
     const saleId = select.dataset.orderId;
     const newStatus = select.value;
 
-    const order = state.orders.find(
-        item => item.sale_id === saleId
-    );
+    const order = state.orders.find(item => item.sale_id === saleId);
 
     if (!order || !newStatus || newStatus === order.sale_status) {
         return;
@@ -1300,41 +1246,45 @@ async function handleStatusChange(event) {
     }
 
     if (newStatus === 'cancelled') {
-        if (!window.confirm(
+        const confirmed = window.confirm(
             'Are you sure you want to cancel this order? This action cannot be undone.'
-        )) {
-            renderPage();
-            return;
-        }
-    } else {
-        const messages = {
-            confirmed: 'Confirm this order?',
-            processing: 'Move this order to Preparing?',
-            ready_for_shipment: 'Mark this order as Ready for Shipment?',
-            completed: 'Mark this order as Completed?'
-        };
+        );
 
-        if (!window.confirm(
-            messages[newStatus] || 'Update this order status?'
-        )) {
+        if (!confirmed) {
             renderPage();
             return;
         }
     }
 
+    const confirmationMessages = {
+        confirmed: 'Confirm this order?',
+        processing: 'Move this order to Preparing?',
+        ready_for_shipment: 'Mark this order as Ready for Shipment?',
+        completed: 'Mark this order as Completed?'
+    };
+
+    if (
+        newStatus !== 'cancelled' &&
+        !window.confirm(
+            confirmationMessages[newStatus] || 'Update this order status?'
+        )
+    ) {
+        renderPage();
+        return;
+    }
+
     await updateOrderStatus(saleId, newStatus);
 }
 
-// =====================================================
-// SHIPMENT SCHEDULE
-// =====================================================
+/* =========================================================
+   SHIPMENT SCHEDULE SUBMISSION
+   ========================================================= */
 
+/** Validate and submit the delivery schedule for the selected order. */
 async function handleShipmentScheduleSubmit(event) {
     event.preventDefault();
 
     if (state.updating || !state.shipmentSchedule) return;
-
-    if (!(await verifyManagePermission())) return;
 
     const form = event.currentTarget;
 
@@ -1342,13 +1292,12 @@ async function handleShipmentScheduleSubmit(event) {
     const time = form.querySelector('#expectedDeliveryTime')?.value;
 
     if (!date || !time) {
-        state.error =
-            'Please provide the expected delivery date and time.';
-
+        state.error = 'Please provide the expected delivery date and time.';
         renderPage();
         return;
     }
 
+    // Interpret the selected date/time in the Warehouse Officer's local timezone.
     const expectedDate = new Date(`${date}T${time}:00`);
 
     if (Number.isNaN(expectedDate.getTime())) {
@@ -1365,11 +1314,11 @@ async function handleShipmentScheduleSubmit(event) {
 
     const saleId = state.shipmentSchedule.saleId;
 
-    if (!window.confirm(
+    const confirmed = window.confirm(
         `Confirm shipment?\n\nExpected delivery: ${dateTime(expectedDate.toISOString())}`
-    )) {
-        return;
-    }
+    );
+
+    if (!confirmed) return;
 
     await updateOrderStatus(
         saleId,
@@ -1378,18 +1327,17 @@ async function handleShipmentScheduleSubmit(event) {
     );
 }
 
-// =====================================================
-// SUPABASE ORDER STATUS UPDATE
-// =====================================================
+/* =========================================================
+   SUPABASE ORDER STATUS UPDATE
+   ========================================================= */
 
+/** Persist a sale-status transition and refresh its current order state. */
 async function updateOrderStatus(
     saleId,
     newStatus,
     expectedDeliveryAt = null
 ) {
     if (state.updating) return;
-
-    if (!(await verifyManagePermission())) return;
 
     state.updating = true;
     state.error = null;
@@ -1423,10 +1371,11 @@ async function updateOrderStatus(
 
         await loadOrders();
 
-        state.selectedOrder = state.orders.find(
+        const updatedOrder = state.orders.find(
             order => order.sale_id === saleId
-        ) || null;
+        );
 
+        state.selectedOrder = updatedOrder || null;
         state.error = null;
 
     } catch (error) {
@@ -1436,10 +1385,6 @@ async function updateOrderStatus(
             error.message || 'Failed to update order status.';
 
         await loadOrders();
-
-        state.selectedOrder = state.orders.find(
-            order => order.sale_id === saleId
-        ) || null;
 
     } finally {
         state.updating = false;
@@ -1453,31 +1398,18 @@ async function updateOrderStatus(
     }
 }
 
-// =====================================================
-// LOAD ORDERS
-// =====================================================
+/* =========================================================
+   LOAD ORDERS
+   ========================================================= */
 
+/** Fetch warehouse deliveries and refresh the list, optionally without a loader. */
 async function loadOrders({ silent = false } = {}) {
-    if (!rootElement || !canViewDeliveries) return;
-
     if (state.loading) {
         realtimeReloadQueued = true;
         return;
     }
 
-    if (!(await verifyViewPermission())) {
-        state.orders = [];
-        state.filteredOrders = [];
-
-        state.error =
-            'You no longer have permission to view deliveries.';
-
-        renderPage();
-        return;
-    }
-
-    const selectedId =
-        state.selectedOrder?.sale_id || null;
+    const selectedId = state.selectedOrder?.sale_id || null;
 
     state.loading = true;
 
@@ -1491,20 +1423,29 @@ async function loadOrders({ silent = false } = {}) {
         if (error) throw error;
 
         if (!data?.success) {
-            throw new Error(
-                data?.message || 'Unable to retrieve assigned farm orders.'
-            );
+            throw new Error('Unable to retrieve assigned farm orders.');
         }
 
         state.orders = Array.isArray(data.orders)
             ? data.orders
             : [];
 
+        // Keep the currently opened order synchronized with the latest RPC result.
         if (selectedId) {
             state.selectedOrder = state.orders.find(
                 order => order.sale_id === selectedId
             ) || null;
         }
+
+        // Diagnostic: confirms the RPC includes the expected delivery timestamp.
+        console.table(state.orders.map(order => ({
+            sale_id: order.sale_id,
+            sale_status: order.sale_status,
+            payment_status: order.payment_status,
+            expected_delivery_at: order.expected_delivery_at,
+            current_time: new Date().toISOString(),
+            arrival_reached: hasDeliveryTimeArrived(order)
+        })));
 
         applyFilters();
 
@@ -1531,88 +1472,13 @@ async function loadOrders({ silent = false } = {}) {
     }
 }
 
-// =====================================================
-// REALTIME
-// =====================================================
+/* =========================================================
+   MODULE INITIALIZATION
+   ========================================================= */
 
-function subscribeToOrderChanges() {
-    if (realtimeChannel) {
-        supabase.removeChannel(realtimeChannel);
-        realtimeChannel = null;
-    }
-
-    realtimeChannel = supabase
-        .channel('warehouse-deliveries-realtime')
-        .on(
-            'postgres_changes',
-            {
-                event: '*',
-                schema: 'public',
-                table: 'warehouse_sales'
-            },
-            () => scheduleRealtimeReload()
-        )
-        .subscribe(status => {
-            if (status === 'SUBSCRIBED') {
-                console.info('[Deliveries] Realtime connected.');
-            }
-
-            if (
-                status === 'CHANNEL_ERROR' ||
-                status === 'TIMED_OUT'
-            ) {
-                console.error(
-                    '[Deliveries] Realtime connection:',
-                    status
-                );
-            }
-        });
-}
-
-function scheduleRealtimeReload() {
-    clearTimeout(realtimeReloadTimer);
-
-    realtimeReloadTimer = setTimeout(() => {
-        if (!rootElement || !canViewDeliveries) return;
-
-        if (state.loading || state.updating) {
-            realtimeReloadQueued = true;
-            return;
-        }
-
-        loadOrders({ silent: true });
-    }, 300);
-}
-
-// =====================================================
-// INITIALIZATION
-// =====================================================
-
+/** Render delivery controls, load orders, and subscribe to order changes. */
 export async function render(root, ctx = {}) {
     rootElement = root;
-
-    // Reset previous page resources if render is called again.
-    stopDeliveryCountdown();
-
-    eventController?.abort();
-    eventController = null;
-
-    clearTimeout(realtimeReloadTimer);
-    realtimeReloadTimer = null;
-    realtimeReloadQueued = false;
-
-    const allowed = await checkPermissions();
-
-    if (!allowed) {
-        rootElement.replaceChildren(
-            Object.assign(document.createElement('p'), {
-                className: 'msg error',
-                textContent: 'You do not have permission to view deliveries.'
-            })
-        );
-
-        return;
-    }
 
     const farm = ctx.assignedFarm || {};
 
@@ -1625,20 +1491,18 @@ export async function render(root, ctx = {}) {
     state.error = null;
     state.shipmentSchedule = null;
     state.selectedOrder = null;
-    state.loading = false;
-    state.updating = false;
 
     applyFilters();
-    renderPage();
 
+    renderPage();
     subscribeToOrderChanges();
 
     await loadOrders();
 }
 
-// =====================================================
-// CLEANUP
-// =====================================================
+/* =========================================================
+   CLEANUP
+   ========================================================= */
 
 export function cleanup() {
     clearTimeout(realtimeReloadTimer);
@@ -1648,29 +1512,10 @@ export function cleanup() {
 
     stopDeliveryCountdown();
 
-    eventController?.abort();
-    eventController = null;
-
     if (realtimeChannel) {
         supabase.removeChannel(realtimeChannel);
         realtimeChannel = null;
     }
 
     rootElement = null;
-
-    state.orders = [];
-    state.filteredOrders = [];
-    state.selectedOrder = null;
-    state.shipmentSchedule = null;
-
-    state.loading = false;
-    state.updating = false;
-    state.error = null;
-
-    state.search = '';
-    state.status = 'all';
-    state.payment = 'all';
-
-    canViewDeliveries = false;
-    canManageDeliveries = false;
 }

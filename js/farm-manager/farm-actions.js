@@ -1000,17 +1000,19 @@ async function loadActions() {
     await loadSubmissionDetails(actions);
 }
 
-
 // ---------- FARM ACTIONS REALTIME ----------
 
 function cleanupRealtime() {
     clearTimeout(farmActionsReloadTimer);
+    clearInterval(farmActionsPollingTimer);
 
     if (farmActionsChannel) {
         supabase.removeChannel(farmActionsChannel);
         farmActionsChannel = null;
     }
 }
+
+
 
 function subscribeToFarmActions(managerId, onUpdate) {
     cleanupRealtime();
@@ -1058,15 +1060,6 @@ function subscribeToFarmActions(managerId, onUpdate) {
             {
                 event: '*',
                 schema: 'public',
-                table: 'farm_action_verifications'
-            },
-            scheduleRefresh
-        )
-        .on(
-            'postgres_changes',
-            {
-                event: '*',
-                schema: 'public',
                 table: 'farm_action_evidence'
             },
             scheduleRefresh
@@ -1076,12 +1069,12 @@ function subscribeToFarmActions(managerId, onUpdate) {
                 console.log('Farm Manager Farm Actions Realtime connected.');
             } else if (status === 'CHANNEL_ERROR') {
                 console.error('Farm Actions Realtime connection failed.');
-            } else if (status === 'TIMED_OUT') {
-                console.error('Farm Actions Realtime connection timed out.');
-            } else if (status === 'CLOSED') {
-                console.warn('Farm Actions Realtime channel closed.');
             }
         });
+
+    farmActionsPollingTimer = setInterval(async () => {
+        await onUpdate();
+    }, 2000);
 }
 
 

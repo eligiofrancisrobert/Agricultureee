@@ -1,6 +1,7 @@
 
 import { supabase } from '../connection.js';
-import { hasPermission } from '../admin/permissions.js';
+
+const root = document.getElementById('view');
 
 const TABLE = 'crops_catalog';
 const PAGE_SIZE = 10;
@@ -13,17 +14,7 @@ let currentPage = 1;
 let editingCrop = null;
 let busy = false;
 
-let canViewPlantings = false;
-let canManagePlantings = false;
-
-let pageRoot = null;
-let eventController = null;
-
-const $ = (selector) => pageRoot?.querySelector(selector);
-
-// =====================================================
-// HELPERS
-// =====================================================
+const $ = (selector) => root?.querySelector(selector);
 
 const escapeHTML = (value = '') =>
     String(value).replace(/[&<>"']/g, (char) => ({
@@ -59,65 +50,19 @@ function notify(message, type = 'error') {
         return;
     }
 
+    // Fallback if the page is not currently mounted.
     console[type === 'error' ? 'error' : 'log'](message);
 }
-
-// =====================================================
-// PERMISSIONS
-// =====================================================
-
-async function checkPermissions() {
-    const [viewAllowed, manageAllowed] = await Promise.all([
-        hasPermission('plantings.view'),
-        hasPermission('plantings.manage')
-    ]);
-
-    canViewPlantings = viewAllowed === true;
-    canManagePlantings = manageAllowed === true;
-
-    return canViewPlantings;
-}
-
-async function verifyViewPermission() {
-    canViewPlantings = await hasPermission('plantings.view');
-
-    if (!canViewPlantings) {
-        notify('You no longer have permission to view crop plantings.');
-        return false;
-    }
-
-    return true;
-}
-
-async function verifyManagePermission() {
-    canManagePlantings = await hasPermission('plantings.manage');
-
-    if (!canManagePlantings) {
-        notify('You do not have permission to manage crop plantings.');
-        renderTable();
-        return false;
-    }
-
-    return true;
-}
-
-// =====================================================
-// BUSY STATE
-// =====================================================
 
 function setBusy(value) {
     busy = value;
 
-    pageRoot?.querySelectorAll(
-        '#addCropButton, #cropForm button[type="submit"], .crop-actions button'
+    root?.querySelectorAll(
+        '#addCropButton, #cropForm button[type="submit"]'
     ).forEach((button) => {
         button.disabled = value;
     });
 }
-
-// =====================================================
-// ACCOUNT
-// =====================================================
 
 async function getManagerAccount() {
     const {
@@ -139,20 +84,12 @@ async function getManagerAccount() {
 
     if (error) throw error;
 
-    if (
-        !data ||
-        Number(data.role_id) !== 1 ||
-        Number(data.status_id) !== 1
-    ) {
+    if (!data || data.role_id !== 1 || data.status_id !== 1) {
         throw new Error('An active Farm Manager account is required.');
     }
 
     return data.staff_id;
 }
-
-// =====================================================
-// FILTERING
-// =====================================================
 
 function getVisibleCrops() {
     const term = searchTerm.trim().toLowerCase();
@@ -172,19 +109,15 @@ function getVisibleCrops() {
             case 'active':
                 matchesStatus = !deleted && crop.is_active;
                 break;
-
             case 'inactive':
                 matchesStatus = !deleted && !crop.is_active;
                 break;
-
             case 'deleted':
                 matchesStatus = deleted;
                 break;
-
             case 'all':
                 matchesStatus = true;
                 break;
-
             default:
                 matchesStatus = !deleted && crop.is_active;
         }
@@ -193,24 +126,20 @@ function getVisibleCrops() {
     });
 }
 
-// =====================================================
-// STATISTICS
-// =====================================================
-
 function renderStats() {
     const stats = $('#cropStats');
     if (!stats) return;
 
     const active = crops.filter(
-        crop => !crop.crops_date_deleted && crop.is_active
+        (crop) => !crop.crops_date_deleted && crop.is_active
     ).length;
 
     const inactive = crops.filter(
-        crop => !crop.crops_date_deleted && !crop.is_active
+        (crop) => !crop.crops_date_deleted && !crop.is_active
     ).length;
 
     const deleted = crops.filter(
-        crop => Boolean(crop.crops_date_deleted)
+        (crop) => Boolean(crop.crops_date_deleted)
     ).length;
 
     stats.innerHTML = `
@@ -231,10 +160,6 @@ function renderStats() {
     `;
 }
 
-// =====================================================
-// STATUS AND ACTIONS
-// =====================================================
-
 function statusMarkup(crop) {
     if (crop.crops_date_deleted) {
         return '<span class="crop-badge crop-badge-deleted">Deleted</span>';
@@ -248,10 +173,6 @@ function statusMarkup(crop) {
 }
 
 function actionMarkup(crop) {
-    if (!canManagePlantings) {
-        return '<span class="muted">View only</span>';
-    }
-
     const id = escapeHTML(crop.crops_id);
 
     if (crop.crops_date_deleted) {
@@ -280,10 +201,6 @@ function actionMarkup(crop) {
         </button>
     `;
 }
-
-// =====================================================
-// TABLE
-// =====================================================
 
 function renderTable() {
     const tbody = $('#cropTableBody');
@@ -319,7 +236,6 @@ function renderTable() {
                     <div class="crop-name">
                         ${escapeHTML(crop.crops_name)}
                     </div>
-
                     <div class="crop-desc">
                         ${escapeHTML(crop.crops_description || 'No description')}
                     </div>
@@ -355,21 +271,15 @@ function renderTable() {
     `;
 }
 
-// =====================================================
-// LOAD CROPS
-// =====================================================
 
+/** Fetch this manager's crop catalog and refresh the statistics and table. */
 async function loadCrops() {
     if (!managerId) {
         throw new Error('Farm Manager account could not be identified.');
     }
 
-    if (!(await verifyViewPermission())) {
-        throw new Error('You do not have permission to view crop plantings.');
-    }
-
     const { data, error } = await supabase
-        .from(TABLE)
+        .from('crops_catalog')
         .select(`
             crops_id,
             crops_name,
@@ -388,22 +298,16 @@ async function loadCrops() {
         throw error;
     }
 
+    // Store only this manager's crops in the page state.
     crops = data ?? [];
 
+    // Refresh the statistics and table.
     renderStats();
     renderTable();
 }
 
-// =====================================================
-// MODAL
-// =====================================================
 
 function openModal(crop = null) {
-    if (!canManagePlantings) {
-        notify('You do not have permission to manage crop plantings.');
-        return;
-    }
-
     editingCrop = crop;
 
     const modal = $('#cropModal');
@@ -424,14 +328,13 @@ function openModal(crop = null) {
 
                 <p class="crop-desc">
                     ${crop
-                        ? 'Update the crop name or description.'
-                        : 'Add a crop to the central crop catalog.'}
+            ? 'Update the crop name or description.'
+            : 'Add a crop to the central crop catalog.'}
                 </p>
 
                 <form id="cropForm">
                     <div class="crop-field">
                         <label for="cropName">Crop Name *</label>
-
                         <input
                             id="cropName"
                             name="crops_name"
@@ -444,7 +347,6 @@ function openModal(crop = null) {
 
                     <div class="crop-field">
                         <label for="cropDescription">Description</label>
-
                         <textarea
                             id="cropDescription"
                             name="crops_description"
@@ -486,17 +388,11 @@ function closeModal() {
     editingCrop = null;
 }
 
-// =====================================================
-// SAVE CROP
-// =====================================================
-
+/** Validate and persist the crop form, then refresh the catalog display. */
 async function saveCrop(form) {
     if (busy) return;
 
-    if (!(await verifyManagePermission())) return;
-
     const name = form.elements.crops_name.value.trim();
-
     const description =
         form.elements.crops_description.value.trim() || null;
 
@@ -546,7 +442,6 @@ async function saveCrop(form) {
 
         closeModal();
         await loadCrops();
-
     } catch (error) {
         console.error('Failed to save crop:', error);
 
@@ -563,14 +458,8 @@ async function saveCrop(form) {
     }
 }
 
-// =====================================================
-// UPDATE CROP
-// =====================================================
-
 async function updateCrop(id, changes, successMessage) {
     if (busy) return;
-
-    if (!(await verifyManagePermission())) return;
 
     setBusy(true);
 
@@ -584,7 +473,6 @@ async function updateCrop(id, changes, successMessage) {
 
         notify(successMessage, 'success');
         await loadCrops();
-
     } catch (error) {
         console.error('Failed to update crop:', error);
         notify(error.message || 'Unable to update crop.');
@@ -592,10 +480,6 @@ async function updateCrop(id, changes, successMessage) {
         setBusy(false);
     }
 }
-
-// =====================================================
-// ROW ACTIONS
-// =====================================================
 
 async function handleRowAction(action, id) {
     if (action === 'previous') {
@@ -615,12 +499,7 @@ async function handleRowAction(action, id) {
         return;
     }
 
-    if (!(await verifyManagePermission())) return;
-
-    const crop = crops.find(
-        item => String(item.crops_id) === String(id)
-    );
-
+    const crop = crops.find((item) => String(item.crops_id) === String(id));
     if (!crop) return;
 
     if (action === 'edit') {
@@ -685,20 +564,15 @@ async function handleRowAction(action, id) {
     }
 }
 
-// =====================================================
-// EVENTS
-// =====================================================
-
 function bindEvents() {
-    eventController?.abort();
-    eventController = new AbortController();
+    // Avoid adding duplicate listeners if the route is initialized again.
+    if (root.dataset.cropsBound === 'true') return;
+    root.dataset.cropsBound = 'true';
 
-    const { signal } = eventController;
-
-    pageRoot.addEventListener('click', async (event) => {
+    root.addEventListener('click', async (event) => {
         const actionElement = event.target.closest('[data-action]');
 
-        if (actionElement && pageRoot.contains(actionElement)) {
+        if (actionElement && root.contains(actionElement)) {
             const action = actionElement.dataset.action;
             const id = actionElement.dataset.id;
 
@@ -724,66 +598,56 @@ function bindEvents() {
         }
 
         if (event.target.closest('#addCropButton')) {
-            if (!(await verifyManagePermission())) return;
-
             openModal();
         }
-    }, { signal });
+    });
 
-    pageRoot.addEventListener('submit', async (event) => {
+    root.addEventListener('submit', async (event) => {
         if (event.target.id !== 'cropForm') return;
 
         event.preventDefault();
         await saveCrop(event.target);
-    }, { signal });
+    });
 
-    pageRoot.addEventListener('input', (event) => {
+    root.addEventListener('input', (event) => {
         if (event.target.id === 'cropSearch') {
             searchTerm = event.target.value;
             currentPage = 1;
             renderTable();
         }
-    }, { signal });
+    });
 
-    pageRoot.addEventListener('change', (event) => {
+    root.addEventListener('change', (event) => {
         if (event.target.id === 'cropStatusFilter') {
             statusFilter = event.target.value;
             currentPage = 1;
             renderTable();
         }
-    }, { signal });
+    });
 
-    pageRoot.addEventListener('keydown', (event) => {
+    root.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && !$('#cropModal')?.hidden) {
             closeModal();
         }
-    }, { signal });
+    });
 }
 
-// =====================================================
-// PAGE UI
-// =====================================================
-
 function renderPage() {
-    pageRoot.innerHTML = `
+    root.innerHTML = `
         <section class="fm-crops">
             <header class="crops-header">
                 <div>
                     <h1 class="crops-title">Crop Catalog</h1>
                     <p class="crops-subtitle">
-                        ${canManagePlantings
-                            ? 'Manage crop types and seasonal availability.'
-                            : 'View crop types and seasonal availability.'}
+                        Manage crop types and seasonal availability.
                     </p>
                 </div>
 
-                ${canManagePlantings ? `
-                    <button type="button"
-                        id="addCropButton"
-                        class="crop-btn crop-btn-primary">
-                        + Add Crop
-                    </button>
-                ` : ''}
+                <button type="button"
+                    id="addCropButton"
+                    class="crop-btn crop-btn-primary">
+                    + Add Crop
+                </button>
             </header>
 
             <div id="cropMessage" class="crop-message" hidden></div>
@@ -844,66 +708,23 @@ function renderPage() {
     `;
 }
 
-// =====================================================
-// CLEANUP
-// =====================================================
-
-export function cleanup() {
-    eventController?.abort();
-    eventController = null;
-
-    pageRoot = null;
-    crops = [];
-    managerId = null;
-    editingCrop = null;
-    busy = false;
-
-    canViewPlantings = false;
-    canManagePlantings = false;
-}
-
-// =====================================================
-// MAIN RENDER
-// =====================================================
-
+/** Initialize the crop catalog view, including its filters and editor actions. */
 export async function render(container, ctx) {
     if (!container) {
-        console.error('Farm Manager page root was not found.');
+        console.error('Farm Manager page root #view was not found.');
         return;
     }
 
-    pageRoot = container;
+    // The main router passes the page container.
+    // Keep the shared root reference synchronized.
+    renderPage();
+    bindEvents();
 
     try {
-        const allowed = await checkPermissions();
-
-        if (!allowed) {
-            pageRoot.replaceChildren(
-                Object.assign(document.createElement('p'), {
-                    className: 'msg error',
-                    textContent:
-                        'You do not have permission to view crop plantings.'
-                })
-            );
-            return;
-        }
-
         managerId = await getManagerAccount();
-
-        renderPage();
-        bindEvents();
-
         await loadCrops();
-
     } catch (error) {
         console.error('Crop catalog initialization failed:', error);
-
-        pageRoot.replaceChildren(
-            Object.assign(document.createElement('p'), {
-                className: 'msg error',
-                textContent:
-                    error.message || 'Unable to initialize the crop catalog.'
-            })
-        );
+        notify(error.message || 'Unable to initialize the crop catalog.');
     }
 }

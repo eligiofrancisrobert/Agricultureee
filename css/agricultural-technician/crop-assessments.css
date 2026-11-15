@@ -1,11 +1,13 @@
-
 /* ==========================================================
    CROP ASSESSMENTS (Agricultural Technician)
-   Shared admin theme tokens:
+   Built on the shared admin tokens, so it follows the
+   light / dark theme automatically (:root[data-theme="dark"]).
+
+   Tokens used (from the global stylesheet):
    --bg --card --text --muted --primary --primary-dark
    --amber --red --mint --shadow --r --border --success
    --warning --error --surface-card --primary-color
-========================================================== */
+   ========================================================== */
 
 .at-page {
     display: flex;
@@ -15,10 +17,7 @@
     color: var(--text);
 }
 
-/* ==========================================================
-   PAGE HEADING
-========================================================== */
-
+/* ---------- Page heading ---------- */
 .at-page-heading h2 {
     font-size: 1.6rem;
     overflow-wrap: anywhere;
@@ -29,10 +28,7 @@
     color: var(--muted);
 }
 
-/* ==========================================================
-   SUMMARY CARDS
-========================================================== */
-
+/* ---------- Summary cards (same look as .tile) ---------- */
 .at-assessment-summary-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
@@ -81,10 +77,7 @@
     color: var(--text);
 }
 
-/* ==========================================================
-   TOOLBAR
-========================================================== */
-
+/* ---------- Toolbar (search pill + filters) ---------- */
 .at-assessment-toolbar {
     display: flex;
     align-items: center;
@@ -118,6 +111,7 @@
     border-color: var(--primary);
 }
 
+/* Filters (same as .toolbar select) */
 .at-filter-select {
     flex: 0 1 220px;
     min-width: 160px;
@@ -136,10 +130,7 @@
     border-color: var(--primary);
 }
 
-/* ==========================================================
-   SECTION SUMMARY
-========================================================== */
-
+/* ---------- Record count ---------- */
 .at-section-summary {
     display: flex;
     align-items: center;
@@ -161,10 +152,7 @@
     font-size: .85rem;
 }
 
-/* ==========================================================
-   ASSESSMENT GRID AND CARDS
-========================================================== */
-
+/* ---------- Grid ---------- */
 .at-assessments-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
@@ -179,6 +167,7 @@
     text-align: center;
 }
 
+/* ---------- Assessment card (same look as .fm-panel) ---------- */
 .at-assessment-card {
     display: flex;
     flex-direction: column;
@@ -214,10 +203,7 @@
     font-size: .8rem;
 }
 
-/* ==========================================================
-   STATUS BADGES
-========================================================== */
-
+/* Health status pill (same as .badge.active) */
 .at-status-badge {
     display: inline-block;
     flex-shrink: 0;
@@ -231,6 +217,7 @@
     white-space: nowrap;
 }
 
+/* Optional variants: pass e.g. `health-poor` as the className in createBadge */
 .at-status-badge.health-fair {
     background: color-mix(in srgb, var(--warning) 26%, var(--surface-card));
 }
@@ -240,30 +227,7 @@
     background: color-mix(in srgb, var(--error) 22%, var(--surface-card));
 }
 
-.at-status-badge.completion-submitted {
-    background: color-mix(in srgb, var(--warning) 20%, var(--surface-card));
-    color: var(--text);
-}
-
-.at-status-badge.completion-verified {
-    background: color-mix(in srgb, var(--success) 20%, var(--surface-card));
-    color: var(--success);
-}
-
-.at-status-badge.completion-needs_revision {
-    background: color-mix(in srgb, var(--error) 18%, var(--surface-card));
-    color: var(--red);
-}
-
-.at-status-badge.completion-reviewed {
-    background: color-mix(in srgb, var(--primary) 15%, var(--surface-card));
-    color: var(--primary-dark);
-}
-
-/* ==========================================================
-   ASSESSMENT DETAILS
-========================================================== */
-
+/* ---------- Detail boxes (same as .stat-box) ---------- */
 .at-assessment-details {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
@@ -290,10 +254,7 @@
     overflow-wrap: anywhere;
 }
 
-/* ==========================================================
-   TEXT SECTIONS AND RECOMMENDATIONS
-========================================================== */
-
+/* ---------- Text sections ---------- */
 .at-assessment-section {
     padding: 10px 12px;
     border-radius: 10px;
@@ -317,6 +278,7 @@
     overflow-wrap: anywhere;
 }
 
+/* Recommendation: styled like .tile */
 .at-assessment-recommendation {
     padding: 12px 14px;
     border-top: 3px solid var(--primary);
@@ -328,10 +290,7 @@
     color: var(--primary-dark);
 }
 
-/* ==========================================================
-   FOLLOW-UP ACTION
-========================================================== */
-
+/* ---------- Follow-up action banner ---------- */
 .at-assessment-action {
     padding: 10px 14px;
     border: 1px solid var(--border);
@@ -353,10 +312,7 @@
     color: var(--primary-dark);
 }
 
-/* ==========================================================
-   EMPTY AND ERROR STATES
-========================================================== */
-
+/* ---------- Empty / error states ---------- */
 .at-empty-state {
     grid-column: 1 / -1;
     padding: 48px 16px;
@@ -373,6 +329,7 @@
     font-size: 1.05rem;
 }
 
+/* Same as .msg.error */
 .at-error-state {
     grid-column: 1 / -1;
     padding: 14px 18px;
@@ -382,680 +339,7 @@
     color: var(--red);
 }
 
-/* ==========================================================
-   FARMER COMPLETION SUBMISSION PANEL
-========================================================== */
-
-.at-assessment-submission-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-width: 0;
-    padding: 14px;
-    border: 1px solid var(--border);
-    border-radius: var(--r);
-    background: var(--bg);
-}
-
-.at-assessment-submission-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.at-assessment-submission-header > strong {
-    color: var(--text);
-    font-size: .9rem;
-    font-weight: 600;
-}
-
-.at-assessment-submission-info {
-    margin-top: -6px;
-    color: var(--muted);
-    font-size: .78rem;
-}
-
-.at-assessment-submission-list {
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
-}
-
-.at-assessment-submission-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-    min-width: 0;
-    padding: 11px 12px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--card);
-}
-
-.at-assessment-submission-row-info {
-    display: flex;
-    flex: 1 1 120px;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-}
-
-.at-assessment-submission-row-info strong {
-    color: var(--text);
-    font-size: .85rem;
-    overflow-wrap: anywhere;
-}
-
-.at-assessment-submission-row-info small {
-    color: var(--muted);
-    font-size: .73rem;
-}
-
-/* ==========================================================
-   VIEW SUBMISSION BUTTON
-========================================================== */
-
-.at-view-submission-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 36px;
-    padding: 8px 14px;
-    border: 1px solid var(--primary);
-    border-radius: 9px;
-    background: color-mix(in srgb, var(--primary) 10%, var(--card));
-    color: var(--primary-dark);
-    font-family: inherit;
-    font-size: .78rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background .2s, color .2s, transform .2s;
-}
-
-.at-view-submission-button:hover {
-    background: var(--primary);
-    color: #fff;
-}
-
-.at-view-submission-button:active {
-    transform: scale(.97);
-}
-
-/* ==========================================================
-   REVIEW MODAL
-========================================================== */
-
-.at-review-modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    padding: 20px;
-    background: rgba(0, 0, 0, .55);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    animation: atModalFadeIn .2s ease;
-}
-
-.at-review-modal-overlay[hidden] {
-    display: none;
-}
-
-.at-review-modal {
-    display: flex;
-    flex-direction: column;
-    width: min(620px, 100%);
-    max-height: min(85vh, 800px);
-    min-width: 0;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    border-radius: var(--r);
-    background: var(--card);
-    color: var(--text);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, .22);
-    animation: atModalSlideIn .25s ease;
-}
-
-.at-review-modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 18px 22px;
-    border-bottom: 1px solid var(--border);
-    background: var(--card);
-}
-
-.at-review-modal-header h3 {
-    margin: 0;
-    color: var(--text);
-    font-family: 'Outfit', sans-serif;
-    font-size: 1.1rem;
-    font-weight: 600;
-    overflow-wrap: anywhere;
-}
-
-.at-review-modal-close {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    width: 34px;
-    height: 34px;
-    border: 1px solid transparent;
-    border-radius: 50%;
-    background: var(--bg);
-    color: var(--muted);
-    font-family: inherit;
-    font-size: 1.5rem;
-    line-height: 1;
-    cursor: pointer;
-    transition: background .2s, color .2s;
-}
-
-.at-review-modal-close:hover {
-    background: color-mix(in srgb, var(--error) 12%, var(--card));
-    color: var(--red);
-}
-
-.at-review-modal-body {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    min-height: 0;
-    padding: 22px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-}
-
-.at-review-modal-body::-webkit-scrollbar {
-    width: 6px;
-}
-
-.at-review-modal-body::-webkit-scrollbar-thumb {
-    border-radius: 999px;
-    background: var(--border);
-}
-
-.at-review-modal-body::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.at-review-info-item {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    min-width: 0;
-}
-
-.at-review-info-item small {
-    color: var(--muted);
-    font-size: .75rem;
-}
-
-.at-review-info-item strong {
-    color: var(--text);
-    font-size: .9rem;
-    font-weight: 600;
-    overflow-wrap: anywhere;
-}
-
-.at-review-status-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 12px 14px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--bg);
-}
-
-.at-review-status-row > span:first-child {
-    color: var(--muted);
-    font-size: .8rem;
-    font-weight: 600;
-}
-
-/* Modal content sections */
-
-.at-review-modal-body .at-assessment-section {
-    padding: 14px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--bg);
-}
-
-.at-review-modal-body .at-assessment-section h4 {
-    margin-bottom: 7px;
-    color: var(--primary-dark);
-    font-size: .76rem;
-    font-weight: 700;
-}
-
-.at-review-modal-body .at-assessment-section p {
-    color: var(--text);
-    font-size: .88rem;
-    line-height: 1.6;
-    overflow-wrap: anywhere;
-}
-
-/* Evidence photo */
-
-.at-review-evidence {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    min-width: 0;
-}
-
-.at-review-evidence h4 {
-    margin: 0;
-    color: var(--primary-dark);
-    font-size: .78rem;
-    font-weight: 700;
-    letter-spacing: .02em;
-    text-transform: uppercase;
-}
-
-.at-review-evidence-link {
-    display: block;
-    width: 100%;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--bg);
-}
-
-.at-review-evidence-image {
-    display: block;
-    width: 100%;
-    max-height: 340px;
-    object-fit: contain;
-    background: var(--bg);
-}
-
-.at-review-evidence p {
-    color: var(--muted);
-    font-size: .84rem;
-}
-
-/* Modal footer */
-
-.at-review-modal-footer {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 16px 22px;
-    border-top: 1px solid var(--border);
-    background: var(--card);
-}
-
-.at-review-modal-footer button {
-    min-height: 42px;
-    padding: 10px 16px;
-    border: 1px solid transparent;
-    border-radius: 9px;
-    font-family: inherit;
-    font-size: .82rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background .2s, transform .2s, opacity .2s;
-}
-
-.at-review-modal-footer button:active {
-    transform: scale(.97);
-}
-
-.at-review-modal-footer button:disabled {
-    opacity: .6;
-    cursor: not-allowed;
-}
-
-.at-completion-verify-button {
-    background: var(--success);
-    color: #fff;
-}
-
-.at-completion-verify-button:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--success) 80%, #000);
-}
-
-.at-completion-revision-button {
-    border-color: var(--warning) !important;
-    background: color-mix(in srgb, var(--warning) 16%, var(--card));
-    color: var(--text);
-}
-
-.at-completion-revision-button:hover:not(:disabled) {
-    background: var(--warning);
-    color: #fff;
-}
-
-.at-review-completed-label {
-    margin: 0;
-    color: var(--muted);
-    font-size: .85rem;
-    font-weight: 500;
-}
-
-/* ==========================================================
-   ACTION POPUP
-========================================================== */
-
-.at-action-popup-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 10001;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    background: rgba(0, 0, 0, .55);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-}
-
-.at-action-popup-overlay[hidden],
-.at-action-popup-field[hidden] {
-    display: none;
-}
-
-.at-action-popup {
-    display: flex;
-    flex-direction: column;
-    width: min(460px, 100%);
-    max-height: 90vh;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    border-radius: var(--r);
-    background: var(--card);
-    color: var(--text);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, .25);
-    animation: atPopupEnter .2s ease;
-}
-
-.at-action-popup-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 18px 20px;
-    border-bottom: 1px solid var(--border);
-}
-
-.at-action-popup-header h3 {
-    margin: 0;
-    color: var(--text);
-    font-family: 'Outfit', sans-serif;
-    font-size: 1.1rem;
-}
-
-.at-action-popup-close {
-    width: 34px;
-    height: 34px;
-    border: 0;
-    border-radius: 50%;
-    background: var(--bg);
-    color: var(--muted);
-    font-size: 1.4rem;
-    cursor: pointer;
-}
-
-.at-action-popup-close:hover {
-    background: color-mix(in srgb, var(--error) 12%, var(--card));
-    color: var(--red);
-}
-
-.at-action-popup-body {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding: 20px;
-    overflow-y: auto;
-}
-
-.at-action-popup-message {
-    margin: 0;
-    color: var(--text);
-    font-size: .9rem;
-    line-height: 1.6;
-}
-
-.at-action-popup-field {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-}
-
-.at-action-popup-field label {
-    color: var(--text);
-    font-size: .82rem;
-    font-weight: 600;
-}
-
-.at-action-popup-textarea {
-    width: 100%;
-    min-height: 110px;
-    padding: 12px 14px;
-    resize: vertical;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    outline: none;
-    background: var(--bg);
-    color: var(--text);
-    font-family: inherit;
-    font-size: .88rem;
-    line-height: 1.5;
-}
-
-.at-action-popup-textarea:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
-}
-
-.at-action-popup-textarea::placeholder {
-    color: var(--muted);
-}
-
-.at-action-popup-validation {
-    margin: -8px 0 0;
-    color: var(--red);
-    font-size: .78rem;
-}
-
-.at-action-popup-footer {
-    display: flex;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 16px 20px;
-    border-top: 1px solid var(--border);
-}
-
-.at-action-popup-footer button {
-    min-height: 40px;
-    padding: 9px 16px;
-    border: 1px solid transparent;
-    border-radius: 9px;
-    font-family: inherit;
-    font-size: .82rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: .2s ease;
-}
-
-.at-action-popup-footer button:disabled {
-    opacity: .6;
-    cursor: not-allowed;
-}
-
-.at-popup-cancel-button {
-    border-color: var(--border) !important;
-    background: var(--card);
-    color: var(--text);
-}
-
-.at-popup-cancel-button:hover {
-    background: var(--bg);
-}
-
-.at-popup-confirm-button {
-    background: var(--primary);
-    color: #fff;
-}
-
-.at-popup-confirm-button:hover {
-    background: var(--primary-dark);
-}
-
-.at-popup-confirm-button.success {
-    background: var(--success);
-}
-
-.at-popup-confirm-button.revision {
-    background: var(--warning);
-    color: var(--text);
-}
-
-/* ==========================================================
-   TOAST NOTIFICATIONS
-========================================================== */
-
-.at-toast-container {
-    position: fixed;
-    top: 22px;
-    right: 22px;
-    z-index: 10002;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: min(380px, calc(100vw - 32px));
-    pointer-events: none;
-}
-
-.at-toast {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    border: 1px solid var(--border);
-    border-left: 4px solid var(--success);
-    border-radius: 10px;
-    background: var(--card);
-    color: var(--text);
-    box-shadow: var(--shadow);
-    opacity: 0;
-    transform: translateX(20px);
-    transition: opacity .25s ease, transform .25s ease;
-}
-
-.at-toast.show {
-    opacity: 1;
-    transform: translateX(0);
-}
-
-.at-toast-error {
-    border-left-color: var(--red);
-}
-
-.at-toast-info {
-    border-left-color: var(--primary);
-}
-
-.at-toast-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: color-mix(in srgb, var(--success) 15%, var(--card));
-    color: var(--success);
-    font-size: .85rem;
-    font-weight: 700;
-}
-
-.at-toast-error .at-toast-icon {
-    background: color-mix(in srgb, var(--error) 15%, var(--card));
-    color: var(--red);
-}
-
-.at-toast-info .at-toast-icon {
-    background: color-mix(in srgb, var(--primary) 15%, var(--card));
-    color: var(--primary);
-}
-
-.at-toast-message {
-    color: var(--text);
-    font-size: .84rem;
-    line-height: 1.45;
-}
-
-/* ==========================================================
-   FOCUS STATES
-========================================================== */
-
-.at-view-submission-button:focus-visible,
-.at-review-modal button:focus-visible,
-.at-review-modal-close:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 3px;
-}
-
-/* ==========================================================
-   ANIMATIONS
-========================================================== */
-
-@keyframes atModalFadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
-
-@keyframes atModalSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(14px) scale(.98);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-@keyframes atPopupEnter {
-    from {
-        opacity: 0;
-        transform: translateY(12px) scale(.98);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-/* ==========================================================
-   RESPONSIVE
-========================================================== */
-
+/* ---------- Responsive (same breakpoints as the admin shell) ---------- */
 @media (max-width: 560px) {
     .at-page-heading h2 {
         font-size: 1.45rem;
@@ -1069,7 +353,6 @@
     .at-search-input {
         flex: 1 1 100%;
         max-width: none;
-        min-width: 0;
         min-height: 46px;
     }
 
@@ -1089,99 +372,5 @@
 
     .at-assessment-date {
         margin-top: 0;
-    }
-
-    .at-assessment-submission-panel {
-        padding: 12px;
-    }
-
-    .at-assessment-submission-row {
-        align-items: flex-start;
-    }
-
-    .at-assessment-submission-row-info {
-        flex-basis: 100%;
-    }
-
-    .at-view-submission-button {
-        width: 100%;
-    }
-
-    .at-review-modal-overlay {
-        align-items: flex-end;
-        padding: 0;
-    }
-
-    .at-review-modal {
-        width: 100%;
-        max-height: 92vh;
-        border-radius: 18px 18px 0 0;
-    }
-
-    .at-review-modal-header {
-        padding: 16px;
-    }
-
-    .at-review-modal-body {
-        gap: 14px;
-        padding: 16px;
-    }
-
-    .at-review-modal-footer {
-        padding: 14px 16px;
-    }
-
-    .at-review-modal-footer button {
-        flex: 1 1 100%;
-    }
-
-    .at-action-popup-overlay {
-        align-items: flex-end;
-        padding: 0;
-    }
-
-    .at-action-popup {
-        width: 100%;
-        max-height: 90vh;
-        border-radius: 18px 18px 0 0;
-    }
-
-    .at-action-popup-header,
-    .at-action-popup-body {
-        padding: 16px;
-    }
-
-    .at-action-popup-footer {
-        padding: 14px 16px;
-    }
-
-    .at-action-popup-footer button {
-        flex: 1 1 100%;
-    }
-
-    .at-toast-container {
-        top: 12px;
-        right: 16px;
-        left: 16px;
-        width: auto;
-    }
-}
-
-/* ==========================================================
-   REDUCED MOTION
-========================================================== */
-
-@media (prefers-reduced-motion: reduce) {
-    .at-review-modal-overlay,
-    .at-review-modal,
-    .at-action-popup,
-    .at-toast {
-        animation: none;
-        transition: none;
-    }
-
-    .at-view-submission-button,
-    .at-review-modal button {
-        transition: none;
     }
 }

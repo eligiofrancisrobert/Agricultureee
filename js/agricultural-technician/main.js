@@ -12,6 +12,7 @@ const TITLES = {
     'crop-monitoring': 'Crop Monitoring',
     'field-inspections': 'Field Inspections',
     'crop-assessments': 'Crop Assessments',
+    recommendations: 'Recommendations',
     'monitoring-reports': 'Monitoring Reports',
     settings: 'Settings'
 };
@@ -180,6 +181,8 @@ async function boot() {
     await show();
 }
 
+
+
 // ============================================================
 // TOPBAR AND EVENT LISTENERS
 // ============================================================
@@ -267,10 +270,6 @@ function setupChrome() {
         });
     }
 }
-
-// ============================================================
-// INITIALIZATION
-// ============================================================
 
 initSidebarMenu({
     breakpoint: 900,

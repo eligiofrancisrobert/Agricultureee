@@ -18,52 +18,13 @@ const otpCancel = document.getElementById("otpCancel");
 const otpClose = document.getElementById("otpClose");
 
 let otpSubmitting = false;
-let resendSubmitting = false;
 let otpCancelled = false;
 let verifiedSession = null;
 
 let otpCooldownInterval = null;
 let otpCooldownUntil = 0;
 
-let resendCooldownInterval = null;
-let resendCooldownUntil = 0;
-
-/* =========================================================
-   RESEND CODE UI
-   ========================================================= */
-
-const otpResendButton = document.createElement("button");
-otpResendButton.type = "button";
-otpResendButton.id = "otpResendButton";
-otpResendButton.textContent = "Resend code";
-otpResendButton.disabled = false;
-
-otpResendButton.style.marginTop = "10px";
-otpResendButton.style.width = "100%";
-otpResendButton.style.cursor = "pointer";
-
-otpVerifyButton.insertAdjacentElement(
-    "afterend",
-    otpResendButton
-);
-
-const otpResendStatus = document.createElement("p");
-otpResendStatus.id = "otpResendStatus";
-otpResendStatus.hidden = true;
-otpResendStatus.setAttribute("aria-live", "polite");
-otpResendStatus.style.marginTop = "8px";
-otpResendStatus.style.textAlign = "center";
-otpResendStatus.style.fontSize = "13px";
-
-otpResendButton.insertAdjacentElement(
-    "afterend",
-    otpResendStatus
-);
-
-/* =========================================================
-   LOGIN PAGE
-   ========================================================= */
-
+/** Clear credentials whenever this login page is entered or left. */
 function clearLoginCredentials() {
     if (passwordInput) passwordInput.value = "";
     if (emailInput) emailInput.value = "";
@@ -75,16 +36,14 @@ clearLoginCredentials();
 window.addEventListener("pageshow", clearLoginCredentials);
 window.addEventListener("pagehide", clearLoginCredentials);
 
+/** Display login feedback and mark error messages for styling. */
 function showMessage(text, isError = false) {
     message.hidden = false;
     message.textContent = text;
     message.classList.toggle("error", isError);
 }
 
-/* =========================================================
-   OTP VERIFICATION COOLDOWN
-   ========================================================= */
-
+/** Update the Verify button according to the current state. */
 function updateVerifyButton() {
     if (otpSubmitting) {
         otpVerifyButton.disabled = true;
@@ -102,6 +61,7 @@ function updateVerifyButton() {
     otpVerifyButton.textContent = "Verify code";
 }
 
+/** Stop the OTP cooldown timer. */
 function stopOtpCooldown() {
     if (otpCooldownInterval !== null) {
         clearInterval(otpCooldownInterval);
@@ -118,6 +78,7 @@ function stopOtpCooldown() {
     updateVerifyButton();
 }
 
+/** Render the remaining cooldown using the server timestamp. */
 function updateOtpCooldown() {
     const remaining = Math.max(
         0,
@@ -136,6 +97,7 @@ function updateOtpCooldown() {
     updateVerifyButton();
 }
 
+/** Start the OTP retry cooldown without creating duplicate timers. */
 function startOtpCooldown(cooldownUntil, retryAfter = 60) {
     if (otpCooldownInterval !== null) {
         clearInterval(otpCooldownInterval);
@@ -150,6 +112,7 @@ function startOtpCooldown(cooldownUntil, retryAfter = 60) {
         ? serverDeadline
         : Date.now() + Number(retryAfter) * 1000;
 
+    // Do not show the same cooldown as an error message.
     otpError.hidden = true;
     otpError.textContent = "";
 
@@ -163,86 +126,18 @@ function startOtpCooldown(cooldownUntil, retryAfter = 60) {
     }
 }
 
-/* =========================================================
-   OTP RESEND COOLDOWN
-   ========================================================= */
-
-function stopResendCooldown() {
-    if (resendCooldownInterval !== null) {
-        clearInterval(resendCooldownInterval);
-        resendCooldownInterval = null;
-    }
-
-    resendCooldownUntil = 0;
-
-    otpResendButton.disabled = false;
-    otpResendButton.textContent = "Resend code";
-}
-
-function updateResendCooldown() {
-    const remaining = Math.max(
-        0,
-        Math.ceil((resendCooldownUntil - Date.now()) / 1000)
-    );
-
-    if (remaining <= 0) {
-        stopResendCooldown();
-        return;
-    }
-
-    otpResendButton.disabled = true;
-    otpResendButton.textContent = `Resend code (${remaining}s)`;
-}
-
-function startResendCooldown(cooldownUntil, retryAfter = 60) {
-    if (resendCooldownInterval !== null) {
-        clearInterval(resendCooldownInterval);
-        resendCooldownInterval = null;
-    }
-
-    const serverDeadline = cooldownUntil
-        ? new Date(cooldownUntil).getTime()
-        : NaN;
-
-    resendCooldownUntil = Number.isFinite(serverDeadline)
-        ? serverDeadline
-        : Date.now() + Number(retryAfter) * 1000;
-
-    updateResendCooldown();
-
-    if (resendCooldownUntil > Date.now()) {
-        resendCooldownInterval = setInterval(
-            updateResendCooldown,
-            250
-        );
-    }
-}
-
-/* =========================================================
-   OTP MODAL
-   ========================================================= */
-
+/** Reset and open the one-time-code dialog for the submitted email. */
 function openOtpModal(email) {
     stopOtpCooldown();
-    stopResendCooldown();
 
     otpSubmitting = false;
-    resendSubmitting = false;
-
     otpEmail.textContent = email;
     otpError.hidden = true;
     otpError.textContent = "";
-
-    otpResendStatus.hidden = true;
-    otpResendStatus.textContent = "";
-
     otpForm.reset();
 
     otpVerifyButton.disabled = false;
     otpVerifyButton.textContent = "Verify code";
-
-    otpResendButton.disabled = false;
-    otpResendButton.textContent = "Resend code";
 
     otpModal.hidden = false;
     otpCancelled = false;
@@ -250,17 +145,16 @@ function openOtpModal(email) {
     requestAnimationFrame(() => otpDigits[0].focus());
 }
 
+/** Close the OTP dialog unless verification is currently being submitted. */
 function closeOtpModal() {
-    if (otpSubmitting || resendSubmitting) return;
+    if (otpSubmitting) return;
 
     otpCancelled = true;
-
     stopOtpCooldown();
-    stopResendCooldown();
-
     otpModal.hidden = true;
 }
 
+/** Combine the individual OTP inputs into the value sent for verification. */
 function getOtpValue() {
     return otpDigits.map(input => input.value).join("");
 }
@@ -269,10 +163,6 @@ function setOtpError(text) {
     otpError.textContent = text;
     otpError.hidden = false;
 }
-
-/* =========================================================
-   OTP INPUT HANDLING
-   ========================================================= */
 
 otpDigits.forEach((input, index) => {
     input.addEventListener("input", () => {
@@ -331,12 +221,13 @@ otpModal.addEventListener("click", event => {
     if (event.target === otpModal) closeOtpModal();
 });
 
-/* =========================================================
-   ACCOUNT ROLE AND DASHBOARD REDIRECTION
-   ========================================================= */
-
+/**
+ * Resolve the landing page after checking admin, staff, and profile access.
+ * @param {string} userId Supabase Auth user ID.
+ * @returns {Promise<string>} The destination for the account's role.
+ */
 async function getApprovedDestination(userId) {
-    // 1. Check administrator accounts.
+    // 1. Check existing administrator accounts.
     const { data: admin, error: adminError } = await supabase
         .from("admin_users")
         .select("user_id")
@@ -348,11 +239,9 @@ async function getApprovedDestination(userId) {
         throw new Error("Unable to check your administrator account.");
     }
 
-    if (admin) {
-        return "./pages/admin/admin-dashboard.html";
-    }
+    if (admin) return "./pages/admin/admin-dashboard.html";
 
-    // 2. Check staff accounts.
+    // 2. Check staff accounts using the Supabase Auth UUID.
     const { data: staff, error: staffError } = await supabase
         .from("staff_accounts")
         .select("staff_id, user_id, role_id, status_id")
@@ -403,7 +292,7 @@ async function getApprovedDestination(userId) {
         return destination;
     }
 
-    // 3. Check Farmer, Buyer, and Supplier accounts.
+    // 3. Existing Farmer, Buyer, and Supplier accounts.
     const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id, role, status")
@@ -455,10 +344,7 @@ async function getApprovedDestination(userId) {
     return destination;
 }
 
-/* =========================================================
-   EDGE FUNCTION REQUEST HANDLER
-   ========================================================= */
-
+/** Invoke the OTP Edge Function and preserve cooldown information. */
 async function invokeOtpFunction(body) {
     const { data, error } = await supabase.functions.invoke(
         "email-otp-login",
@@ -473,7 +359,7 @@ async function invokeOtpFunction(body) {
                 responseBody = await error.context.clone().json();
             }
         } catch {
-            // Preserve the original Supabase error.
+            // Keep the original Supabase error if the response is not JSON.
         }
 
         console.error("OTP function error:", responseBody || error);
@@ -505,91 +391,6 @@ async function invokeOtpFunction(body) {
 
     return data;
 }
-
-/* =========================================================
-   RESEND OTP
-   ========================================================= */
-
-async function resendOtp(challengeId) {
-    if (resendSubmitting || otpSubmitting) return;
-
-    if (resendCooldownUntil > Date.now()) {
-        updateResendCooldown();
-        return;
-    }
-
-    resendSubmitting = true;
-
-    otpResendButton.disabled = true;
-    otpResendButton.textContent = "Sending...";
-
-    otpResendStatus.hidden = true;
-    otpResendStatus.textContent = "";
-
-    otpError.hidden = true;
-    otpError.textContent = "";
-
-    try {
-        const data = await invokeOtpFunction({
-            action: "resend",
-            challengeId
-        });
-
-        if (!data.challengeId) {
-            throw new Error(
-                "The server did not return a valid verification challenge."
-            );
-        }
-
-        otpDigits.forEach(input => {
-            input.value = "";
-        });
-
-        startResendCooldown(
-            data.cooldownUntil,
-            data.retryAfter || 60
-        );
-
-        otpResendStatus.textContent =
-            "A new verification code has been sent to your email.";
-
-        otpResendStatus.hidden = false;
-
-        otpDigits[0].focus();
-
-    } catch (error) {
-        console.error("Resend OTP error:", error);
-
-        if (error.cooldown) {
-            startResendCooldown(
-                error.cooldownUntil,
-                error.retryAfter || 60
-            );
-        } else if (error.locked) {
-            setOtpError(
-                error.message || "Your account is locked."
-            );
-        } else {
-            setOtpError(
-                error.message || "Unable to resend the verification code."
-            );
-        }
-
-    } finally {
-        resendSubmitting = false;
-
-        if (resendCooldownUntil > Date.now()) {
-            updateResendCooldown();
-        } else {
-            otpResendButton.disabled = false;
-            otpResendButton.textContent = "Resend code";
-        }
-    }
-}
-
-/* =========================================================
-   LOGIN FORM SUBMISSION
-   ========================================================= */
 
 form.addEventListener("submit", async event => {
     event.preventDefault();
@@ -625,12 +426,10 @@ form.addEventListener("submit", async event => {
         }
 
         passwordInput.value = "";
-
         showMessage(`A verification code was sent to ${email}.`);
 
         // STEP 2: Display the OTP modal.
         openOtpModal(email);
-
         button.textContent = "Waiting for verification...";
 
         const otp = await new Promise(resolve => {
@@ -638,17 +437,10 @@ form.addEventListener("submit", async event => {
 
             const finish = value => {
                 if (settled) return;
-
                 settled = true;
                 resolve(value);
             };
 
-            // Resend button.
-            otpResendButton.onclick = async () => {
-                await resendOtp(challengeId);
-            };
-
-            // OTP verification.
             otpForm.onsubmit = async otpEvent => {
                 otpEvent.preventDefault();
 
@@ -664,7 +456,7 @@ form.addEventListener("submit", async event => {
                     return;
                 }
 
-                if (otpSubmitting || resendSubmitting) return;
+                if (otpSubmitting) return;
 
                 otpSubmitting = true;
                 updateVerifyButton();
@@ -689,34 +481,23 @@ form.addEventListener("submit", async event => {
                     verifiedSession = verifyData.session;
 
                     stopOtpCooldown();
-                    stopResendCooldown();
-
                     otpModal.hidden = true;
 
                     finish(code);
-
                 } catch (error) {
                     otpDigits.forEach(input => {
                         input.value = "";
                     });
 
                     if (error.cooldown || error.locked) {
+                        // Show only the cooldown, not the server error.
                         otpError.hidden = true;
                         otpError.textContent = "";
 
-                        if (error.cooldown) {
-                            startOtpCooldown(
-                                error.cooldownUntil,
-                                error.retryAfter || 60
-                            );
-                        }
-
-                        if (error.locked) {
-                            setOtpError(
-                                error.message || "Your account is locked."
-                            );
-                        }
-
+                        startOtpCooldown(
+                            error.cooldownUntil,
+                            error.retryAfter || 60
+                        );
                     } else {
                         setOtpError(
                             error.message || "Invalid code. Please try again."
@@ -724,7 +505,6 @@ form.addEventListener("submit", async event => {
 
                         otpDigits[0].focus();
                     }
-
                 } finally {
                     otpSubmitting = false;
                     updateVerifyButton();
@@ -748,7 +528,6 @@ form.addEventListener("submit", async event => {
             showMessage(
                 "Verification cancelled. Please log in again."
             );
-
             return;
         }
 
