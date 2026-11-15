@@ -1,0 +1,51 @@
+ css/admin/settings.css                             |  747 [31m-----[m
+ css/agricultural-technician/crop-assessments.css   |  855 [32m+[m[31m-----[m
+ css/buyers/settings.css                            |  462 [31m----[m
+ css/farmer/recommendations.css                     | 1098 [31m--------[m
+ css/farmer/settings.css                            |  489 [31m----[m
+ css/warehouse-officer/equipment.css                |   94 [31m-[m
+ css/warehouse-officer/inventory.css                |  703 [31m-----[m
+ html/pages/admin/admin-dashboard.html              |    1 [31m-[m
+ .../agricultural-technician-dashboard.html         |   24 [32m+[m[31m-[m
+ html/pages/buyers/add-to-cart.html                 |    1 [31m-[m
+ html/pages/buyers/browse-produce.html              |    1 [31m-[m
+ html/pages/buyers/buyer-order-history.html         |    1 [31m-[m
+ html/pages/buyers/buyer-orders.html                |    1 [31m-[m
+ html/pages/buyers/buyer-profile.html               |    1 [31m-[m
+ html/pages/buyers/place-order.html                 |    1 [31m-[m
+ html/pages/farmer/activities.html                  |   12 [32m+[m[31m-[m
+ html/pages/farmer/farmer-dashboard.html            |   12 [32m+[m[31m-[m
+ html/pages/farmer/harvest-records.html             |   13 [32m+[m[31m-[m
+ html/pages/farmer/plantings.html                   |   12 [32m+[m[31m-[m
+ html/pages/farmer/recommendations.html             |  283 [31m--[m
+ html/pages/farmer/settings.html                    |  165 [31m--[m
+ js/admin/permissions.js                            |  161 [31m--[m
+ js/admin/settings.js                               |  164 [32m+[m[31m-[m
+ js/admin/settings/account.js                       |   68 [31m-[m
+ js/admin/settings/audit-logs.js                    |    0
+ js/admin/settings/data-management.js               |    0
+ js/admin/settings/notifications.js                 |    0
+ js/admin/settings/permissions.js                   |  444 [31m---[m
+ js/admin/settings/registration.js                  |  132 [31m-[m
+ js/admin/settings/security.js                      |   97 [31m-[m
+ js/admin/settings/system.js                        |    0
+ js/agricultural-technician/crop-assessments.js     | 1110 [32m+[m[31m-------[m
+ js/agricultural-technician/main.js                 |    9 [32m+[m[31m-[m
+ js/auth/login.js                                   |  277 [32m+[m[31m-[m
+ js/buyers/settings.js                              |  452 [31m---[m
+ js/farm-manager/crops.js                           |  271 [32m+[m[31m-[m
+ js/farm-manager/farm-actions.js                    |   21 [32m+[m[31m-[m
+ js/farm-manager/main.js                            |   89 [32m+[m[31m-[m
+ js/farmer/activities.js                            |  736 [32m+[m[31m----[m
+ js/farmer/recommendations.js                       | 1112 [31m--------[m
+ js/farmer/settings.js                              |  618 [31m-----[m
+ js/warehouse-officer/dashboard.js                  |  375 [32m+[m[31m--[m
+ js/warehouse-officer/deliveries.js                 |  631 [32m++[m[31m---[m
+ js/warehouse-officer/equipment.js                  |  903 [32m+[m[31m-----[m
+ js/warehouse-officer/fertilizer-inventory.js       |  710 [32m+[m[31m----[m
+ js/warehouse-officer/harvest-inventory.js          |  595 [32m+[m[31m---[m
+ js/warehouse-officer/inventory-helpers.js          |  850 [31m------[m
+ js/warehouse-officer/inventory-template.js         | 2917 [32m+++++++++++++++++[m[31m---[m
+ js/warehouse-officer/main.js                       |  324 [32m+[m[31m--[m
+ js/warehouse-officer/pesticide-inventory.js        |  704 [32m+[m[31m----[m
+ 50 files changed, 3424 insertions(+), 15322 deletions(-)
