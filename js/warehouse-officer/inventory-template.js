@@ -205,6 +205,9 @@ async function getCurrentUserId() {
 PHOTO HELPERS
 ========================================================= */
 
+const photoUrlCache = new Map();
+const PHOTO_CACHE_DURATION = 55 * 60 * 1000;
+
 function sanitizeFileName(fileName) {
     return fileName
         .toLowerCase()
@@ -224,7 +227,6 @@ function validatePhoto(file) {
     }
 }
 
-/** Validate and upload an inventory image, returning its storage path. */
 async function uploadInventoryPhoto(file, category) {
     if (!file) return null;
 
@@ -250,28 +252,157 @@ async function uploadInventoryPhoto(file, category) {
     return data.path;
 }
 
-/** Resolve a public URL or create a short-lived URL for a stored photo path. */
-async function getPhotoUrl(photoPath) {
-    if (!photoPath) return null;
+function isDirectPhotoUrl(photoPath) {
+    return /^https?:\/\//i.test(String(photoPath || ''));
+}
 
-    if (/^https?:\/\//i.test(photoPath)) {
-        return photoPath;
+function getCachedPhotoUrl(photoPath) {
+    const cached = photoUrlCache.get(photoPath);
+
+    if (!cached) return null;
+
+    if (Date.now() >= cached.expiresAt) {
+        photoUrlCache.delete(photoPath);
+        return null;
     }
+
+    return cached.url;
+}
+
+function cachePhotoUrl(photoPath, url) {
+    if (!photoPath || !url) return;
+
+    photoUrlCache.set(photoPath, {
+        url,
+        expiresAt: Date.now() + PHOTO_CACHE_DURATION
+    });
+}
+
+/**
+ * Batch-load signed URLs for inventory photos.
+ * Existing valid URLs are reused from cache.
+ */
+async function loadPhotoUrls(photoPaths) {
+    const uniquePaths = [
+        ...new Set(
+            (photoPaths || []).filter(path =>
+                path && !isDirectPhotoUrl(path)
+            )
+        )
+    ];
+
+    const missingPaths = uniquePaths.filter(
+        path => !getCachedPhotoUrl(path)
+    );
+
+    if (!missingPaths.length) return;
 
     const { data, error } = await supabase.storage
         .from(STORAGE_BUCKET)
-        .createSignedUrl(photoPath, SIGNED_URL_EXPIRY);
+        .createSignedUrls(
+            missingPaths,
+            SIGNED_URL_EXPIRY
+        );
+
+    if (error) {
+        console.error('Unable to batch-load inventory photos:', error);
+        return;
+    }
+
+    (data || []).forEach(result => {
+        if (result.error || !result.signedUrl || !result.path) {
+            return;
+        }
+
+        cachePhotoUrl(result.path, result.signedUrl);
+    });
+}
+
+/**
+ * Resolve one photo URL.
+ * Used by forms and individual photo previews.
+ */
+async function getPhotoUrl(photoPath) {
+    if (!photoPath) return null;
+
+    if (isDirectPhotoUrl(photoPath)) {
+        return photoPath;
+    }
+
+    const cachedUrl = getCachedPhotoUrl(photoPath);
+
+    if (cachedUrl) return cachedUrl;
+
+    const { data, error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .createSignedUrl(
+            photoPath,
+            SIGNED_URL_EXPIRY
+        );
 
     if (error) {
         console.error('Unable to generate photo URL:', error);
         return null;
     }
 
-    return data?.signedUrl || null;
+    const signedUrl = data?.signedUrl || null;
+
+    if (signedUrl) {
+        cachePhotoUrl(photoPath, signedUrl);
+    }
+
+    return signedUrl;
+}
+
+/**
+ * Populate photo elements after inventory cards are displayed.
+ * This does not block the initial card rendering.
+ */
+async function loadInventoryPhotos(container) {
+    if (!container) return;
+
+    const images = Array.from(
+        container.querySelectorAll('img[data-photo-path]')
+    );
+
+    if (!images.length) return;
+
+    const photoPaths = images.map(
+        image => image.dataset.photoPath
+    );
+
+    await loadPhotoUrls(photoPaths);
+
+    images.forEach(image => {
+        const photoPath = image.dataset.photoPath;
+
+        if (!photoPath || !image.isConnected) return;
+
+        const photoUrl = getCachedPhotoUrl(photoPath);
+
+        if (!photoUrl) {
+            const wrapper = image.closest(
+                '.wo-inventory-photo-wrapper'
+            );
+
+            if (wrapper) {
+                wrapper.replaceChildren(
+                    el('span', 'wo-inventory-no-photo', 'Photo unavailable')
+                );
+            }
+
+            return;
+        }
+
+        image.src = photoUrl;
+        delete image.dataset.photoPath;
+    });
 }
 
 async function deleteInventoryPhoto(photoPath) {
-    if (!photoPath || /^https?:\/\//i.test(photoPath)) return;
+    if (!photoPath || isDirectPhotoUrl(photoPath)) return;
+
+    photoUrlCache.delete(photoPath);
 
     const { error } = await supabase.storage
         .from(STORAGE_BUCKET)
@@ -282,10 +413,10 @@ async function deleteInventoryPhoto(photoPath) {
     }
 }
 
-function createPhotoElement(photoUrl, altText = 'Inventory photo') {
+function createPhotoElement(photoPath, altText = 'Inventory photo') {
     const wrapper = el('div', 'wo-inventory-photo-wrapper');
 
-    if (!photoUrl) {
+    if (!photoPath) {
         wrapper.append(
             el('span', 'wo-inventory-no-photo', 'No photo')
         );
@@ -294,9 +425,24 @@ function createPhotoElement(photoUrl, altText = 'Inventory photo') {
     }
 
     const image = el('img', 'wo-inventory-photo');
-    image.src = photoUrl;
+
     image.alt = altText;
     image.loading = 'lazy';
+    image.decoding = 'async';
+
+    if (isDirectPhotoUrl(photoPath)) {
+        image.src = photoPath;
+    } else {
+        image.dataset.photoPath = photoPath;
+
+        wrapper.append(
+            el('span', 'wo-inventory-no-photo', 'Loading photo...')
+        );
+    }
+
+    image.addEventListener('load', () => {
+        wrapper.querySelector('.wo-inventory-no-photo')?.remove();
+    });
 
     image.addEventListener('error', () => {
         wrapper.replaceChildren(
@@ -334,6 +480,9 @@ function createPhotoInput(
         const image = el('img');
         image.src = currentPhotoUrl;
         image.alt = 'Current photo';
+        image.loading = 'lazy';
+        image.decoding = 'async';
+
         preview.append(image);
     } else {
         preview.append(
@@ -378,6 +527,7 @@ function createPhotoInput(
         const image = el('img');
         image.src = currentObjectUrl;
         image.alt = 'Selected photo';
+        image.decoding = 'async';
 
         preview.replaceChildren(image);
     });
@@ -395,6 +545,7 @@ function revokeObjectUrls() {
     activeObjectUrls.forEach(url => URL.revokeObjectURL(url));
     activeObjectUrls.clear();
 }
+
 
 /* =========================================================
 MODAL
@@ -451,7 +602,8 @@ function openModal(form) {
 SHARED INVENTORY CARD
 ========================================================= */
 
-async function createInventoryCard({
+
+function createInventoryCard({
     photoPath,
     title,
     details = [],
@@ -469,8 +621,10 @@ async function createInventoryCard({
     front.setAttribute('aria-label', `${title}: show details`);
     front.tabIndex = 0;
 
-    const photoUrl = await getPhotoUrl(photoPath);
-    const photo = createPhotoElement(photoUrl, `${title} photo`);
+    const photo = createPhotoElement(
+        photoPath,
+        `${title} photo`
+    );
 
     photo.classList.add('wo-inventory-card-photo');
 
@@ -482,6 +636,7 @@ async function createInventoryCard({
     const back = el('div', 'wo-card-face wo-card-back');
 
     const backHeader = el('div', 'wo-card-back-header');
+
     const backButton = button(
         '← Back',
         'wo-card-back-btn',
@@ -506,7 +661,10 @@ async function createInventoryCard({
         list.append(row);
     });
 
-    const actions = el('div', 'wo-inventory-actions wo-inventory-card-actions');
+    const actions = el(
+        'div',
+        'wo-inventory-actions wo-inventory-card-actions'
+    );
 
     actions.append(
         button('Edit', 'wo-inventory-edit', onEdit),
@@ -544,7 +702,9 @@ async function createInventoryCard({
         front.setAttribute('aria-hidden', String(flipped));
         back.setAttribute('aria-hidden', String(!flipped));
 
-        (flipped ? backButton : front).focus({ preventScroll: true });
+        (flipped ? backButton : front).focus({
+            preventScroll: true
+        });
     }
 
     front.inert = false;
@@ -565,6 +725,7 @@ async function createInventoryCard({
 
     return card;
 }
+
 
 /* =========================================================
 INVENTORY ITEM CRUD
@@ -2217,50 +2378,49 @@ async function renderToolsInventory(root, config, ctx) {
             )
         );
 
-        const cards = await Promise.all(
-            filteredItems.map(item => createToolCard(
-                item,
+        const cards = filteredItems.map(item => createToolCard(
+            item,
 
-                selected => renderToolForm(
-                    category,
-                    selected,
-                    load
-                ),
+            selected => renderToolForm(
+                category,
+                selected,
+                load
+            ),
 
-                async selected => {
-                    if (!confirm(
-                        `Delete "${selected.tool_name}" from inventory?`
-                    )) {
-                        return;
-                    }
+            async selected => {
+                if (!confirm(
+                    `Delete "${selected.tool_name}" from inventory?`
+                )) {
+                    return;
+                }
 
-                    const { error: deleteError } = await supabase
-                        .from('warehouse_tools_inventory')
-                        .delete()
-                        .eq('tool_id', selected.tool_id);
+                const { error: deleteError } = await supabase
+                    .from('warehouse_tools_inventory')
+                    .delete()
+                    .eq('tool_id', selected.tool_id);
 
-                    if (deleteError) {
-                        console.error('Delete failed:', deleteError);
-                        alert(deleteError.message || 'Unable to delete item.');
-                        return;
-                    }
+                if (deleteError) {
+                    console.error('Delete failed:', deleteError);
+                    alert(deleteError.message || 'Unable to delete item.');
+                    return;
+                }
 
-                    await deleteInventoryPhoto(selected.photo_path);
-                    await load();
-                },
+                await deleteInventoryPhoto(selected.photo_path);
+                await load();
+            },
 
-                selected => renderReplenishmentRequestForm(
-                    category,
-                    selected,
-                    load
-                )
-            ))
-        );
+            selected => renderReplenishmentRequestForm(
+                category,
+                selected,
+                load
+            )
+        ));
 
         if (!cards.length) {
             showMessage(cardGrid, 'No records found.');
         } else {
             cardGrid.replaceChildren(...cards);
+            void loadInventoryPhotos(cardGrid);
         }
 
         if (category === 'Equipment') {
