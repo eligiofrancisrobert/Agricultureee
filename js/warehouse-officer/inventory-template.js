@@ -2628,6 +2628,7 @@ async function renderProduceEditForm(item, onSaved) {
     openModal(form);
 }
 
+
 async function renderHarvestInventory(root, config, ctx) {
     const page = el('section', 'wo-inventory-page');
     const heading = el('div', 'wo-page-heading');
@@ -2645,6 +2646,7 @@ async function renderHarvestInventory(root, config, ctx) {
     );
 
     const registeredCards = el('div', 'wo-inventory-card-grid');
+
     const harvestContributions =
         createHarvestContributionsSection();
 
@@ -2674,46 +2676,82 @@ async function renderHarvestInventory(root, config, ctx) {
 
     root.replaceChildren(page);
 
+    let loadToken = 0;
+
     async function load() {
+        const currentToken = ++loadToken;
+
         showMessage(registeredCards, 'Loading warehouse produce...');
         showMessage(eligibleTable, 'Loading confirmed harvests...');
 
-        const { data: inventory, error: inventoryError } = await supabase
-            .from('warehouse_produce_inventory')
-            .select(`
-                produce_id,
-                harvest_id,
-                photo_path,
-                produce_status,
-                created_at,
-                updated_at,
-                available_quantity,
-                reserved_quantity,
-                farm_id,
-                crop_name,
-                unit
-            `)
-            .order('created_at', { ascending: false });
+        // These three queries are independent, so execute them together.
+        const [
+            inventoryResult,
+            contributionResult,
+            harvestResult
+        ] = await Promise.all([
+            supabase
+                .from('warehouse_produce_inventory')
+                .select(`
+                    produce_id,
+                    harvest_id,
+                    photo_path,
+                    produce_status,
+                    created_at,
+                    updated_at,
+                    available_quantity,
+                    reserved_quantity,
+                    farm_id,
+                    crop_name,
+                    unit
+                `)
+                .order('created_at', { ascending: false }),
 
-        if (inventoryError) {
+            supabase
+                .from('warehouse_produce_harvests')
+                .select('harvest_id, quantity_added'),
+
+            supabase
+                .from('harvested_crops')
+                .select(`
+                    harvest_id,
+                    harvested_date,
+                    harvest_quantity,
+                    harvest_unit,
+                    confirmation_status,
+                    verified_quantity,
+                    verification_notes,
+                    planting_id,
+                    farm_plantings!harvested_crops_planting_id_fkey (
+                        crop_name,
+                        products ( product_name )
+                    )
+                `)
+                .eq('confirmation_status', 'confirmed')
+                .order('harvested_date', { ascending: false })
+        ]);
+
+        if (currentToken !== loadToken) return;
+
+        if (inventoryResult.error) {
             console.error(
                 'Failed to load produce inventory:',
-                inventoryError
+                inventoryResult.error
             );
+
+            showMessage(
+                registeredCards,
+                'Unable to load warehouse produce inventory.',
+                'error'
+            );
+
             return;
         }
 
-        const {
-            data: contributionRecords,
-            error: contributionError
-        } = await supabase
-            .from('warehouse_produce_harvests')
-            .select('harvest_id, quantity_added');
-
-        if (contributionError) {
+        if (contributionResult.error) {
             console.error(
                 'Failed to load harvest contributions:',
-                contributionError
+                contributionResult.error
             );
 
             showMessage(
@@ -2725,27 +2763,11 @@ async function renderHarvestInventory(root, config, ctx) {
             return;
         }
 
-        const { data: confirmedHarvests, error: harvestError } = await supabase
-            .from('harvested_crops')
-            .select(`
-                harvest_id,
-                harvested_date,
-                harvest_quantity,
-                harvest_unit,
-                confirmation_status,
-                verified_quantity,
-                verification_notes,
-                planting_id,
-                farm_plantings!harvested_crops_planting_id_fkey (
-                    crop_name,
-                    products ( product_name )
-                )
-            `)
-            .eq('confirmation_status', 'confirmed')
-            .order('harvested_date', { ascending: false });
-
-        if (harvestError) {
-            console.error('Failed to load confirmed harvests:', harvestError);
+        if (harvestResult.error) {
+            console.error(
+                'Failed to load confirmed harvests:',
+                harvestResult.error
+            );
 
             showMessage(
                 eligibleTable,
@@ -2756,27 +2778,19 @@ async function renderHarvestInventory(root, config, ctx) {
             return;
         }
 
-        console.log('Confirmed harvests:', confirmedHarvests);
-        console.log('First harvest:', confirmedHarvests?.[0]);
-        console.log(
-            'First crop name:',
-            confirmedHarvests?.[0]?.farm_plantings?.crop_name
-        );
-
-        // Inventory records are already aggregated by farm, crop, and unit.
-        const inventoryRows = inventory || [];
+        const inventoryRows = inventoryResult.data || [];
+        const contributionRecords = contributionResult.data || [];
+        const confirmedHarvests = harvestResult.data || [];
 
         const existingHarvestIds = new Set(
-            (contributionRecords || []).map(
-                item => item.harvest_id
-            )
+            contributionRecords.map(item => item.harvest_id)
         );
 
-        const eligibleRows = (confirmedHarvests || []).filter(
+        const eligibleRows = confirmedHarvests.filter(
             harvest => !existingHarvestIds.has(harvest.harvest_id)
         );
 
-        const query = (ctx?.query || '').toLowerCase();
+        const query = String(ctx?.query || '').toLowerCase();
 
         const filteredInventory = inventoryRows.filter(item => {
             return [
@@ -2788,11 +2802,7 @@ async function renderHarvestInventory(root, config, ctx) {
             );
         });
 
-        const availableRows = inventoryRows.filter(
-            item => Number(item.available_quantity || 0) > 0
-        );
-
-        const totalVerified = (contributionRecords || []).reduce(
+        const totalVerified = contributionRecords.reduce(
             (sum, item) => sum + Number(item.quantity_added || 0),
             0
         );
@@ -2803,12 +2813,18 @@ async function renderHarvestInventory(root, config, ctx) {
         );
 
         const cropTypes = new Set(
-            inventoryRows.map(item =>
-                String(item.crop_name || '').trim().toLowerCase()
-            ).filter(Boolean)
+            inventoryRows
+                .map(item =>
+                    String(item.crop_name || '')
+                        .trim()
+                        .toLowerCase()
+                )
+                .filter(Boolean)
         );
 
-        const labels = (config.sections || []).map(section => section.label);
+        const labels = (config.sections || []).map(
+            section => section.label
+        );
 
         summaryGrid.replaceChildren(
             createSummaryCard(
@@ -2828,7 +2844,7 @@ async function renderHarvestInventory(root, config, ctx) {
             ),
             createSummaryCard(
                 labels[3] || 'Verified Harvest Records',
-                (confirmedHarvests || []).length,
+                confirmedHarvests.length,
                 'All confirmed harvest records'
             )
         );
@@ -2836,7 +2852,12 @@ async function renderHarvestInventory(root, config, ctx) {
         const registeredCardItems = await Promise.all(
             filteredInventory.map(item => createProduceCard(
                 item,
-                selected => renderProduceEditForm(selected, load),
+
+                selected => renderProduceEditForm(
+                    selected,
+                    load
+                ),
+
                 async selected => {
                     if (!confirm(
                         'Remove this produce record from warehouse inventory? The original harvest record will remain.'
@@ -2850,8 +2871,16 @@ async function renderHarvestInventory(root, config, ctx) {
                         .eq('produce_id', selected.produce_id);
 
                     if (error) {
-                        console.error('Produce deletion failed:', error);
-                        alert(error.message || 'Unable to remove produce record.');
+                        console.error(
+                            'Produce deletion failed:',
+                            error
+                        );
+
+                        alert(
+                            error.message
+                            || 'Unable to remove produce record.'
+                        );
+
                         return;
                     }
 
@@ -2861,10 +2890,17 @@ async function renderHarvestInventory(root, config, ctx) {
             ))
         );
 
+        if (currentToken !== loadToken) return;
+
         if (!registeredCardItems.length) {
-            showMessage(registeredCards, 'No produce records found.');
+            showMessage(
+                registeredCards,
+                'No produce records found.'
+            );
         } else {
-            registeredCards.replaceChildren(...registeredCardItems);
+            registeredCards.replaceChildren(
+                ...registeredCardItems
+            );
         }
 
         const filteredEligible = eligibleRows.filter(harvest => {
@@ -2872,7 +2908,9 @@ async function renderHarvestInventory(root, config, ctx) {
                 getCropName(harvest),
                 harvest.harvest_unit,
                 harvest.harvest_id
-            ].some(value => String(value || '').toLowerCase().includes(query));
+            ].some(value =>
+                String(value || '').toLowerCase().includes(query)
+            );
         });
 
         const eligibleRowsUI = filteredEligible.map(harvest => {
@@ -2892,37 +2930,43 @@ async function renderHarvestInventory(root, config, ctx) {
             const actionCell = document.createElement('td');
 
             actionCell.append(
-                button('Add to Inventory', 'wo-inventory-add', async event => {
-                    const actionButton = event.currentTarget;
+                button(
+                    'Add to Inventory',
+                    'wo-inventory-add',
+                    async event => {
+                        const actionButton = event.currentTarget;
 
-                    actionButton.disabled = true;
-                    actionButton.textContent = 'Adding...';
+                        actionButton.disabled = true;
+                        actionButton.textContent = 'Adding...';
 
-                    const { error } = await supabase.rpc(
-                        'warehouse_add_confirmed_harvest',
-                        {
-                            p_harvest_id: harvest.harvest_id
+                        try {
+                            const { error } = await supabase.rpc(
+                                'warehouse_add_confirmed_harvest',
+                                {
+                                    p_harvest_id: harvest.harvest_id
+                                }
+                            );
+
+                            if (error) throw error;
+
+                            await load();
+
+                        } catch (error) {
+                            console.error(
+                                'Failed to add harvest to inventory:',
+                                error
+                            );
+
+                            alert(
+                                error.message
+                                || 'Unable to add this harvest. It may already exist.'
+                            );
+
+                            actionButton.disabled = false;
+                            actionButton.textContent = 'Add to Inventory';
                         }
-                    );
-
-                    if (error) {
-                        console.error(
-                            'Failed to add harvest to inventory:',
-                            error
-                        );
-
-                        alert(
-                            error.message
-                            || 'Unable to add this harvest. It may already exist.'
-                        );
-
-                        actionButton.disabled = false;
-                        actionButton.textContent = 'Add to Inventory';
-                        return;
                     }
-
-                    await load();
-                })
+                )
             );
 
             row.append(actionCell);
@@ -2943,11 +2987,17 @@ async function renderHarvestInventory(root, config, ctx) {
             )
         );
 
-        await harvestContributions.load();
+        // Reuse the records already fetched above.
+        // No additional contribution or inventory queries.
+        await harvestContributions.load(
+            contributionRecords,
+            inventoryRows
+        );
     }
 
     await load();
 }
+
 
 /* =========================================================
 PAGE ENTRY POINTS

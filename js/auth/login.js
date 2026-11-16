@@ -20,11 +20,9 @@ const otpClose = document.getElementById("otpClose");
 let otpSubmitting = false;
 let otpCancelled = false;
 let verifiedSession = null;
-
 let otpCooldownInterval = null;
 let otpCooldownUntil = 0;
 
-/** Clear credentials whenever this login page is entered or left. */
 function clearLoginCredentials() {
     if (passwordInput) passwordInput.value = "";
     if (emailInput) emailInput.value = "";
@@ -36,14 +34,12 @@ clearLoginCredentials();
 window.addEventListener("pageshow", clearLoginCredentials);
 window.addEventListener("pagehide", clearLoginCredentials);
 
-/** Display login feedback and mark error messages for styling. */
 function showMessage(text, isError = false) {
     message.hidden = false;
     message.textContent = text;
     message.classList.toggle("error", isError);
 }
 
-/** Update the Verify button according to the current state. */
 function updateVerifyButton() {
     if (otpSubmitting) {
         otpVerifyButton.disabled = true;
@@ -61,7 +57,6 @@ function updateVerifyButton() {
     otpVerifyButton.textContent = "Verify code";
 }
 
-/** Stop the OTP cooldown timer. */
 function stopOtpCooldown() {
     if (otpCooldownInterval !== null) {
         clearInterval(otpCooldownInterval);
@@ -78,7 +73,6 @@ function stopOtpCooldown() {
     updateVerifyButton();
 }
 
-/** Render the remaining cooldown using the server timestamp. */
 function updateOtpCooldown() {
     const remaining = Math.max(
         0,
@@ -97,7 +91,6 @@ function updateOtpCooldown() {
     updateVerifyButton();
 }
 
-/** Start the OTP retry cooldown without creating duplicate timers. */
 function startOtpCooldown(cooldownUntil, retryAfter = 60) {
     if (otpCooldownInterval !== null) {
         clearInterval(otpCooldownInterval);
@@ -112,7 +105,6 @@ function startOtpCooldown(cooldownUntil, retryAfter = 60) {
         ? serverDeadline
         : Date.now() + Number(retryAfter) * 1000;
 
-    // Do not show the same cooldown as an error message.
     otpError.hidden = true;
     otpError.textContent = "";
 
@@ -126,11 +118,13 @@ function startOtpCooldown(cooldownUntil, retryAfter = 60) {
     }
 }
 
-/** Reset and open the one-time-code dialog for the submitted email. */
 function openOtpModal(email) {
     stopOtpCooldown();
 
     otpSubmitting = false;
+    otpCancelled = false;
+    verifiedSession = null;
+
     otpEmail.textContent = email;
     otpError.hidden = true;
     otpError.textContent = "";
@@ -140,12 +134,10 @@ function openOtpModal(email) {
     otpVerifyButton.textContent = "Verify code";
 
     otpModal.hidden = false;
-    otpCancelled = false;
 
-    requestAnimationFrame(() => otpDigits[0].focus());
+    requestAnimationFrame(() => otpDigits[0]?.focus());
 }
 
-/** Close the OTP dialog unless verification is currently being submitted. */
 function closeOtpModal() {
     if (otpSubmitting) return;
 
@@ -154,7 +146,6 @@ function closeOtpModal() {
     otpModal.hidden = true;
 }
 
-/** Combine the individual OTP inputs into the value sent for verification. */
 function getOtpValue() {
     return otpDigits.map(input => input.value).join("");
 }
@@ -162,6 +153,12 @@ function getOtpValue() {
 function setOtpError(text) {
     otpError.textContent = text;
     otpError.hidden = false;
+}
+
+function clearOtpInputs() {
+    otpDigits.forEach(input => {
+        input.value = "";
+    });
 }
 
 otpDigits.forEach((input, index) => {
@@ -221,13 +218,7 @@ otpModal.addEventListener("click", event => {
     if (event.target === otpModal) closeOtpModal();
 });
 
-/**
- * Resolve the landing page after checking admin, staff, and profile access.
- * @param {string} userId Supabase Auth user ID.
- * @returns {Promise<string>} The destination for the account's role.
- */
 async function getApprovedDestination(userId) {
-    // 1. Check existing administrator accounts.
     const { data: admin, error: adminError } = await supabase
         .from("admin_users")
         .select("user_id")
@@ -239,9 +230,10 @@ async function getApprovedDestination(userId) {
         throw new Error("Unable to check your administrator account.");
     }
 
-    if (admin) return "./pages/admin/admin-dashboard.html";
+    if (admin) {
+        return "./pages/admin/admin-dashboard.html";
+    }
 
-    // 2. Check staff accounts using the Supabase Auth UUID.
     const { data: staff, error: staffError } = await supabase
         .from("staff_accounts")
         .select("staff_id, user_id, role_id, status_id")
@@ -292,7 +284,6 @@ async function getApprovedDestination(userId) {
         return destination;
     }
 
-    // 3. Existing Farmer, Buyer, and Supplier accounts.
     const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id, role, status")
@@ -307,7 +298,6 @@ async function getApprovedDestination(userId) {
     }
 
     if (!profile) {
-        console.error("No visible profile found for user ID:", userId);
         throw new Error(
             "Your profile could not be found. Please contact the administrator."
         );
@@ -344,7 +334,44 @@ async function getApprovedDestination(userId) {
     return destination;
 }
 
-/** Invoke the OTP Edge Function and preserve cooldown information. */
+async function getFunctionErrorDetails(error) {
+    const context = error?.context;
+
+    const details = {
+        message: error?.message || "Unknown Supabase function error.",
+        name: error?.name || "FunctionError",
+        status: context?.status ?? null,
+        statusText: context?.statusText ?? null,
+        responseBody: null,
+        rawResponse: null
+    };
+
+    if (context && typeof context.clone === "function") {
+        try {
+            const response = context.clone();
+
+            details.status = response.status;
+            details.statusText = response.statusText;
+
+            const rawBody = await response.text();
+            details.rawResponse = rawBody;
+
+            if (rawBody) {
+                try {
+                    details.responseBody = JSON.parse(rawBody);
+                } catch {
+                    details.responseBody = null;
+                }
+            }
+        } catch (readError) {
+            details.rawResponse =
+                `Unable to read response: ${readError.message}`;
+        }
+    }
+
+    return details;
+}
+
 async function invokeOtpFunction(body) {
     const { data, error } = await supabase.functions.invoke(
         "email-otp-login",
@@ -352,31 +379,35 @@ async function invokeOtpFunction(body) {
     );
 
     if (error) {
-        let responseBody = {};
+        const details = await getFunctionErrorDetails(error);
+        const responseBody = details.responseBody || {};
 
-        try {
-            if (error.context && typeof error.context.json === "function") {
-                responseBody = await error.context.clone().json();
-            }
-        } catch {
-            // Keep the original Supabase error if the response is not JSON.
-        }
-
-        console.error("OTP function error:", responseBody || error);
+        console.error(
+            "OTP FUNCTION ERROR DETAILS:\n" +
+            JSON.stringify(details, null, 2)
+        );
 
         const otpError = new Error(
-            responseBody.error || error.message
+            responseBody.error ||
+            responseBody.message ||
+            details.message
         );
 
         otpError.cooldown = responseBody.cooldown === true;
         otpError.retryAfter = responseBody.retryAfter;
         otpError.cooldownUntil = responseBody.cooldownUntil;
         otpError.locked = responseBody.locked === true;
+        otpError.status = details.status;
 
         throw otpError;
     }
 
     if (!data?.success) {
+        console.error(
+            "OTP FUNCTION UNSUCCESSFUL RESPONSE:\n" +
+            JSON.stringify(data, null, 2)
+        );
+
         const otpError = new Error(
             data?.error || "The OTP request failed."
         );
@@ -410,7 +441,8 @@ form.addEventListener("submit", async event => {
         const email = emailInput.value.trim().toLowerCase();
         const password = passwordInput.value;
 
-        // STEP 1: Verify password and request an email OTP.
+        verifiedSession = null;
+
         const requestData = await invokeOtpFunction({
             action: "request",
             email,
@@ -426,9 +458,9 @@ form.addEventListener("submit", async event => {
         }
 
         passwordInput.value = "";
+
         showMessage(`A verification code was sent to ${email}.`);
 
-        // STEP 2: Display the OTP modal.
         openOtpModal(email);
         button.textContent = "Waiting for verification...";
 
@@ -444,6 +476,8 @@ form.addEventListener("submit", async event => {
             otpForm.onsubmit = async otpEvent => {
                 otpEvent.preventDefault();
 
+                if (otpSubmitting) return;
+
                 if (otpCooldownUntil > Date.now()) {
                     updateOtpCooldown();
                     return;
@@ -456,13 +490,10 @@ form.addEventListener("submit", async event => {
                     return;
                 }
 
-                if (otpSubmitting) return;
-
                 otpSubmitting = true;
                 updateVerifyButton();
 
                 try {
-                    // STEP 3: Verify the OTP.
                     const verifyData = await invokeOtpFunction({
                         action: "verify",
                         challengeId,
@@ -478,33 +509,38 @@ form.addEventListener("submit", async event => {
                         );
                     }
 
+                    // Successful OTP: immediately clear any old cooldown.
                     verifiedSession = verifyData.session;
 
                     stopOtpCooldown();
+
+                    otpError.hidden = true;
+                    otpError.textContent = "";
+
+                    clearOtpInputs();
+
                     otpModal.hidden = true;
+                    otpCancelled = false;
 
                     finish(code);
+
                 } catch (error) {
-                    otpDigits.forEach(input => {
-                        input.value = "";
-                    });
+                    clearOtpInputs();
 
-                    if (error.cooldown || error.locked) {
-                        // Show only the cooldown, not the server error.
-                        otpError.hidden = true;
-                        otpError.textContent = "";
-
+                    if (error.cooldown) {
                         startOtpCooldown(
                             error.cooldownUntil,
                             error.retryAfter || 60
                         );
                     } else {
                         setOtpError(
-                            error.message || "Invalid code. Please try again."
+                            error.message ||
+                            "Invalid code. Please try again."
                         );
 
                         otpDigits[0].focus();
                     }
+
                 } finally {
                     otpSubmitting = false;
                     updateVerifyButton();
@@ -515,13 +551,17 @@ form.addEventListener("submit", async event => {
                 if (otpCancelled) finish(null);
             };
 
-            otpCancel.addEventListener("click", finishOnCancel, {
-                once: true
-            });
+            otpCancel.addEventListener(
+                "click",
+                finishOnCancel,
+                { once: true }
+            );
 
-            otpClose.addEventListener("click", finishOnCancel, {
-                once: true
-            });
+            otpClose.addEventListener(
+                "click",
+                finishOnCancel,
+                { once: true }
+            );
         });
 
         if (otp === null) {
@@ -531,7 +571,6 @@ form.addEventListener("submit", async event => {
             return;
         }
 
-        // STEP 4: Establish the verified Supabase session.
         if (
             !verifiedSession?.access_token ||
             !verifiedSession?.refresh_token
@@ -553,7 +592,6 @@ form.addEventListener("submit", async event => {
 
         sessionEstablished = true;
 
-        // STEP 5: Check status and route to the correct page.
         const destination = await getApprovedDestination(
             sessionData.user.id
         );

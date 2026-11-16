@@ -1,13 +1,13 @@
 
 import { supabase } from '../connection.js';
 
-const formatQuantity = (value) => {
+const formatQuantity = value => {
     return new Intl.NumberFormat('en-PH', {
         maximumFractionDigits: 2
     }).format(Number(value || 0));
 };
 
-const formatDateAdded = (value) => {
+const formatDateAdded = value => {
     if (!value) return '—';
 
     const date = new Date(value);
@@ -31,18 +31,13 @@ const createElement = (tag, className, text) => {
 };
 
 function createCell(text, className = '') {
-    const cell = createElement('td', className, text);
-    return cell;
+    return createElement('td', className, text);
 }
 
 function createHeader(text) {
     return createElement('th', '', text);
 }
 
-/**
- * Build the contribution table and its asynchronous loader.
- * @returns {{ element: HTMLElement, load: () => Promise<void> }}
- */
 export function createHarvestContributionsSection() {
     const section = createElement(
         'section',
@@ -96,152 +91,7 @@ export function createHarvestContributionsSection() {
         tableWrapper
     );
 
-    /** Fetch contributions and inventory, then render farm/crop running totals. */
-    async function load() {
-        tbody.replaceChildren();
-
-        const loadingRow = document.createElement('tr');
-        const loadingCell = createCell('Loading harvest contributions...');
-
-        loadingCell.colSpan = 4;
-        loadingCell.className = 'harvest-contributions-empty';
-
-        loadingRow.appendChild(loadingCell);
-        tbody.appendChild(loadingRow);
-
-        try {
-            // 1. Fetch contributions in chronological order.
-            const { data: contributions, error: contributionError } =
-                await supabase
-                    .from('warehouse_produce_harvests')
-                    .select(`
-            contribution_id,
-            produce_id,
-            harvest_id,
-            quantity_added,
-            created_at
-        `)
-                    .order('created_at', { ascending: true })
-                    .order('contribution_id', { ascending: true });
-            console.log('ALL CONTRIBUTIONS:', contributions);
-
-            if (contributionError) throw contributionError;
-            console.log('HARVEST CONTRIBUTIONS:', contributions);
-            console.log('CONTRIBUTION COUNT:', contributions?.length);
-
-            if (!contributions?.length) {
-                renderEmptyState('No harvest contributions found.');
-                return;
-            }
-
-            // 2. Fetch aggregate inventory information.
-            const produceIds = [
-                ...new Set(contributions.map(item => item.produce_id))
-            ];
-
-            const { data: inventory, error: inventoryError } =
-                await supabase
-                    .from('warehouse_produce_inventory')
-                    .select(`
-                    produce_id,
-                    farm_id,
-                    crop_name,
-                    unit
-                `)
-                    .in('produce_id', produceIds);
-
-            if (inventoryError) throw inventoryError;
-
-            console.log('INVENTORY RECORDS:', inventory);
-
-            const inventoryMap = new Map(
-                (inventory || []).map(item => [
-                    item.produce_id,
-                    item
-                ])
-            );
-
-            // 3. Calculate cumulative totals chronologically.
-            const runningTotals = new Map();
-            const rows = [];
-
-            for (const contribution of contributions) {
-                const produce = inventoryMap.get(contribution.produce_id);
-
-                if (!produce) continue;
-
-                const cropName = String(
-                    produce.crop_name || 'Unspecified Crop'
-                ).trim();
-
-                const unit = String(produce.unit || '').trim();
-
-                const groupKey = [
-                    produce.farm_id || '',
-                    cropName.toLowerCase(),
-                    unit.toLowerCase()
-                ].join('|');
-
-                const quantityAdded = Number(contribution.quantity_added || 0);
-
-                const totalQuantity =
-                    (runningTotals.get(groupKey) || 0) + quantityAdded;
-
-                runningTotals.set(groupKey, totalQuantity);
-
-                rows.push({
-                    contributionId: contribution.contribution_id,
-                    cropName,
-                    unit,
-                    createdAt: contribution.created_at,
-                    quantityAdded,
-                    totalQuantity
-                });
-            }
-
-            // 4. Keep display in chronological order (oldest to newest).
-            rows.sort((a, b) => {
-                const dateDifference =
-                    new Date(a.createdAt) - new Date(b.createdAt);
-
-                if (dateDifference !== 0) return dateDifference;
-
-                return String(a.contributionId).localeCompare(
-                    String(b.contributionId)
-                );
-            });
-
-            tbody.replaceChildren();
-
-            if (!rows.length) {
-                renderEmptyState('No harvest contributions found.');
-                return;
-            }
-
-            for (const item of rows) {
-                const row = document.createElement('tr');
-
-                row.append(
-                    createCell(item.cropName),
-                    createCell(formatDateAdded(item.createdAt)),
-                    createCell(
-                        `${formatQuantity(item.quantityAdded)} ${item.unit}`
-                    ),
-                    createCell(
-                        `${formatQuantity(item.totalQuantity)} ${item.unit}`,
-                        'harvest-contributions-total'
-                    )
-                );
-
-                tbody.appendChild(row);
-            }
-
-        } catch (error) {
-            console.error('Error loading harvest contributions:', error);
-
-            renderEmptyState('Unable to load harvest contributions.');
-        }
-    }
+    let loadToken = 0;
 
     function renderEmptyState(message) {
         tbody.replaceChildren();
@@ -253,9 +103,195 @@ export function createHarvestContributionsSection() {
         );
 
         cell.colSpan = 4;
-
         row.appendChild(cell);
         tbody.appendChild(row);
+    }
+
+    function renderRows(contributions, inventory) {
+        const inventoryMap = new Map(
+            (inventory || []).map(item => [
+                item.produce_id,
+                item
+            ])
+        );
+
+        const runningTotals = new Map();
+        const rows = [];
+
+        for (const contribution of contributions || []) {
+            const produce = inventoryMap.get(
+                contribution.produce_id
+            );
+
+            if (!produce) continue;
+
+            const cropName = String(
+                produce.crop_name || 'Unspecified Crop'
+            ).trim();
+
+            const unit = String(produce.unit || '').trim();
+
+            const groupKey = [
+                produce.farm_id || '',
+                cropName.toLowerCase(),
+                unit.toLowerCase()
+            ].join('|');
+
+            const quantityAdded = Number(
+                contribution.quantity_added || 0
+            );
+
+            const totalQuantity =
+                (runningTotals.get(groupKey) || 0) + quantityAdded;
+
+            runningTotals.set(groupKey, totalQuantity);
+
+            rows.push({
+                contributionId: contribution.contribution_id,
+                cropName,
+                unit,
+                createdAt: contribution.created_at,
+                quantityAdded,
+                totalQuantity
+            });
+        }
+
+        rows.sort((a, b) => {
+            const dateDifference =
+                new Date(a.createdAt) - new Date(b.createdAt);
+
+            if (dateDifference !== 0) return dateDifference;
+
+            return String(a.contributionId).localeCompare(
+                String(b.contributionId)
+            );
+        });
+
+        if (!rows.length) {
+            renderEmptyState('No harvest contributions found.');
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+
+        for (const item of rows) {
+            const row = document.createElement('tr');
+
+            row.append(
+                createCell(item.cropName),
+                createCell(formatDateAdded(item.createdAt)),
+                createCell(
+                    `${formatQuantity(item.quantityAdded)} ${item.unit}`.trim()
+                ),
+                createCell(
+                    `${formatQuantity(item.totalQuantity)} ${item.unit}`.trim(),
+                    'harvest-contributions-total'
+                )
+            );
+
+            fragment.appendChild(row);
+        }
+
+        tbody.replaceChildren(fragment);
+    }
+
+    /**
+     * Pass preloaded records to avoid duplicate database requests.
+     * If called without arguments, the function loads its own data.
+     */
+    async function load(
+        preloadedContributions,
+        preloadedInventory
+    ) {
+        const currentToken = ++loadToken;
+
+        renderEmptyState('Loading harvest contributions...');
+
+        try {
+            let contributions = preloadedContributions;
+            let inventory = preloadedInventory;
+
+            const hasPreloadedData =
+                Array.isArray(contributions)
+                && Array.isArray(inventory);
+
+            if (!hasPreloadedData) {
+                const { data, error } = await supabase
+                    .from('warehouse_produce_harvests')
+                    .select(`
+                        contribution_id,
+                        produce_id,
+                        harvest_id,
+                        quantity_added,
+                        created_at
+                    `)
+                    .order('created_at', { ascending: true })
+                    .order('contribution_id', { ascending: true });
+
+                if (error) throw error;
+
+                contributions = data || [];
+
+                if (!contributions.length) {
+                    if (currentToken === loadToken) {
+                        renderEmptyState(
+                            'No harvest contributions found.'
+                        );
+                    }
+
+                    return;
+                }
+
+                const produceIds = [
+                    ...new Set(
+                        contributions
+                            .map(item => item.produce_id)
+                            .filter(Boolean)
+                    )
+                ];
+
+                if (!produceIds.length) {
+                    if (currentToken === loadToken) {
+                        renderEmptyState(
+                            'No harvest contributions found.'
+                        );
+                    }
+
+                    return;
+                }
+
+                const { data: inventoryData, error: inventoryError } =
+                    await supabase
+                        .from('warehouse_produce_inventory')
+                        .select(`
+                            produce_id,
+                            farm_id,
+                            crop_name,
+                            unit
+                        `)
+                        .in('produce_id', produceIds);
+
+                if (inventoryError) throw inventoryError;
+
+                inventory = inventoryData || [];
+            }
+
+            if (currentToken !== loadToken) return;
+
+            renderRows(contributions, inventory);
+
+        } catch (error) {
+            console.error(
+                'Error loading harvest contributions:',
+                error
+            );
+
+            if (currentToken === loadToken) {
+                renderEmptyState(
+                    'Unable to load harvest contributions.'
+                );
+            }
+        }
     }
 
     return {
