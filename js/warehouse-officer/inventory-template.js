@@ -236,20 +236,81 @@ async function uploadInventoryPhoto(file, category) {
         .toLowerCase()
         .replace(/[^a-z0-9-]/g, '-');
 
+    let uploadFile = file;
+
+    // Compress large images before uploading.
+    if (
+        file.type.startsWith('image/') &&
+        file.type !== 'image/svg+xml' &&
+        file.size > 500 * 1024
+    ) {
+        try {
+            uploadFile = await compressInventoryPhoto(file);
+        } catch (error) {
+            console.warn('Photo compression skipped:', error);
+        }
+    }
+
     const fileName = `${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
     const filePath = `${safeCategory}/${fileName}`;
 
     const { data, error } = await supabase.storage
         .from(STORAGE_BUCKET)
-        .upload(filePath, file, {
+        .upload(filePath, uploadFile, {
             cacheControl: '3600',
             upsert: false,
-            contentType: file.type
+            contentType: uploadFile.type || file.type
         });
 
     if (error) throw error;
 
     return data.path;
+}
+
+async function compressInventoryPhoto(file) {
+    const imageBitmap = await createImageBitmap(file);
+
+    try {
+        const maxDimension = 1600;
+        const scale = Math.min(
+            1,
+            maxDimension / Math.max(
+                imageBitmap.width,
+                imageBitmap.height
+            )
+        );
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(imageBitmap.width * scale);
+        canvas.height = Math.round(imageBitmap.height * scale);
+
+        const context = canvas.getContext('2d');
+
+        context.drawImage(
+            imageBitmap,
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+        const blob = await new Promise(resolve => {
+            canvas.toBlob(resolve, 'image/webp', 0.78);
+        });
+
+        if (!blob) throw new Error('Image compression failed.');
+
+        return new File(
+            [blob],
+            `${file.name.replace(/\.[^.]+$/, '')}.webp`,
+            {
+                type: 'image/webp',
+                lastModified: Date.now()
+            }
+        );
+    } finally {
+        imageBitmap.close();
+    }
 }
 
 function isDirectPhotoUrl(photoPath) {
@@ -2651,6 +2712,8 @@ function createProduceCard(item, onEdit, onDelete) {
     });
 }
 
+
+
 async function renderProduceEditForm(item, onSaved) {
     const form = el('form', 'wo-inventory-form');
     const heading = el('h3', '', 'Update Produce Inventory');
@@ -2667,43 +2730,33 @@ async function renderProduceEditForm(item, onSaved) {
     });
 
     statusSelect.value = item.produce_status || 'available';
-
     statusLabel.append(statusSelect);
 
     const currentPhotoUrl = await getPhotoUrl(item.photo_path);
-    const photoField = createPhotoInput(currentPhotoUrl);
+    const photoField = createPhotoInput(currentPhotoUrl, 'Produce Photo (Optional)');
 
     const actions = el('div', 'wo-inventory-form-actions');
 
     const saveButton = el('button', 'wo-inventory-save', 'Save Changes');
     saveButton.type = 'submit';
 
-    const cancelButton = button(
-        'Cancel',
-        'wo-inventory-cancel',
-        closeModal
+    actions.append(
+        saveButton,
+        button('Cancel', 'wo-inventory-cancel', closeModal)
     );
-
-    actions.append(saveButton, cancelButton);
 
     const message = el('p', 'wo-inventory-form-message');
 
-    form.append(
-        heading,
-        statusLabel,
-        photoField.wrapper,
-        actions,
-        message
-    );
+    form.append(heading, statusLabel, photoField.wrapper, actions, message);
 
     form.addEventListener('submit', async event => {
         event.preventDefault();
 
         saveButton.disabled = true;
         saveButton.textContent = 'Saving...';
+        message.textContent = '';
 
         let uploadedPhotoPath = null;
-        let databaseUpdated = false;
 
         try {
             const payload = {
@@ -2716,68 +2769,49 @@ async function renderProduceEditForm(item, onSaved) {
             if (selectedPhoto) {
                 uploadedPhotoPath = await uploadInventoryPhoto(
                     selectedPhoto,
-                    'produce'
+                    'harvest-produce'
                 );
 
                 payload.photo_path = uploadedPhotoPath;
             }
 
-            // Update and return the affected record.
-            const { data: updatedRecord, error } = await supabase
+            const { data, error } = await supabase
                 .from('warehouse_produce_inventory')
                 .update(payload)
                 .eq('produce_id', item.produce_id)
-                .select('produce_id, photo_path, produce_status')
+                .select('produce_id')
                 .maybeSingle();
 
             if (error) throw error;
 
-            // Supabase update may succeed without affecting any rows.
-            if (!updatedRecord) {
-                throw new Error(
-                    'No produce record was updated. Check the record ID and UPDATE permissions.'
-                );
+            if (!data) {
+                throw new Error('Update was not applied. Check your permissions.');
             }
 
-            databaseUpdated = true;
-
-            console.log('Produce inventory successfully updated:', updatedRecord);
-
-            // Reload inventory so the updated photo path is displayed.
-            await onSaved();
-
-            // Delete the previous image only after the database update succeeds.
+            // Burahin lang ang lumang photo pagkatapos mag-success ang DB update.
             if (
-                uploadedPhotoPath &&
-                item.photo_path &&
-                item.photo_path !== uploadedPhotoPath
+                uploadedPhotoPath
+                && item.photo_path
+                && item.photo_path !== uploadedPhotoPath
             ) {
-                const { error: deleteError } = await supabase.storage
-                    .from(STORAGE_BUCKET)
-                    .remove([item.photo_path]);
-
-                if (deleteError) {
-                    console.warn(
-                        'Previous produce photo could not be deleted:',
-                        deleteError
-                    );
-                }
+                await deleteInventoryPhoto(item.photo_path);
             }
 
+            await onSaved();
             closeModal();
 
         } catch (error) {
             console.error('Produce update failed:', error);
 
-            // Delete the new upload only if the database was NOT updated.
-            if (uploadedPhotoPath && !databaseUpdated) {
+            // Rollback: burahin ang bagong upload kung pumalya ang DB update.
+            if (uploadedPhotoPath) {
                 await deleteInventoryPhoto(uploadedPhotoPath);
             }
 
-            message.textContent = error.message
-                || 'Unable to update produce.';
-
-            message.className = 'wo-inventory-form-message error';
+            setFormMessage(
+                message,
+                error.message || 'Unable to update produce record.'
+            );
 
         } finally {
             saveButton.disabled = false;
@@ -2787,7 +2821,6 @@ async function renderProduceEditForm(item, onSaved) {
 
     openModal(form);
 }
-
 
 async function renderHarvestInventory(root, config, ctx) {
     const page = el('section', 'wo-inventory-page');
@@ -3061,6 +3094,9 @@ async function renderHarvestInventory(root, config, ctx) {
             registeredCards.replaceChildren(
                 ...registeredCardItems
             );
+
+            // Load warehouse produce photos after rendering cards.
+            void loadInventoryPhotos(registeredCards);
         }
 
         const filteredEligible = eligibleRows.filter(harvest => {
