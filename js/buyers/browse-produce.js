@@ -7,6 +7,8 @@ const TABLE_CART = 'buyer_cart_items';
 
 const STORAGE_BUCKET = 'warehouse-inventory-photos';
 const SIGNED_URL_EXPIRY = 3600;
+const PHOTO_CACHE_TTL = 55 * 60 * 1000;
+const PHOTO_BATCH_SIZE = 50;
 
 const state = {
   products: [],
@@ -48,7 +50,8 @@ let pricesChannel = null;
 let realtimeRefreshTimeout = null;
 let isRefreshingProducts = false;
 let pendingRefresh = false;
-let isInitialLoading = true;
+
+const photoCache = new Map();
 
 function setToday() {
   if (!el.todayLabel) return;
@@ -114,6 +117,40 @@ function priceKey(item) {
   ].join('::');
 }
 
+function cleanPhotoPath(path) {
+  if (!path) return '';
+
+  return String(path).replace(/^\/+/, '').trim();
+}
+
+function getCachedPhotoUrl(path) {
+  const cleanPath = cleanPhotoPath(path);
+
+  if (!cleanPath) return '';
+
+  const cached = photoCache.get(cleanPath);
+
+  if (!cached) return '';
+
+  if (Date.now() >= cached.expiresAt) {
+    photoCache.delete(cleanPath);
+    return '';
+  }
+
+  return cached.url || '';
+}
+
+function setCachedPhotoUrl(path, url) {
+  const cleanPath = cleanPhotoPath(path);
+
+  if (!cleanPath || !url) return;
+
+  photoCache.set(cleanPath, {
+    url,
+    expiresAt: Date.now() + PHOTO_CACHE_TTL,
+  });
+}
+
 function setLoading(isLoading) {
   if (!el.loading) return;
 
@@ -125,21 +162,127 @@ function setLoading(isLoading) {
   }
 }
 
-async function resolvePhotoUrl(path) {
-  if (!path) return '';
+/**
+ * Load product photos in batches.
+ * This runs separately from product rendering.
+ */
+async function loadProductPhotos(products) {
+  const photoProducts = new Map();
 
-  const cleanPath = String(path).replace(/^\/+/, '');
+  for (const product of products) {
+    const path = cleanPhotoPath(product.photo_path);
 
-  const { data, error } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .createSignedUrl(cleanPath, SIGNED_URL_EXPIRY);
+    if (!path) continue;
 
-  if (error) {
-    console.warn(`Unable to load image: ${cleanPath}`, error.message);
-    return '';
+    if (!getCachedPhotoUrl(path)) {
+      if (!photoProducts.has(path)) {
+        photoProducts.set(path, []);
+      }
+
+      photoProducts.get(path).push(product.produce_id);
+    }
   }
 
-  return data?.signedUrl || '';
+  const paths = [...photoProducts.keys()];
+
+  if (!paths.length) return;
+
+  console.log('Loading uncached product photos:', paths.length);
+
+  const batches = [];
+
+  for (let i = 0; i < paths.length; i += PHOTO_BATCH_SIZE) {
+    batches.push(paths.slice(i, i + PHOTO_BATCH_SIZE));
+  }
+
+  await Promise.all(
+    batches.map(async (batch) => {
+      try {
+        const { data, error } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .createSignedUrls(batch, SIGNED_URL_EXPIRY);
+
+        if (error) {
+          console.warn('Batch photo loading failed:', error.message);
+          return;
+        }
+
+        for (let i = 0; i < batch.length; i++) {
+          const requestedPath = batch[i];
+          const result = data?.[i];
+
+          if (!result || result.error || !result.signedUrl) {
+            console.warn(
+              'Unable to generate photo URL:',
+              requestedPath,
+              result?.error
+            );
+            continue;
+          }
+
+          setCachedPhotoUrl(requestedPath, result.signedUrl);
+
+          const produceIds = photoProducts.get(requestedPath) || [];
+
+          for (const produceId of produceIds) {
+            updateProductPhoto(produceId, requestedPath, result.signedUrl);
+          }
+        }
+      } catch (error) {
+        console.error('Product photo batch error:', error);
+      }
+    })
+  );
+}
+
+/**
+ * Update a product image without rebuilding the entire product grid.
+ */
+function updateProductPhoto(produceId, photoPath, photoUrl) {
+  const currentProduct = state.products.find(
+    (product) => product.produce_id === produceId
+  );
+
+  if (!currentProduct) return;
+
+  if (cleanPhotoPath(currentProduct.photo_path) !== photoPath) {
+    return;
+  }
+
+  const cards = el.grid?.querySelectorAll('.produce-card');
+
+  if (!cards?.length) return;
+
+  for (const card of cards) {
+    if (card.dataset.produceId !== produceId) continue;
+
+    const placeholder = card.querySelector(
+      '.produce-image-placeholder[data-photo-produce-id]'
+    );
+
+    if (!placeholder) return;
+
+    const image = document.createElement('img');
+
+    image.className = 'produce-card-image';
+    image.alt = currentProduct.crop_name || 'Produce';
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    image.src = photoUrl;
+
+    image.addEventListener('error', () => {
+      const fallback = document.createElement('div');
+
+      fallback.className = 'produce-image-placeholder';
+      fallback.textContent = 'Image unavailable';
+
+      image.replaceWith(fallback);
+    }, { once: true });
+
+    placeholder.replaceWith(image);
+
+    return;
+  }
 }
 
 async function loadBuyerHeader() {
@@ -204,7 +347,7 @@ async function loadCartCount() {
 
 /**
  * Fetch inventory and prices together.
- * Prices are matched using farm_id, crop_name and unit.
+ * Render products immediately, then load their photos separately.
  */
 async function loadProducts({ initial = false } = {}) {
   if (initial) {
@@ -239,7 +382,6 @@ async function loadProducts({ initial = false } = {}) {
     if (inventoryResult.error) throw inventoryResult.error;
     if (pricesResult.error) throw pricesResult.error;
 
-    // Build a normalized price lookup.
     const priceMap = new Map();
 
     for (const price of pricesResult.data || []) {
@@ -253,19 +395,18 @@ async function loadProducts({ initial = false } = {}) {
 
     const inventory = inventoryResult.data || [];
 
-    const products = await Promise.all(
-      inventory.map(async (item) => {
-        const key = priceKey(item);
-        const unitPrice = priceMap.get(key);
+    // No Storage requests are awaited here.
+    const products = inventory.map((item) => {
+      const key = priceKey(item);
+      const unitPrice = priceMap.get(key);
 
-        return {
-          ...item,
-          unit_price:
-            unitPrice !== undefined ? unitPrice : null,
-          photo_url: await resolvePhotoUrl(item.photo_path),
-        };
-      })
-    );
+      return {
+        ...item,
+        unit_price:
+          unitPrice !== undefined ? unitPrice : null,
+        photo_url: getCachedPhotoUrl(item.photo_path),
+      };
+    });
 
     state.products = products;
 
@@ -284,7 +425,11 @@ async function loadProducts({ initial = false } = {}) {
         })),
     });
 
+    // Render immediately.
     applyFilters();
+
+    // Load missing photos in the background.
+    loadProductPhotos(products);
 
   } catch (error) {
     console.error('Browse Produce load failed:', error);
@@ -340,7 +485,7 @@ function scheduleProductsRefresh() {
         scheduleProductsRefresh();
       }
     }
-  }, 400);
+  }, 800);
 }
 
 /**
@@ -381,7 +526,7 @@ function subscribeToPricesRealtime() {
       {
         event: '*',
         schema: 'public',
-        table: 'farm_produce_prices',
+        table: TABLE_PRICES,
       },
       (payload) => {
         console.log('PRICE REALTIME EVENT:', payload);
@@ -421,7 +566,11 @@ function unsubscribeFromBuyerRealtime() {
  */
 function createImageMarkup(product) {
   const placeholder = `
-    <div class="produce-image-placeholder" aria-label="No product photo available">
+    <div
+      class="produce-image-placeholder"
+      aria-label="Loading product photo"
+      data-photo-produce-id="${escapeHTML(product.produce_id)}"
+    >
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M12 22V12"></path>
         <path d="M12 12C5 12 3 8 3 4c6 0 9 3 9 8"></path>
@@ -429,6 +578,18 @@ function createImageMarkup(product) {
       </svg>
     </div>
   `;
+
+  if (!product.photo_path) {
+    return `
+      <div class="produce-image-placeholder" aria-label="No product photo available">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 22V12"></path>
+          <path d="M12 12C5 12 3 8 3 4c6 0 9 3 9 8"></path>
+          <path d="M12 15c0-5 3-8 9-8 0 5-3 8-9 8"></path>
+        </svg>
+      </div>
+    `;
+  }
 
   if (!product.photo_url) return placeholder;
 
@@ -438,7 +599,7 @@ function createImageMarkup(product) {
       src="${escapeHTML(product.photo_url)}"
       alt="${escapeHTML(product.crop_name || 'Produce')}"
       loading="lazy"
-      onerror="this.outerHTML='<div class=&quot;produce-image-placeholder&quot;><span>Image unavailable</span></div>'"
+      decoding="async"
     >
   `;
 }
@@ -793,8 +954,6 @@ async function init() {
     showError(
       error?.message || 'Unable to initialize the Buyer page.'
     );
-  } finally {
-    isInitialLoading = false;
   }
 }
 
