@@ -2902,7 +2902,13 @@ async function renderHarvestInventory(root, config, ctx) {
 
             supabase
                 .from('warehouse_produce_harvests')
-                .select('harvest_id, quantity_added'),
+                .select(`
+                    contribution_id,
+                    produce_id,
+                    harvest_id,
+                    quantity_added,
+                    created_at
+                `),
 
             supabase
                 .from('harvested_crops')
