@@ -1,3 +1,4 @@
+
 import { supabase } from '../connection.js';
 import { h } from '../admin/ui.js';
 
@@ -8,6 +9,13 @@ let selectedTrackingOrderId = null;
 
 const PRODUCT_PHOTO_BUCKET = 'supplier-product-photos';
 const SIGNED_URL_EXPIRY = 3600;
+
+const CART_PERMISSION_KEYS = {
+    view: 'shopping_cart.view',
+    create: 'shopping_cart.create',
+    edit: 'shopping_cart.edit',
+    delete: 'shopping_cart.delete'
+};
 
 const money = (value) =>
     Number(value || 0).toLocaleString('en-PH', {
@@ -220,6 +228,91 @@ export async function render(root, ctx = {}) {
         return;
     }
 
+    // =========================================
+    // CART PERMISSIONS
+    // =========================================
+
+    const cartPermissions = {
+        view: false,
+        create: false,
+        edit: false,
+        delete: false
+    };
+
+    async function checkCartPermission(action) {
+        const permissionKey = CART_PERMISSION_KEYS[action];
+
+        if (!permissionKey) return false;
+
+        const { data, error } = await supabase.rpc(
+            'has_tanikala_permission',
+            {
+                p_permission_key: permissionKey
+            }
+        );
+
+        if (error) {
+            console.error(
+                `Cart permission check failed: ${permissionKey}`,
+                error
+            );
+
+            return false;
+        }
+
+        cartPermissions[action] = data === true;
+
+        return cartPermissions[action];
+    }
+
+    async function loadCartPermissions() {
+        const actions = Object.keys(CART_PERMISSION_KEYS);
+
+        await Promise.all(
+            actions.map((action) => checkCartPermission(action))
+        );
+
+        console.log('Farm Manager cart permissions:', {
+            userId: user.id,
+            ...cartPermissions
+        });
+    }
+
+    async function requireCartPermission(action) {
+        const allowed = await checkCartPermission(action);
+
+        if (!allowed) {
+            const messages = {
+                view: 'You do not have permission to view the shopping cart.',
+                create: 'You do not have permission to add products or checkout.',
+                edit: 'You do not have permission to update cart quantities.',
+                delete: 'You do not have permission to remove cart items.'
+            };
+
+            showFeedback(
+                messages[action] || 'You do not have permission to perform this action.',
+                true
+            );
+        }
+
+        return allowed;
+    }
+
+    await loadCartPermissions();
+
+    if (!active) return;
+
+    // Direct cart route requires view permission.
+    if (cartMode && !cartPermissions.view) {
+        root.replaceChildren(
+            message(
+                'You do not have permission to view the shopping cart. Contact your administrator if you need access.',
+                true
+            )
+        );
+        return;
+    }
+
     let products = [];
     let cart = [];
     let orders = [];
@@ -251,11 +344,14 @@ export async function render(root, ctx = {}) {
         return element;
     }
 
-    tabs.append(
-        createTab('Browse Products', 'products'),
-        createTab('Cart', 'cart'),
-        createTab('Purchase Orders', 'orders')
-    );
+    tabs.append(createTab('Browse Products', 'products'));
+
+    // Only show Cart tab when the user has view permission.
+    if (cartPermissions.view) {
+        tabs.append(createTab('Cart', 'cart'));
+    }
+
+    tabs.append(createTab('Purchase Orders', 'orders'));
 
     page.append(
         h(
@@ -320,6 +416,11 @@ export async function render(root, ctx = {}) {
     // =========================================
 
     async function loadCart() {
+        if (!cartPermissions.view) {
+            cart = [];
+            return;
+        }
+
         const { data, error } = await supabase
             .from('farm_manager_cart_items')
             .select(`
@@ -403,6 +504,8 @@ export async function render(root, ctx = {}) {
     // =========================================
 
     async function addToCart(product, quantity, addButton) {
+        if (!(await requireCartPermission('create'))) return;
+
         const validation = validateQuantity(
             quantity,
             product.unit,
@@ -439,7 +542,7 @@ export async function render(root, ctx = {}) {
             if (currentTab === 'cart') renderCart();
 
         } finally {
-            addButton.disabled = false;
+            addButton.disabled = !cartPermissions.create;
 
             if (addButton.textContent !== 'Added to Cart') {
                 addButton.textContent = 'Add to Cart';
@@ -524,6 +627,8 @@ export async function render(root, ctx = {}) {
                     'fm-orders-add-to-cart'
                 );
 
+                addButton.disabled = !cartPermissions.create;
+
                 const card = h(
                     'article',
                     { class: 'fm-orders-product' },
@@ -607,6 +712,10 @@ export async function render(root, ctx = {}) {
     // =========================================
 
     async function updateCartQuantity(item, quantity) {
+        if (!(await requireCartPermission('edit'))) {
+            throw new Error('You do not have permission to update cart quantities.');
+        }
+
         const validation = validateQuantity(
             quantity,
             item.product.unit,
@@ -637,6 +746,10 @@ export async function render(root, ctx = {}) {
     // =========================================
 
     async function removeCartItem(item) {
+        if (!(await requireCartPermission('delete'))) {
+            throw new Error('You do not have permission to remove cart items.');
+        }
+
         const { error } = await supabase.rpc(
             'fm_remove_supplier_cart_item',
             {
@@ -658,6 +771,10 @@ export async function render(root, ctx = {}) {
     // =========================================
 
     async function checkout(groupRequestId) {
+        if (!(await requireCartPermission('create'))) {
+            throw new Error('You do not have permission to checkout.');
+        }
+
         const groupItems = cart.filter(
             (item) => item.replenishment_request_id === groupRequestId
         );
@@ -710,7 +827,7 @@ export async function render(root, ctx = {}) {
             class: 'fm-orders-quantity'
         });
 
-        quantityInput.disabled = unavailable;
+        quantityInput.disabled = unavailable || !cartPermissions.edit;
 
         const updateButton = button(
             'Update',
@@ -721,13 +838,13 @@ export async function render(root, ctx = {}) {
                 } catch (error) {
                     showFeedback(error.message, true);
                 } finally {
-                    updateButton.disabled = false;
+                    updateButton.disabled = unavailable || !cartPermissions.edit;
                 }
             },
             'fm-orders-cart-action fm-orders-cart-save'
         );
 
-        updateButton.disabled = unavailable;
+        updateButton.disabled = unavailable || !cartPermissions.edit;
 
         const removeButton = button(
             'Remove',
@@ -739,11 +856,13 @@ export async function render(root, ctx = {}) {
                     await removeCartItem(item);
                 } catch (error) {
                     showFeedback(error.message, true);
-                    removeButton.disabled = false;
+                    removeButton.disabled = !cartPermissions.delete;
                 }
             },
             'fm-orders-cart-action fm-orders-cart-remove'
         );
+
+        removeButton.disabled = !cartPermissions.delete;
 
         return h(
             'article',
@@ -811,6 +930,13 @@ export async function render(root, ctx = {}) {
     function renderCart() {
         content.replaceChildren();
 
+        if (!cartPermissions.view) {
+            content.append(
+                message('You do not have permission to view the shopping cart.', true)
+            );
+            return;
+        }
+
         if (!cart.length) {
             content.append(
                 h(
@@ -855,14 +981,21 @@ export async function render(root, ctx = {}) {
                     } catch (error) {
                         showFeedback(error.message, true);
                     } finally {
-                        checkoutButton.disabled = false;
+                        checkoutButton.disabled =
+                            hasIssue ||
+                            !validItems.length ||
+                            !cartPermissions.create;
+
                         checkoutButton.textContent = 'Checkout';
                     }
                 },
                 'fm-orders-checkout'
             );
 
-            checkoutButton.disabled = hasIssue || !validItems.length;
+            checkoutButton.disabled =
+                hasIssue ||
+                !validItems.length ||
+                !cartPermissions.create;
 
             const groupTitle = groupRequestId
                 ? `Replenishment Request: ${groupRequestId}`
@@ -1464,6 +1597,14 @@ export async function render(root, ctx = {}) {
     // =========================================
 
     function setTab(tab) {
+        if (tab === 'cart' && !cartPermissions.view) {
+            showFeedback(
+                'You do not have permission to view the shopping cart.',
+                true
+            );
+            return;
+        }
+
         currentTab = tab;
 
         tabs.querySelectorAll('button').forEach((element) => {
@@ -1489,7 +1630,7 @@ export async function render(root, ctx = {}) {
     try {
         await Promise.all([
             loadProducts(),
-            loadCart()
+            cartPermissions.view ? loadCart() : Promise.resolve()
         ]);
 
         if (!active) return;

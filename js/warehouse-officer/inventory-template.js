@@ -201,6 +201,82 @@ async function getCurrentUserId() {
     return userId;
 }
 
+
+/* =========================================================
+PERMISSION HELPERS
+========================================================= */
+
+const permissionCache = new Map();
+
+async function hasPermission(permission) {
+    if (!permission) return false;
+
+    if (permissionCache.has(permission)) {
+        return permissionCache.get(permission);
+    }
+
+    const { data, error } = await supabase.rpc(
+        'has_tanikala_permission',
+        { p_permission_key: permission }
+    );
+
+    if (error) {
+        console.error(`Permission check failed (${permission}):`, error);
+        return false;
+    }
+
+    const allowed = data === true;
+    permissionCache.set(permission, allowed);
+
+    return allowed;
+}
+
+async function requirePermission(permission) {
+    const allowed = await hasPermission(permission);
+
+    if (!allowed) {
+        throw new Error('You do not have permission to perform this action.');
+    }
+
+    return true;
+}
+
+function getInventoryPermissions(category) {
+    if (category === 'Fertilizer') {
+        return {
+            view: 'fertilizer_inventory.view',
+            create: 'fertilizer_inventory.create',
+            edit: 'fertilizer_inventory.edit',
+            delete: 'fertilizer_inventory.delete',
+            manage: 'fertilizer.manage'
+        };
+    }
+
+    if (category === 'Pesticide') {
+        return {
+            view: 'pesticide_inventory.view',
+            create: 'pesticide_inventory.create',
+            edit: 'pesticide_inventory.edit',
+            delete: 'pesticide_inventory.delete',
+            manage: 'pesticide.manage'
+        };
+    }
+
+    if (category === 'Equipment') {
+        return {
+            view: 'equipment.view',
+            manage: 'inventory.manage',
+            issue: 'supplies.issue'
+        };
+    }
+
+    return {
+        view: 'inventory.view',
+        manage: 'inventory.manage'
+    };
+}
+
+
 /* =========================================================
 PHOTO HELPERS
 ========================================================= */
@@ -664,6 +740,7 @@ SHARED INVENTORY CARD
 ========================================================= */
 
 
+
 function createInventoryCard({
     photoPath,
     title,
@@ -672,7 +749,10 @@ function createInventoryCard({
     onDelete,
     onReplenish,
     replenishPending = false,
-    deleteLabel = 'Delete'
+    deleteLabel = 'Delete',
+    canEdit = true,
+    canDelete = true,
+    canReplenish = true
 }) {
     const card = el('article', 'wo-inventory-card');
 
@@ -727,32 +807,45 @@ function createInventoryCard({
         'wo-inventory-actions wo-inventory-card-actions'
     );
 
-    actions.append(
-        button('Edit', 'wo-inventory-edit', onEdit),
-        button(deleteLabel, 'wo-inventory-delete', onDelete)
-    );
-
-    if (replenishPending) {
-        const pendingButton = button(
-            'Request Pending',
-            'wo-inventory-replenish-pending',
-            () => { }
-        );
-
-        pendingButton.disabled = true;
-        actions.append(pendingButton);
-
-    } else if (typeof onReplenish === 'function') {
+    if (canEdit && typeof onEdit === 'function') {
         actions.append(
-            button(
-                'Replenish',
-                'wo-inventory-replenish',
-                onReplenish
-            )
+            button('Edit', 'wo-inventory-edit', onEdit)
         );
     }
 
-    back.append(backHeader, list, actions);
+    if (canDelete && typeof onDelete === 'function') {
+        actions.append(
+            button(deleteLabel, 'wo-inventory-delete', onDelete)
+        );
+    }
+
+    if (canReplenish) {
+        if (replenishPending) {
+            const pendingButton = button(
+                'Request Pending',
+                'wo-inventory-replenish-pending',
+                () => { }
+            );
+
+            pendingButton.disabled = true;
+            actions.append(pendingButton);
+
+        } else if (typeof onReplenish === 'function') {
+            actions.append(
+                button(
+                    'Replenish',
+                    'wo-inventory-replenish',
+                    onReplenish
+                )
+            );
+        }
+    }
+
+    back.append(backHeader, list);
+
+    if (actions.childElementCount > 0) {
+        back.append(actions);
+    }
 
     function setFlipped(flipped) {
         card.classList.toggle('is-flipped', flipped);
@@ -788,6 +881,7 @@ function createInventoryCard({
 }
 
 
+
 /* =========================================================
 INVENTORY ITEM CRUD
 ========================================================= */
@@ -804,10 +898,24 @@ function getToolStatus(quantity) {
     return { text: 'Available', className: 'available' };
 }
 
-function createToolCard(item, onEdit, onDelete, onReplenish) {
+
+function createToolCard(
+    item,
+    onEdit,
+    onDelete,
+    onReplenish,
+    permissions = {}
+) {
     const quantity = Number(item.tool_quantity || 0);
     const status = getToolStatus(quantity);
     const quantityText = `${formatNumber(quantity)} ${item.tool_unit || ''}`.trim();
+
+    const {
+        canEdit = true,
+        canDelete = true,
+        canReplenish = true,
+        replenishPending = false
+    } = permissions;
 
     return createInventoryCard({
         photoPath: item.photo_path,
@@ -818,15 +926,37 @@ function createToolCard(item, onEdit, onDelete, onReplenish) {
             { label: 'Stock Status', value: status.text },
             { label: 'Last Updated', value: formatDate(item.updated_at) }
         ],
-        onEdit: () => onEdit(item),
-        onDelete: () => onDelete(item),
-        onReplenish: quantity <= LOW_STOCK_THRESHOLD
+        onEdit: canEdit
+            ? () => onEdit(item)
+            : null,
+        onDelete: canDelete
+            ? () => onDelete(item)
+            : null,
+        onReplenish: canReplenish && quantity <= LOW_STOCK_THRESHOLD
             ? () => onReplenish(item)
-            : null
+            : null,
+        canEdit,
+        canDelete,
+        canReplenish,
+        replenishPending
     });
 }
 
+
 async function renderToolForm(category, item, onSaved) {
+    const permissions = getInventoryPermissions(category);
+
+    const permission = item
+        ? (permissions.edit || permissions.manage)
+        : (permissions.create || permissions.manage);
+
+    try {
+        await requirePermission(permission);
+    } catch (error) {
+        alert(error.message);
+        return;
+    }
+
     const form = el('form', 'wo-inventory-form');
 
     const heading = el(
@@ -917,15 +1047,18 @@ async function renderToolForm(category, item, onSaved) {
 
         let uploadedPhotoPath = null;
 
-        const payload = {
-            tool_name: nameInput.value.trim(),
-            tool_category: categorySelect.value,
-            tool_quantity: Number(quantityInput.value),
-            tool_unit: unitInput.value.trim(),
-            updated_at: new Date().toISOString()
-        };
-
         try {
+            // Recheck permission before database operations.
+            await requirePermission(permission);
+
+            const payload = {
+                tool_name: nameInput.value.trim(),
+                tool_category: categorySelect.value,
+                tool_quantity: Number(quantityInput.value),
+                tool_unit: unitInput.value.trim(),
+                updated_at: new Date().toISOString()
+            };
+
             if (!payload.tool_name || !payload.tool_unit) {
                 throw new Error('Please complete all required fields.');
             }
@@ -994,7 +1127,6 @@ async function renderToolForm(category, item, onSaved) {
 
     openModal(form);
 }
-
 /* =========================================================
 WAREHOUSE RPC DATA
 ========================================================= */
@@ -1102,7 +1234,15 @@ function getSelectedPlanting(plantings, plantingId) {
 EQUIPMENT: BORROWING
 ========================================================= */
 
+
 async function renderEquipmentBorrowForm(item, people, onSaved) {
+    try {
+        await requirePermission('supplies.issue');
+    } catch (error) {
+        alert(error.message);
+        return;
+    }
+
     const form = el('form', 'wo-inventory-form');
 
     const quantityAvailable = Number(item.tool_quantity || 0);
@@ -1137,7 +1277,12 @@ async function renderEquipmentBorrowForm(item, people, onSaved) {
 
     const message = el('p', 'wo-inventory-form-message');
 
-    const saveButton = el('button', 'wo-inventory-save', 'Confirm Borrowing');
+    const saveButton = el(
+        'button',
+        'wo-inventory-save',
+        'Confirm Borrowing'
+    );
+
     saveButton.type = 'submit';
 
     const actions = el('div', 'wo-inventory-form-actions');
@@ -1149,7 +1294,11 @@ async function renderEquipmentBorrowForm(item, people, onSaved) {
 
     form.append(
         el('h3', '', 'Borrow Equipment'),
-        el('p', 'muted', `${item.tool_name} — Available: ${formatNumber(quantityAvailable)} ${item.tool_unit}`),
+        el(
+            'p',
+            'muted',
+            `${item.tool_name} — Available: ${formatNumber(quantityAvailable)} ${item.tool_unit}`
+        ),
         createField('Borrower', personSelect, true),
         createField('Quantity to Borrow', quantityInput, true),
         createField('Expected Return', expectedReturnInput),
@@ -1165,6 +1314,8 @@ async function renderEquipmentBorrowForm(item, people, onSaved) {
         saveButton.textContent = 'Processing...';
 
         try {
+            await requirePermission('supplies.issue');
+
             const borrowerId = personSelect.value;
             const quantity = Number(quantityInput.value);
 
@@ -1173,11 +1324,15 @@ async function renderEquipmentBorrowForm(item, people, onSaved) {
             }
 
             if (!Number.isFinite(quantity) || quantity <= 0) {
-                throw new Error('Borrowed quantity must be greater than zero.');
+                throw new Error(
+                    'Borrowed quantity must be greater than zero.'
+                );
             }
 
             if (quantity > quantityAvailable) {
-                throw new Error('Borrowed quantity exceeds available stock.');
+                throw new Error(
+                    'Borrowed quantity exceeds available stock.'
+                );
             }
 
             const currentUserId = await getCurrentUserId();
@@ -1186,13 +1341,21 @@ async function renderEquipmentBorrowForm(item, people, onSaved) {
             let expectedReturnAt = null;
 
             if (expectedReturnInput.value) {
-                expectedReturnAt = new Date(
+                const expectedDate = new Date(
                     expectedReturnInput.value
-                ).toISOString();
+                );
 
-                if (new Date(expectedReturnAt) < borrowedAt) {
-                    throw new Error('Expected return must not be in the past.');
+                if (Number.isNaN(expectedDate.getTime())) {
+                    throw new Error('Invalid expected return date.');
                 }
+
+                if (expectedDate < borrowedAt) {
+                    throw new Error(
+                        'Expected return must not be in the past.'
+                    );
+                }
+
+                expectedReturnAt = expectedDate.toISOString();
             }
 
             const { error } = await supabase
@@ -1213,7 +1376,11 @@ async function renderEquipmentBorrowForm(item, people, onSaved) {
 
         } catch (error) {
             console.error('Equipment borrowing failed:', error);
-            setFormMessage(message, error.message || 'Unable to record borrowing.');
+
+            setFormMessage(
+                message,
+                error.message || 'Unable to record borrowing.'
+            );
 
         } finally {
             saveButton.disabled = false;
@@ -1588,6 +1755,7 @@ function createEquipmentHistorySection(
     return section;
 }
 
+
 async function renderEquipmentHistory(
     container,
     history,
@@ -1595,6 +1763,8 @@ async function renderEquipmentHistory(
     inventory,
     reload
 ) {
+    const canManageTransactions = await hasPermission('supplies.issue');
+
     const peopleMap = new Map(
         people.map(person => [
             person.person_id,
@@ -1640,38 +1810,50 @@ async function renderEquipmentHistory(
         const actionCell = document.createElement('td');
 
         if (outstanding > 0 && item) {
-            actionCell.append(
-                button('Return', 'wo-inventory-edit', async () => {
-                    try {
-                        const latestPeople = await getWarehousePeople();
+            if (canManageTransactions) {
+                actionCell.append(
+                    button('Return', 'wo-inventory-edit', async () => {
+                        try {
+                            await requirePermission('supplies.issue');
 
-                        await renderEquipmentReturnForm(
-                            {
-                                ...borrow,
-                                tool_name: item.tool_name,
-                                tool_unit: item.tool_unit
-                            },
-                            outstanding,
-                            latestPeople,
-                            reload
-                        );
-                    } catch (error) {
-                        alert(error.message || 'Unable to open return form.');
-                    }
-                }),
+                            const latestPeople = await getWarehousePeople();
 
-                button('Incident', 'wo-inventory-delete', () => {
-                    renderEquipmentIncidentForm(
-                        {
-                            ...borrow,
-                            tool_name: item.tool_name,
-                            tool_unit: item.tool_unit
-                        },
-                        outstanding,
-                        reload
-                    );
-                })
-            );
+                            await renderEquipmentReturnForm(
+                                {
+                                    ...borrow,
+                                    tool_name: item.tool_name,
+                                    tool_unit: item.tool_unit
+                                },
+                                outstanding,
+                                latestPeople,
+                                reload
+                            );
+                        } catch (error) {
+                            alert(error.message || 'Unable to open return form.');
+                        }
+                    }),
+
+                    button('Incident', 'wo-inventory-delete', async () => {
+                        try {
+                            await requirePermission('supplies.issue');
+
+                            await renderEquipmentIncidentForm(
+                                {
+                                    ...borrow,
+                                    tool_name: item.tool_name,
+                                    tool_unit: item.tool_unit
+                                },
+                                outstanding,
+                                reload
+                            );
+                        } catch (error) {
+                            alert(error.message || 'Unable to open incident form.');
+                        }
+                    })
+                );
+            } else {
+                actionCell.textContent = 'View only';
+            }
         } else {
             actionCell.textContent = 'Completed';
         }
@@ -1683,6 +1865,7 @@ async function renderEquipmentHistory(
 
     const returnRows = history.returns.map(record => {
         const row = document.createElement('tr');
+
         const borrow = history.borrows.find(
             item => item.borrow_id === record.borrow_id
         );
@@ -1703,6 +1886,7 @@ async function renderEquipmentHistory(
 
     const incidentRows = history.incidents.map(record => {
         const row = document.createElement('tr');
+
         const borrow = history.borrows.find(
             item => item.borrow_id === record.borrow_id
         );
@@ -1769,15 +1953,26 @@ async function renderEquipmentHistory(
 FERTILIZER / PESTICIDE USAGE FORM
 ========================================================= */
 
+
 async function renderSupplyUsageForm(category, item, onSaved) {
     const isFertilizer = category === 'Fertilizer';
+
+    const usagePermission = isFertilizer
+        ? 'fertilizer.manage'
+        : 'pesticide.manage';
+
+    try {
+        await requirePermission(usagePermission);
+    } catch (error) {
+        alert(error.message);
+        return;
+    }
 
     const tableName = isFertilizer
         ? 'warehouse_fertilizer_used'
         : 'warehouse_pesticide_used';
 
     const form = el('form', 'wo-inventory-form');
-
     const message = el('p', 'wo-inventory-form-message');
 
     const quantityAvailable = Number(item.tool_quantity || 0);
@@ -1845,7 +2040,11 @@ async function renderSupplyUsageForm(category, item, onSaved) {
 
     form.append(
         el('h3', '', `Record ${category} Usage`),
-        el('p', 'muted', `${item.tool_name} — Available: ${formatNumber(quantityAvailable)} ${item.tool_unit}`),
+        el(
+            'p',
+            'muted',
+            `${item.tool_name} — Available: ${formatNumber(quantityAvailable)} ${item.tool_unit}`
+        ),
         message
     );
 
@@ -1876,6 +2075,10 @@ async function renderSupplyUsageForm(category, item, onSaved) {
         return;
     }
 
+    plantings = plantings.filter(planting => (
+        String(planting.planting_status || '').toLowerCase() !== 'harvested'
+    ));
+
     const personSelect = createSelect(
         people.map(person => ({
             value: person.person_id,
@@ -1883,12 +2086,8 @@ async function renderSupplyUsageForm(category, item, onSaved) {
         })),
         'Select farmer or worker'
     );
-    personSelect.required = true;
 
-    // Show only plantings that are not yet harvested.
-    plantings = plantings.filter(planting => (
-        String(planting.planting_status || '').toLowerCase() !== 'harvested'
-    ));
+    personSelect.required = true;
 
     const plantingSelect = createSelect(
         plantings.map(planting => ({
@@ -1899,9 +2098,9 @@ async function renderSupplyUsageForm(category, item, onSaved) {
             ? 'Select crop / planting'
             : 'No unharvested plantings available'
     );
+
     plantingSelect.required = true;
 
-    // Automatically select the assigned farmer when a planting is selected.
     plantingSelect.addEventListener('change', () => {
         const planting = getSelectedPlanting(
             plantings,
@@ -1947,6 +2146,8 @@ async function renderSupplyUsageForm(category, item, onSaved) {
         let uploadedPhotoPath = null;
 
         try {
+            await requirePermission(usagePermission);
+
             const personId = personSelect.value;
 
             const planting = getSelectedPlanting(
@@ -2007,7 +2208,9 @@ async function renderSupplyUsageForm(category, item, onSaved) {
             if (selectedPhoto) {
                 uploadedPhotoPath = await uploadInventoryPhoto(
                     selectedPhoto,
-                    isFertilizer ? 'fertilizer-usage' : 'pesticide-usage'
+                    isFertilizer
+                        ? 'fertilizer-usage'
+                        : 'pesticide-usage'
                 );
             }
 
@@ -2020,15 +2223,15 @@ async function renderSupplyUsageForm(category, item, onSaved) {
                 application_date: new Date(
                     `${applicationDateInput.value}T12:00:00`
                 ).toISOString(),
-                application_method: methodInput.value.trim() || null,
-                notes: notesInput.value.trim() || null,
+                application_method: methodInput.value.trim(),
+                notes: notesInput.value.trim(),
                 evidence_photo_path: uploadedPhotoPath
             };
 
             if (isFertilizer) {
-                payload.growth_stage = growthStageInput.value.trim() || null;
+                payload.growth_stage = growthStageInput.value.trim();
             } else {
-                payload.target_pest = targetPestInput.value.trim() || null;
+                payload.target_pest = targetPestInput.value.trim();
             }
 
             const { error } = await supabase
@@ -2036,6 +2239,8 @@ async function renderSupplyUsageForm(category, item, onSaved) {
                 .insert(payload);
 
             if (error) throw error;
+
+            uploadedPhotoPath = null;
 
             // The database stock trigger handles the stock deduction.
             await onSaved();
@@ -2061,6 +2266,7 @@ async function renderSupplyUsageForm(category, item, onSaved) {
 
     openModal(form);
 }
+
 
 /* =========================================================
 FERTILIZER / PESTICIDE USAGE HISTORY
@@ -2141,6 +2347,7 @@ function createSupplyHistoryRows(
     });
 }
 
+
 async function renderSupplyHistory(
     container,
     category,
@@ -2149,6 +2356,12 @@ async function renderSupplyHistory(
     people,
     plantings
 ) {
+    const usagePermission = category === 'Fertilizer'
+        ? 'fertilizer.manage'
+        : 'pesticide.manage';
+
+    const canManageUsage = await hasPermission(usagePermission);
+
     const rows = createSupplyHistoryRows(
         records,
         inventory,
@@ -2165,7 +2378,20 @@ async function renderSupplyHistory(
             'p',
             'muted',
             `Historical records of ${category.toLowerCase()} applications.`
-        ),
+        )
+    );
+
+    if (!canManageUsage) {
+        section.append(
+            el(
+                'p',
+                'muted',
+                'You have view-only access to these usage records.'
+            )
+        );
+    }
+
+    section.append(
         createTable(
             [
                 'Supply',
@@ -2186,7 +2412,16 @@ async function renderSupplyHistory(
 }
 
 
+
+
 async function renderReplenishmentRequestForm(category, item, onSaved) {
+    try {
+        await requirePermission('inventory.manage');
+    } catch (error) {
+        alert(error.message);
+        return;
+    }
+
     const form = el('form', 'wo-inventory-form');
 
     const message = el('p', 'wo-inventory-form-message');
@@ -2214,6 +2449,7 @@ async function renderReplenishmentRequestForm(category, item, onSaved) {
         'wo-inventory-save',
         'Submit Request'
     );
+
     submitButton.type = 'submit';
 
     actions.append(
@@ -2265,8 +2501,9 @@ async function renderReplenishmentRequestForm(category, item, onSaved) {
         submitButton.disabled = true;
         submitButton.textContent = 'Submitting...';
 
-
         try {
+            await requirePermission('inventory.manage');
+
             console.log('Submitting replenishment request:', {
                 category,
                 tool_id: item.tool_id,
@@ -2285,7 +2522,9 @@ async function renderReplenishmentRequestForm(category, item, onSaved) {
             if (error) throw error;
 
             if (data?.success === false) {
-                throw new Error(data.message || 'Unable to submit replenishment request.');
+                throw new Error(
+                    data.message || 'Unable to submit replenishment request.'
+                );
             }
 
             console.log('Replenishment request submitted:', data);
@@ -2301,7 +2540,8 @@ async function renderReplenishmentRequestForm(category, item, onSaved) {
 
             const errorMessage = error.message || '';
 
-            let userMessage = 'Unable to submit replenishment request. Please try again.';
+            let userMessage =
+                'Unable to submit replenishment request. Please try again.';
 
             if (
                 error.code === '23505' ||
@@ -2310,6 +2550,10 @@ async function renderReplenishmentRequestForm(category, item, onSaved) {
             ) {
                 userMessage =
                     'This item already has a pending replenishment request. Please wait for the Farm Manager to review it before submitting another request.';
+            } else if (
+                errorMessage.toLowerCase().includes('permission')
+            ) {
+                userMessage = errorMessage;
             }
 
             setFormMessage(message, userMessage);
@@ -2317,18 +2561,47 @@ async function renderReplenishmentRequestForm(category, item, onSaved) {
             submitButton.disabled = false;
             submitButton.textContent = 'Submit Request';
         }
-
     });
 
     openModal(form);
 }
 
+
 /* =========================================================
 TOOL INVENTORY PAGE
 ========================================================= */
 
+
 async function renderToolsInventory(root, config, ctx) {
     const category = config.category;
+    const permissions = getInventoryPermissions(category);
+
+    const canView = await hasPermission(permissions.view);
+
+    if (!canView) {
+        showMessage(
+            root,
+            'You do not have permission to view this inventory.',
+            'error'
+        );
+        return;
+    }
+
+    const [
+        canCreate,
+        canEdit,
+        canDelete,
+        canReplenish,
+        canIssue,
+        canManageUsage
+    ] = await Promise.all([
+        hasPermission(permissions.create || permissions.manage),
+        hasPermission(permissions.edit || permissions.manage),
+        hasPermission(permissions.delete || permissions.manage),
+        hasPermission('inventory.manage'),
+        hasPermission('supplies.issue'),
+        hasPermission(permissions.manage)
+    ]);
 
     const page = el('section', 'wo-inventory-page');
     const heading = el('div', 'wo-page-heading');
@@ -2343,13 +2616,15 @@ async function renderToolsInventory(root, config, ctx) {
     const cardGrid = el('div', 'wo-inventory-card-grid');
     const historyContainer = el('div', 'wo-inventory-history');
 
-    const addButton = button(
-        `+ Add ${category}`,
-        'wo-inventory-add',
-        () => renderToolForm(category, null, load)
-    );
+    if (canCreate) {
+        const addButton = button(
+            `+ Add ${category}`,
+            'wo-inventory-add',
+            () => renderToolForm(category, null, load)
+        );
 
-    toolbar.append(addButton);
+        toolbar.append(addButton);
+    }
 
     page.append(
         heading,
@@ -2449,32 +2724,52 @@ async function renderToolsInventory(root, config, ctx) {
             ),
 
             async selected => {
-                if (!confirm(
-                    `Delete "${selected.tool_name}" from inventory?`
-                )) {
-                    return;
+                try {
+                    await requirePermission(
+                        permissions.delete || permissions.manage
+                    );
+
+                    if (!confirm(
+                        `Delete "${selected.tool_name}" from inventory?`
+                    )) {
+                        return;
+                    }
+
+                    await requirePermission(
+                        permissions.delete || permissions.manage
+                    );
+
+                    const { error: deleteError } = await supabase
+                        .from('warehouse_tools_inventory')
+                        .delete()
+                        .eq('tool_id', selected.tool_id);
+
+                    if (deleteError) throw deleteError;
+
+                    if (selected.photo_path) {
+                        await deleteInventoryPhoto(selected.photo_path);
+                    }
+
+                    await load();
+
+                } catch (error) {
+                    console.error('Delete failed:', error);
+                    alert(error.message || 'Unable to delete item.');
                 }
-
-                const { error: deleteError } = await supabase
-                    .from('warehouse_tools_inventory')
-                    .delete()
-                    .eq('tool_id', selected.tool_id);
-
-                if (deleteError) {
-                    console.error('Delete failed:', deleteError);
-                    alert(deleteError.message || 'Unable to delete item.');
-                    return;
-                }
-
-                await deleteInventoryPhoto(selected.photo_path);
-                await load();
             },
 
             selected => renderReplenishmentRequestForm(
                 category,
                 selected,
                 load
-            )
+            ),
+
+            {
+                canEdit,
+                canDelete,
+                canReplenish,
+                replenishPending: false
+            }
         ));
 
         if (!cards.length) {
@@ -2526,17 +2821,30 @@ async function renderToolsInventory(root, config, ctx) {
                         'p',
                         'muted',
                         `Available: ${formatNumber(item.tool_quantity)} ${item.tool_unit}`
-                    ),
-                    button(
-                        'Borrow Equipment',
-                        'wo-inventory-add',
-                        () => renderEquipmentBorrowForm(
-                            item,
-                            people,
-                            load
-                        )
                     )
                 );
+
+                if (canIssue) {
+                    actionCard.append(
+                        button(
+                            'Borrow Equipment',
+                            'wo-inventory-add',
+                            async () => {
+                                try {
+                                    await requirePermission('supplies.issue');
+
+                                    await renderEquipmentBorrowForm(
+                                        item,
+                                        people,
+                                        load
+                                    );
+                                } catch (error) {
+                                    alert(error.message);
+                                }
+                            }
+                        )
+                    );
+                }
 
                 return actionCard;
             });
@@ -2606,17 +2914,30 @@ async function renderToolsInventory(root, config, ctx) {
                         'p',
                         'muted',
                         `Available: ${formatNumber(item.tool_quantity)} ${item.tool_unit}`
-                    ),
-                    button(
-                        `Record ${category} Usage`,
-                        'wo-inventory-add',
-                        () => renderSupplyUsageForm(
-                            category,
-                            item,
-                            load
-                        )
                     )
                 );
+
+                if (canManageUsage) {
+                    card.append(
+                        button(
+                            `Record ${category} Usage`,
+                            'wo-inventory-add',
+                            async () => {
+                                try {
+                                    await requirePermission(permissions.manage);
+
+                                    await renderSupplyUsageForm(
+                                        category,
+                                        item,
+                                        load
+                                    );
+                                } catch (error) {
+                                    alert(error.message);
+                                }
+                            }
+                        )
+                    );
+                }
 
                 return card;
             });
@@ -2658,6 +2979,7 @@ async function renderToolsInventory(root, config, ctx) {
     await load();
 }
 
+
 /* =========================================================
 HARVEST / PRODUCE INVENTORY
 ========================================================= */
@@ -2674,7 +2996,13 @@ function getVerifiedQuantity(harvest) {
     );
 }
 
-function createProduceCard(item, onEdit, onDelete) {
+
+function createProduceCard(
+    item,
+    onEdit,
+    onDelete,
+    permissions = {}
+) {
     const status = String(item.produce_status || 'available').toLowerCase();
 
     const cropName = item.crop_name || 'Unspecified Crop';
@@ -2683,6 +3011,8 @@ function createProduceCard(item, onEdit, onDelete) {
     const availableQuantity = Number(item.available_quantity || 0);
     const reservedQuantity = Number(item.reserved_quantity || 0);
     const totalQuantity = availableQuantity + reservedQuantity;
+
+    const canEdit = permissions.canEdit === true;
 
     const details = [
         { label: 'Crop', value: cropName },
@@ -2706,15 +3036,30 @@ function createProduceCard(item, onEdit, onDelete) {
         photoPath: item.photo_path,
         title: cropName,
         details,
-        onEdit: () => onEdit(item),
-        onDelete: () => onDelete(item),
+
+        onEdit: canEdit
+            ? () => onEdit(item)
+            : null,
+
+        onDelete: canEdit
+            ? () => onDelete(item)
+            : null,
+
+        canEdit,
+        canDelete: canEdit,
         deleteLabel: 'Remove'
     });
 }
 
 
-
 async function renderProduceEditForm(item, onSaved) {
+    try {
+        await requirePermission('harvest_inventory.edit');
+    } catch (error) {
+        alert(error.message);
+        return;
+    }
+
     const form = el('form', 'wo-inventory-form');
     const heading = el('h3', '', 'Update Produce Inventory');
 
@@ -2733,7 +3078,10 @@ async function renderProduceEditForm(item, onSaved) {
     statusLabel.append(statusSelect);
 
     const currentPhotoUrl = await getPhotoUrl(item.photo_path);
-    const photoField = createPhotoInput(currentPhotoUrl, 'Produce Photo (Optional)');
+    const photoField = createPhotoInput(
+        currentPhotoUrl,
+        'Produce Photo (Optional)'
+    );
 
     const actions = el('div', 'wo-inventory-form-actions');
 
@@ -2747,7 +3095,13 @@ async function renderProduceEditForm(item, onSaved) {
 
     const message = el('p', 'wo-inventory-form-message');
 
-    form.append(heading, statusLabel, photoField.wrapper, actions, message);
+    form.append(
+        heading,
+        statusLabel,
+        photoField.wrapper,
+        actions,
+        message
+    );
 
     form.addEventListener('submit', async event => {
         event.preventDefault();
@@ -2759,6 +3113,8 @@ async function renderProduceEditForm(item, onSaved) {
         let uploadedPhotoPath = null;
 
         try {
+            await requirePermission('harvest_inventory.edit');
+
             const payload = {
                 produce_status: statusSelect.value,
                 updated_at: new Date().toISOString()
@@ -2785,10 +3141,11 @@ async function renderProduceEditForm(item, onSaved) {
             if (error) throw error;
 
             if (!data) {
-                throw new Error('Update was not applied. Check your permissions.');
+                throw new Error(
+                    'Update was not applied. Check your permissions.'
+                );
             }
 
-            // Burahin lang ang lumang photo pagkatapos mag-success ang DB update.
             if (
                 uploadedPhotoPath
                 && item.photo_path
@@ -2803,7 +3160,6 @@ async function renderProduceEditForm(item, onSaved) {
         } catch (error) {
             console.error('Produce update failed:', error);
 
-            // Rollback: burahin ang bagong upload kung pumalya ang DB update.
             if (uploadedPhotoPath) {
                 await deleteInventoryPhoto(uploadedPhotoPath);
             }
@@ -2823,6 +3179,19 @@ async function renderProduceEditForm(item, onSaved) {
 }
 
 async function renderHarvestInventory(root, config, ctx) {
+    const canView = await hasPermission('harvest_inventory.view');
+
+    if (!canView) {
+        showMessage(
+            root,
+            'You do not have permission to view Harvest Inventory.',
+            'error'
+        );
+        return;
+    }
+
+    const canEdit = await hasPermission('harvest_inventory.edit');
+
     const page = el('section', 'wo-inventory-page');
     const heading = el('div', 'wo-page-heading');
 
@@ -2877,7 +3246,6 @@ async function renderHarvestInventory(root, config, ctx) {
         showMessage(registeredCards, 'Loading warehouse produce...');
         showMessage(eligibleTable, 'Loading confirmed harvests...');
 
-        // These three queries are independent, so execute them together.
         const [
             inventoryResult,
             contributionResult,
@@ -3058,18 +3426,31 @@ async function renderHarvestInventory(root, config, ctx) {
                 ),
 
                 async selected => {
-                    if (!confirm(
-                        'Remove this produce record from warehouse inventory? The original harvest record will remain.'
-                    )) {
-                        return;
-                    }
+                    try {
+                        await requirePermission('harvest_inventory.edit');
 
-                    const { error } = await supabase
-                        .from('warehouse_produce_inventory')
-                        .delete()
-                        .eq('produce_id', selected.produce_id);
+                        if (!confirm(
+                            'Remove this produce record from warehouse inventory? The original harvest record will remain.'
+                        )) {
+                            return;
+                        }
 
-                    if (error) {
+                        await requirePermission('harvest_inventory.edit');
+
+                        const { error } = await supabase
+                            .from('warehouse_produce_inventory')
+                            .delete()
+                            .eq('produce_id', selected.produce_id);
+
+                        if (error) throw error;
+
+                        if (selected.photo_path) {
+                            await deleteInventoryPhoto(selected.photo_path);
+                        }
+
+                        await load();
+
+                    } catch (error) {
                         console.error(
                             'Produce deletion failed:',
                             error
@@ -3079,13 +3460,10 @@ async function renderHarvestInventory(root, config, ctx) {
                             error.message
                             || 'Unable to remove produce record.'
                         );
-
-                        return;
                     }
+                },
 
-                    await deleteInventoryPhoto(selected.photo_path);
-                    await load();
-                }
+                { canEdit }
             ))
         );
 
@@ -3101,7 +3479,6 @@ async function renderHarvestInventory(root, config, ctx) {
                 ...registeredCardItems
             );
 
-            // Load warehouse produce photos after rendering cards.
             void loadInventoryPhotos(registeredCards);
         }
 
@@ -3131,45 +3508,51 @@ async function renderHarvestInventory(root, config, ctx) {
 
             const actionCell = document.createElement('td');
 
-            actionCell.append(
-                button(
-                    'Add to Inventory',
-                    'wo-inventory-add',
-                    async event => {
-                        const actionButton = event.currentTarget;
+            if (canEdit) {
+                actionCell.append(
+                    button(
+                        'Add to Inventory',
+                        'wo-inventory-add',
+                        async event => {
+                            const actionButton = event.currentTarget;
 
-                        actionButton.disabled = true;
-                        actionButton.textContent = 'Adding...';
+                            actionButton.disabled = true;
+                            actionButton.textContent = 'Adding...';
 
-                        try {
-                            const { error } = await supabase.rpc(
-                                'warehouse_add_confirmed_harvest',
-                                {
-                                    p_harvest_id: harvest.harvest_id
-                                }
-                            );
+                            try {
+                                await requirePermission('harvest_inventory.edit');
 
-                            if (error) throw error;
+                                const { error } = await supabase.rpc(
+                                    'warehouse_add_confirmed_harvest',
+                                    {
+                                        p_harvest_id: harvest.harvest_id
+                                    }
+                                );
 
-                            await load();
+                                if (error) throw error;
 
-                        } catch (error) {
-                            console.error(
-                                'Failed to add harvest to inventory:',
-                                error
-                            );
+                                await load();
 
-                            alert(
-                                error.message
-                                || 'Unable to add this harvest. It may already exist.'
-                            );
+                            } catch (error) {
+                                console.error(
+                                    'Failed to add harvest to inventory:',
+                                    error
+                                );
 
-                            actionButton.disabled = false;
-                            actionButton.textContent = 'Add to Inventory';
+                                alert(
+                                    error.message
+                                    || 'Unable to add this harvest. It may already exist.'
+                                );
+
+                                actionButton.disabled = false;
+                                actionButton.textContent = 'Add to Inventory';
+                            }
                         }
-                    }
-                )
-            );
+                    )
+                );
+            } else {
+                actionCell.textContent = 'View only';
+            }
 
             row.append(actionCell);
 
@@ -3189,8 +3572,6 @@ async function renderHarvestInventory(root, config, ctx) {
             )
         );
 
-        // Reuse the records already fetched above.
-        // No additional contribution or inventory queries.
         await harvestContributions.load(
             contributionRecords,
             inventoryRows
@@ -3199,6 +3580,7 @@ async function renderHarvestInventory(root, config, ctx) {
 
     await load();
 }
+
 
 
 /* =========================================================

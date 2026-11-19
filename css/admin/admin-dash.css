@@ -2185,3 +2185,426 @@ a.fm-row:hover .fm-row-main b {
 .fm-more:hover {
     text-decoration: underline;
 }
+
+
+/* ==========================================================
+   RESPONSIVE TABLES (CSS only)
+   Nasa pinakadulo ito para ma-override ang lumang
+   `.table-wrap table { min-width: 680px }` sa phone rules.
+   Default: gumagana agad sa lahat ng `.table-wrap table`.
+   ========================================================== */
+
+/* ---------- Scroll container + scroll shadow hints ---------- */
+.table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+
+    /* shadow lumalabas lang sa gilid kung may natatagong column */
+    background:
+        linear-gradient(to right, var(--card, var(--surface-card)) 30%, transparent) left center / 40px 100% no-repeat local,
+        linear-gradient(to left, var(--card, var(--surface-card)) 30%, transparent) right center / 40px 100% no-repeat local,
+        radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 22%), transparent) left center / 14px 100% no-repeat scroll,
+        radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 22%), transparent) right center / 14px 100% no-repeat scroll;
+}
+
+.table-wrap table {
+    min-width: 640px;
+}
+
+.table-wrap th {
+    white-space: nowrap;
+}
+
+.table-wrap td {
+    overflow-wrap: anywhere;
+}
+
+/* ---------- Optional: sticky first column (class="sticky-first" sa table) ---------- */
+.table-wrap table.sticky-first th:first-child,
+.table-wrap table.sticky-first td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--card, var(--surface-card));
+}
+
+/* ---------- Tablet ---------- */
+@media (max-width: 800px) {
+    .table-wrap th,
+    .table-wrap td {
+        padding: 12px;
+    }
+}
+
+/* ---------- Phone: mas compact, hindi mag-o-overflow ang laman ---------- */
+@media (max-width: 560px) {
+    .table-wrap table {
+        min-width: 560px; /* override sa lumang 680px */
+    }
+
+    .table-wrap th,
+    .table-wrap td {
+        padding: 10px;
+        font-size: .82rem;
+    }
+
+    .table-wrap .person,
+    .table-wrap .planting-crop,
+    .table-wrap .planting-progress {
+        min-width: 0;
+    }
+
+    .table-wrap .actions {
+        min-width: 0;
+    }
+
+    .table-wrap table.sticky-first th:first-child,
+    .table-wrap table.sticky-first td:first-child {
+        max-width: 45vw;
+    }
+}
+
+/* ==========================================================
+   TABLE -> CARDS SA MALIIT NA DEVICE (default, CSS only)
+   - 700px pataas: normal na table (scroll kung masikip)
+   - 700px pababa: bawat row = isang card
+   - Para i-opt out ang isang table: class="no-stack"
+
+   LABELS: CSS lang ang hindi makakakuha ng header text, kaya
+   dalawa ang paraan (pumili ng isa):
+   1) Lagyan ng data-label ang <td>:  <td data-label="Status">
+   2) Per-table labels via nth-child (tingnan ang template sa baba)
+   ========================================================== */
+@media (max-width: 700px) {
+
+    .table-wrap {
+        overflow-x: visible;
+        background: none;
+    }
+
+    .table-wrap table:not(.no-stack) {
+        display: block;
+        min-width: 0;
+    }
+
+    /* itago ang header (nababasa pa rin ng screen reader) */
+    .table-wrap table:not(.no-stack) thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    .table-wrap table:not(.no-stack) tbody {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+        gap: var(--space-md, 16px);
+    }
+
+    .table-wrap table:not(.no-stack) tr {
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+        border-radius: var(--r, 16px);
+        background: var(--card, var(--surface-card));
+        box-shadow: var(--shadow);
+    }
+
+    .table-wrap table:not(.no-stack) td {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+        gap: 2px;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        font-size: .85rem;
+        text-align: left;
+        overflow-wrap: anywhere;
+    }
+
+    /* may label = label sa kaliwa, value sa kanan */
+    .table-wrap table:not(.no-stack) td[data-label] {
+        grid-template-columns: minmax(92px, 36%) minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .table-wrap table:not(.no-stack) td[data-label]::before {
+        content: attr(data-label);
+        color: var(--muted);
+        font-size: .75rem;
+        font-weight: 500;
+        line-height: 1.7;
+    }
+
+    /* empty-state row */
+    .table-wrap table:not(.no-stack) tr:has(> td.empty),
+    .table-wrap table:not(.no-stack) tr:has(> td[colspan]) {
+        grid-column: 1 / -1;
+    }
+
+    .table-wrap table:not(.no-stack) td.empty,
+    .table-wrap table:not(.no-stack) td[colspan] {
+        grid-template-columns: minmax(0, 1fr);
+        padding: 28px 8px;
+        text-align: center;
+    }
+
+    .table-wrap table:not(.no-stack) td.empty::before,
+    .table-wrap table:not(.no-stack) td[colspan]::before {
+        display: none;
+    }
+
+    /* inner components hindi na pwersadong malapad */
+    .table-wrap .person,
+    .table-wrap .planting-crop,
+    .table-wrap .planting-progress,
+    .table-wrap .audit-details-cell {
+        min-width: 0;
+    }
+
+    .table-wrap .audit-details-cell {
+        justify-content: flex-start;
+    }
+
+    .table-wrap table td.audit-details-td {
+        text-align: left !important;
+    }
+
+    .table-wrap .badge,
+    .table-wrap .fm-pill {
+        justify-self: start;
+    }
+
+    /* actions = buong lapad sa ilalim ng card */
+    .table-wrap .actions {
+        flex-wrap: wrap;
+        min-width: 0;
+        white-space: normal;
+    }
+
+    .table-wrap .actions .btn {
+        flex: 1 1 auto;
+    }
+
+    .table-wrap table:not(.no-stack) td:has(> .actions) {
+        grid-template-columns: minmax(0, 1fr);
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
+    }
+
+    .table-wrap table:not(.no-stack) td:has(> .actions)::before {
+        display: none;
+    }
+}
+
+/* ---------- Very narrow phones: label nasa itaas ng value ---------- */
+@media (max-width: 380px) {
+    .table-wrap table:not(.no-stack) td[data-label] {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 2px;
+    }
+}
+
+/* ==========================================================
+   TEMPLATE: labels gamit nth-child (walang binabago sa <td>)
+   Lagyan ng sariling class ang <table>, tapos kopyahin ito
+   at ayusin ang pangalan ng column ayon sa <th> ng table mo.
+
+@media (max-width: 700px) {
+    .table-recommendations td:nth-child(1)::before { content: "Planting ID"; }
+    .table-recommendations td:nth-child(2)::before { content: "Date"; }
+    .table-recommendations td:nth-child(3)::before { content: "Status"; }
+
+    .table-recommendations td::before {
+        color: var(--muted);
+        font-size: .75rem;
+        font-weight: 500;
+    }
+    .table-recommendations td {
+        grid-template-columns: minmax(92px, 36%) minmax(0, 1fr) !important;
+        gap: 12px !important;
+    }
+}
+   ========================================================== */
+
+
+/* ==========================================================
+   FIXES SA PHONE: actions (3 buttons) + search bar
+   ========================================================== */
+@media (max-width: 700px) {
+
+    /* Edit / Suspend / Delete = isang row, pantay-pantay ang lapad
+       (gumagana rin kung 2 lang ang button) */
+    .table-wrap td .actions {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+        gap: 8px;
+        width: 100%;
+        min-width: 0;
+        flex-wrap: nowrap;
+    }
+
+    .table-wrap td .actions .btn {
+        flex: none;
+        width: 100%;
+        min-width: 0;
+        min-height: 38px;
+        padding: 8px 6px;
+        font-size: .8rem;
+        text-align: center;
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 560px) {
+
+    /* ROOT CAUSE ng malaking search bar: `.search { flex: 1 1 100% }`
+       sa loob ng `.toolbar` na naka-column, kaya ang 100% ay naging HEIGHT.
+       Ibalik sa auto height. */
+    .toolbar > * {
+        flex: 0 0 auto;
+    }
+
+    .toolbar .search,
+    .toolbar > input[type="search"],
+    .toolbar > input[type="text"] {
+        width: 100%;
+        height: 44px;
+        min-height: 44px;
+        max-height: 44px;
+        padding: 0 14px;
+    }
+
+    .toolbar .search input {
+        height: 100%;
+        min-height: 0;
+    }
+
+    .toolbar select {
+        width: 100%;
+        min-height: 44px;
+    }
+}
+
+/* Napakakitid na phone: mas maliit pa ang buttons para magkasya ang 3 */
+@media (max-width: 380px) {
+    .table-wrap td .actions {
+        gap: 6px;
+    }
+
+    .table-wrap td .actions .btn {
+        padding: 8px 4px;
+        font-size: .76rem;
+    }
+}
+
+
+
+/* ==========================================================
+   ACTIONS = MAGKAKATABI (Edit/Suspend/Delete, View details/Suspend)
+   Tinatamaan ang KAHIT ANONG element na may 2+ magkatabing
+   buttons, kaya hindi mahalaga ang pangalan ng class ng wrapper.
+   ========================================================== */
+
+.table-wrap td:has(.btn, button) {
+    white-space: nowrap;
+}
+
+/* buttons: walang kakaibang order / margin / lapad */
+.table-wrap td :is(.btn, button) {
+    order: 0 !important;
+    flex: none;
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* ---------- Desktop / tablet: isang row ---------- */
+@media (min-width: 701px) {
+
+    .table-wrap td:has(.btn, button),
+    .table-wrap th:last-child {
+        width: 1%;
+    }
+
+    .table-wrap td :is(.actions, [class*="action"]),
+    .table-wrap td *:has(> :is(.btn, button) + :is(.btn, button)) {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center;
+        gap: 8px;
+        width: auto;
+        min-width: 0;
+    }
+
+    .table-wrap td :is(.btn, button) {
+        width: auto;
+        min-height: 36px;
+        padding: 7px 14px;
+        font-size: .82rem;
+    }
+
+    /* walang wrapper: nasa <td> mismo ang buttons */
+    .table-wrap td > :is(.btn, button) {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
+    }
+
+    .table-wrap td > :is(.btn, button) + :is(.btn, button) {
+        margin-left: 8px;
+    }
+}
+
+@media (min-width: 701px) and (max-width: 1100px) {
+
+    .table-wrap td :is(.btn, button) {
+        padding: 7px 10px;
+        font-size: .78rem;
+    }
+}
+
+/* ---------- Phone (cards): pantay-pantay, isang row ---------- */
+@media (max-width: 700px) {
+
+    .table-wrap td :is(.actions, [class*="action"]),
+    .table-wrap td *:has(> :is(.btn, button) + :is(.btn, button)),
+    .table-wrap td:has(> :is(.btn, button) + :is(.btn, button)) {
+        display: grid !important;
+        grid-template-columns: none !important;
+        grid-auto-flow: column !important;
+        grid-auto-columns: minmax(0, 1fr) !important;
+        gap: 8px;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .table-wrap td :is(.btn, button) {
+        width: 100%;
+        min-width: 0;
+        min-height: 38px;
+        padding: 8px 4px;
+        font-size: .8rem;
+        text-align: center;
+    }
+}
+
+@media (max-width: 380px) {
+
+    .table-wrap td :is(.btn, button) {
+        padding: 8px 2px;
+        font-size: .74rem;
+    }
+}

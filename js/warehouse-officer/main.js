@@ -9,7 +9,6 @@ import {
 const WAREHOUSE_OFFICER_ROLE_ID = 2;
 const ACTIVE_STATUS_ID = 1;
 
-
 const TITLES = {
     dashboard: 'Dashboard',
     'harvest-records': 'Harvest Records',
@@ -21,6 +20,16 @@ const TITLES = {
     settings: 'Settings'
 };
 
+const ROUTE_PERMISSIONS = {
+    dashboard: 'dashboard.view',
+    'harvest-records': 'harvests.view',
+    'harvest-inventory': 'harvests.view',
+    'fertilizer-inventory': 'inventory.view',
+    'pesticide-inventory': 'inventory.view',
+    equipment: 'inventory.view',
+    deliveries: 'inventory.view',
+    settings: 'settings.view'
+};
 
 const root = document.getElementById('view');
 const search = document.getElementById('woSearch');
@@ -35,11 +44,16 @@ const ctx = {
 let authorized = false;
 let checking = false;
 let activeViewModule = null;
+let permissionState = new Map();
 
 const route = () => {
     const name = location.hash.slice(1).split('/')[0];
     return TITLES[name] ? name : 'dashboard';
 };
+
+// ============================================================
+// AUTHENTICATION
+// ============================================================
 
 async function requireWarehouseOfficer() {
     const {
@@ -51,11 +65,14 @@ async function requireWarehouseOfficer() {
 
     const { data: staff, error: staffError } = await supabase
         .from('staff_accounts')
-        .select('staff_id, full_name, role_id, status_id')
+        .select('staff_id, user_id, full_name, role_id, status_id')
         .eq('user_id', user.id)
         .maybeSingle();
 
-    if (staffError || !staff) return null;
+    if (staffError || !staff) {
+        console.error('Warehouse Officer account lookup failed:', staffError);
+        return null;
+    }
 
     if (
         Number(staff.role_id) !== WAREHOUSE_OFFICER_ROLE_ID ||
@@ -67,8 +84,107 @@ async function requireWarehouseOfficer() {
     return staff;
 }
 
+// ============================================================
+// PERMISSIONS
+// ============================================================
+
+async function loadPermissions() {
+    permissionState.clear();
+
+    const permissionKeys = [
+        ...new Set(Object.values(ROUTE_PERMISSIONS))
+    ];
+
+    const results = await Promise.all(
+        permissionKeys.map(async (permissionKey) => {
+            const { data, error } = await supabase.rpc(
+                'has_tanikala_permission',
+                {
+                    p_permission_key: permissionKey
+                }
+            );
+
+            console.log('WO PERMISSION CHECK:', {
+                permissionKey,
+                data,
+                error
+            });
+
+            if (error) {
+                console.error(
+                    `Permission check failed: ${permissionKey}`,
+                    error
+                );
+
+                return [permissionKey, false];
+            }
+
+            return [permissionKey, data === true];
+        })
+    );
+
+    permissionState = new Map(results);
+}
+
+function hasPermission(permissionKey) {
+    return permissionState.get(permissionKey) === true;
+}
+
+function canAccessRoute(routeKey) {
+    const permissionKey = ROUTE_PERMISSIONS[routeKey];
+
+    if (!permissionKey) return false;
+
+    return hasPermission(permissionKey);
+}
+
+function applyNavigationPermissions() {
+    document.querySelectorAll('.nav > a').forEach((anchor) => {
+        const viewKey = anchor.dataset.view;
+        const permissionKey = ROUTE_PERMISSIONS[viewKey];
+
+        if (!permissionKey) {
+            anchor.hidden = true;
+            return;
+        }
+
+        anchor.hidden = !hasPermission(permissionKey);
+    });
+}
+
+function showAccessDenied() {
+    root.replaceChildren(
+        h(
+            'div',
+            { class: 'msg error' },
+            'You do not have permission to access this page. Contact your administrator if you need access.'
+        )
+    );
+}
+
+// ============================================================
+// PAGE ROUTING
+// ============================================================
+
 async function show() {
     if (!authorized) return;
+
+    const key = route();
+
+    if (!canAccessRoute(key)) {
+        if (activeViewModule?.cleanup) {
+            activeViewModule.cleanup();
+        }
+
+        activeViewModule = null;
+
+        document.querySelectorAll('.nav > a').forEach((anchor) => {
+            anchor.classList.remove('active');
+        });
+
+        showAccessDenied();
+        return;
+    }
 
     if (activeViewModule?.cleanup) {
         activeViewModule.cleanup();
@@ -76,10 +192,11 @@ async function show() {
 
     activeViewModule = null;
 
-    const key = route();
-
     document.querySelectorAll('.nav > a').forEach((anchor) => {
-        anchor.classList.toggle('active', anchor.dataset.view === key);
+        anchor.classList.toggle(
+            'active',
+            anchor.dataset.view === key
+        );
     });
 
     document.title = `${TITLES[key]} | Tanikala Warehouse Officer`;
@@ -90,6 +207,18 @@ async function show() {
 
     try {
         const view = await import(`./${key}.js`);
+
+        if (typeof view.render !== 'function') {
+            throw new Error(
+                `${key}.js must export an async render(root, ctx) function.`
+            );
+        }
+
+        // Check permission again after loading the module.
+        if (!authorized || !canAccessRoute(key)) {
+            showAccessDenied();
+            return;
+        }
 
         activeViewModule = view;
 
@@ -109,6 +238,10 @@ async function show() {
     }
 }
 
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
 async function setupNotifications() {
     cleanupNotifications();
 
@@ -122,6 +255,10 @@ async function setupNotifications() {
     }
 }
 
+// ============================================================
+// BOOT
+// ============================================================
+
 async function boot() {
     if (checking) return;
 
@@ -131,6 +268,7 @@ async function boot() {
     html.classList.remove('wo-authorized');
 
     cleanupNotifications();
+    permissionState.clear();
 
     try {
         const staff = await requireWarehouseOfficer();
@@ -144,6 +282,9 @@ async function boot() {
 
         ctx.staff = staff;
 
+        // Load the selected user's permissions.
+        await loadPermissions();
+
         const avatar = document.getElementById('woAvatar');
 
         if (avatar) {
@@ -156,6 +297,8 @@ async function boot() {
                 .toUpperCase();
         }
 
+        applyNavigationPermissions();
+
         authorized = true;
 
         html.classList.add('wo-authorized');
@@ -163,9 +306,14 @@ async function boot() {
         await setupNotifications();
         await show();
     } catch (error) {
-        console.error('Warehouse Officer initialization failed:', error);
+        console.error(
+            'Warehouse Officer initialization failed:',
+            error
+        );
 
         authorized = false;
+        permissionState.clear();
+
         html.classList.remove('wo-authorized');
 
         toast('Unable to initialize your account. Please refresh.');
@@ -173,6 +321,10 @@ async function boot() {
         checking = false;
     }
 }
+
+// ============================================================
+// TOPBAR AND EVENT LISTENERS
+// ============================================================
 
 function setupChrome() {
     const todayLabel = document.getElementById('todayLabel');
@@ -241,6 +393,7 @@ function setupChrome() {
                 if (error) throw error;
 
                 authorized = false;
+                permissionState.clear();
 
                 html.classList.remove('wo-authorized');
 

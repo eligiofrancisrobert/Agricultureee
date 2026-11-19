@@ -1,6 +1,6 @@
 
 import { supabase } from '../connection.js';
-import { h, pageHead } from '../admin/ui.js';
+import { h, pageHead, toast } from '../admin/ui.js';
 import { loadFarms } from './farms.js';
 
 const PREVIEW_PAGE_SIZE = 5;
@@ -113,6 +113,22 @@ const formatDate = (value) => {
             year: 'numeric'
         });
 };
+
+async function canExportReports() {
+    const { data, error } = await supabase.rpc(
+        'has_tanikala_permission',
+        {
+            p_permission_key: 'reports.export'
+        }
+    );
+
+    if (error) {
+        console.error('Report export permission check failed:', error);
+        return false;
+    }
+
+    return data === true;
+}
 
 const statusLabel = (status, labels) => {
     const code = status?.trim();
@@ -388,7 +404,7 @@ function statsRow({ farms, plantings, reports }) {
     );
 }
 
-function reportCard(report, onPreview) {
+function reportCard(report, onPreview, canExport) {
     const previewButton = h(
         'button',
         {
@@ -410,12 +426,21 @@ function reportCard(report, onPreview) {
         {
             class: 'btn',
             type: 'button',
-            disabled: report.rows.length === 0,
-            title: report.rows.length === 0
-                ? 'No records to download'
-                : `Download ${report.title} as CSV`,
-            onclick: (event) => {
+            disabled: !canExport || report.rows.length === 0,
+            title: !canExport
+                ? 'You do not have permission to export reports'
+                : report.rows.length === 0
+                    ? 'No records to download'
+                    : `Download ${report.title} as CSV`,
+            onclick: async (event) => {
                 event.stopPropagation();
+
+                // Always verify permission before exporting.
+                if (!(await canExportReports())) {
+                    toast('You do not have permission to export reports.');
+                    return;
+                }
+
                 downloadCsv(report);
             }
         },
@@ -446,7 +471,6 @@ function reportCard(report, onPreview) {
         h('div', { class: 'fm-report-actions' }, previewButton, downloadButton)
     );
 }
-
 function statusBadge(row) {
     return h(
         'span',
@@ -666,7 +690,7 @@ function dateFilterBar(state, statusOptions, onChange) {
     };
 }
 
-function reportsPage({ farms, plantings: allPlantings, cropLabels }) {
+function reportsPage({ farms, plantings: allPlantings, cropLabels, canExport }) {
     const state = { basis: 'sowing_date', from: '', to: '', cropStatus: '' };
 
     const preview = h('div');
@@ -716,7 +740,9 @@ function reportsPage({ farms, plantings: allPlantings, cropLabels }) {
         statsEl = nextStats;
 
         grid.replaceChildren(
-            ...reports.map((report) => reportCard(report, (r) => show(r, true)))
+            ...reports.map((report) =>
+                reportCard(report, (r) => show(r, true), canExport)
+            )
         );
 
         show(reports.find((report) => report.id === current?.id) ?? reports[0]);
@@ -821,8 +847,16 @@ export async function render(root) {
                     return new Map();
                 })
             ]);
+            const canExport = await canExportReports();
 
-            holder.replaceChildren(reportsPage({ farms, plantings, cropLabels }));
+            holder.replaceChildren(
+                reportsPage({
+                    farms,
+                    plantings,
+                    cropLabels,
+                    canExport
+                })
+            );
         } catch (err) {
             console.error('Failed to load reports:', err);
 

@@ -1,0 +1,384 @@
+/* ==========================================================
+   ROLE PERMISSIONS PAGE
+   Uses the shared admin.css tokens (--card, --border, --mint,
+   --primary, --muted, --text, --r ...) so it follows light/dark.
+   Classes match the markup rendered by role-permissions.js
+   ========================================================== */
+
+.role-permissions {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(16px, 2vw, 24px);
+    min-width: 0;
+}
+
+/* ---------- Toolbar (role select + search) ---------- */
+.permission-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+    align-items: end;
+    gap: 16px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+}
+
+.permission-role-field,
+.permission-search-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.permission-role-field label,
+.permission-search-field label {
+    color: var(--muted);
+    font-size: .8rem;
+    font-weight: 500;
+}
+
+.form-control {
+    width: 100%;
+    min-height: 44px;
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    transition: border-color .2s, box-shadow .2s;
+}
+
+.form-control::placeholder {
+    color: var(--muted);
+}
+
+.form-control:hover {
+    border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+}
+
+.form-control:focus {
+    outline: 0;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.permission-role-select {
+    padding-right: 36px;
+    cursor: pointer;
+}
+
+.permission-search {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* ---------- Summary counters ---------- */
+.permission-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.permission-summary>div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+}
+
+.permission-summary>div:nth-child(1) {
+    --c: var(--success);
+}
+
+.permission-summary>div:nth-child(2) {
+    --c: var(--error);
+}
+
+.permission-summary>div:nth-child(3) {
+    --c: var(--primary);
+}
+
+.permission-summary strong {
+    color: var(--c, var(--primary));
+    font: 600 1.7rem/1.15 'Outfit', sans-serif;
+    font-variant-numeric: tabular-nums;
+}
+
+.permission-summary span {
+    color: var(--muted);
+    font-size: .8rem;
+}
+
+/* ---------- Notice ---------- */
+.permission-notice {
+    padding: 16px 20px;
+    border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--border));
+    border-radius: var(--r);
+    background: color-mix(in srgb, var(--warning) 14%, var(--card));
+    color: var(--text);
+    font-size: .82rem;
+    line-height: 1.55;
+}
+
+/* ---------- Modules ---------- */
+.permission-modules {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+    align-items: stretch;
+    gap: 16px;
+}
+
+.permission-module {
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+}
+
+.permission-module-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.permission-module-head h3 {
+    font-size: 1.02rem;
+    overflow-wrap: anywhere;
+}
+
+.permission-module-count {
+    flex-shrink: 0;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: var(--mint);
+    color: var(--primary-dark);
+    font-size: .72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.permission-list {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ---------- Permission row ---------- */
+.permission-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    min-width: 0;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.permission-item:last-child {
+    border-bottom: 0;
+}
+
+.permission-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.permission-item-info strong,
+.permission-item-info small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.permission-item-info strong {
+    font-size: .88rem;
+    font-weight: 600;
+}
+
+.permission-item-info small {
+    font-size: .74rem;
+}
+
+.permission-item-control {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 10px;
+}
+
+/* ---------- Allowed / Denied label ---------- */
+.permission-state {
+    min-width: 62px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: .72rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.permission-state.allowed {
+    background: color-mix(in srgb, var(--success) 22%, var(--card));
+    color: var(--text);
+}
+
+.permission-state.denied {
+    background: color-mix(in srgb, var(--error) 18%, var(--card));
+    color: var(--text);
+}
+
+/* ---------- Toggle switch ---------- */
+.permission-toggle {
+    display: inline-flex;
+    flex-shrink: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.permission-toggle-track {
+    position: relative;
+    display: block;
+    width: 44px;
+    height: 24px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--secondary-text) 40%, var(--card));
+    transition: background .2s;
+}
+
+.permission-toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .3);
+    transition: transform .2s;
+}
+
+.permission-toggle.is-allowed .permission-toggle-track {
+    background: var(--primary);
+}
+
+.permission-toggle.is-allowed .permission-toggle-thumb {
+    transform: translateX(20px);
+}
+
+.permission-toggle:hover .permission-toggle-track {
+    filter: brightness(1.06);
+}
+
+/* ---------- Empty state ---------- */
+.role-permissions .empty {
+    padding: 40px 14px;
+    border: 1px dashed var(--border);
+    border-radius: var(--r);
+    color: var(--muted);
+    text-align: center;
+}
+
+/* ---------- Footer (sticky save bar) ---------- */
+.permission-footer {
+    position: sticky;
+    bottom: 12px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.permission-footer>span {
+    color: var(--muted);
+    font-size: .85rem;
+    font-weight: 500;
+}
+
+/* ---------- Dark mode ---------- */
+:root[data-theme="dark"] .permission-notice {
+    background: color-mix(in srgb, var(--warning) 10%, var(--card));
+}
+
+:root[data-theme="dark"] .permission-toggle-track {
+    background: color-mix(in srgb, var(--secondary-text) 30%, var(--card));
+}
+
+:root[data-theme="dark"] .permission-toggle.is-allowed .permission-toggle-track {
+    background: var(--primary);
+}
+
+:root[data-theme="dark"] .permission-footer {
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, .35);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 800px) {
+    .permission-toolbar {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .permission-modules {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 560px) {
+    .permission-summary {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .permission-summary>div {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .permission-toolbar,
+    .permission-summary>div,
+    .permission-notice,
+    .permission-module,
+    .permission-footer {
+        padding: 16px 14px;
+    }
+
+    .permission-state {
+        display: none;
+    }
+
+    .permission-footer {
+        bottom: 8px;
+    }
+
+    .permission-footer .btn {
+        flex: 1 1 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .permission-toggle-track,
+    .permission-toggle-thumb,
+    .form-control {
+        transition: none;
+    }
+}

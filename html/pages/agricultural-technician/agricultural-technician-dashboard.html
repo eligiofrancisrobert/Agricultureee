@@ -7,7 +7,7 @@
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-
+    <link rel="icon" href="data:,">
     <style>
         html:not(.at-authorized) body {
             display: none !important;
@@ -30,9 +30,10 @@
     <link rel="stylesheet" href="../../../css/agricultural-technician/crop-monitoring.css">
     <link rel="stylesheet" href="../../../css/agricultural-technician/field-inspection.css">
     <link rel="stylesheet" href="../../../css/agricultural-technician/crop-assessments.css">
-    <link rel="stylesheet" href="../../../css/agricultural-technician/recommendations.css"> 
     <link rel="stylesheet" href="../../../css/agricultural-technician/monitoring-reports.css">
     <link rel="stylesheet" href="../../../css/agricultural-technician/settings.css">
+    <!-- Mobile menu bar + drawer. Keep this LAST so it wins over the other stylesheets. -->
+    <link rel="stylesheet" href="../../../css/agricultural-technician/sidebar.css">
 
     <script>
         document.documentElement.dataset.theme =
@@ -43,18 +44,10 @@
 <body>
     <div class="shell">
 
-        <!-- CHANGED: added id="sidebar" -->
         <aside class="sidebar" id="sidebar">
             <div class="logo">
                 <h1>T<span>ani</span>kala</h1>
                 <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
-
-                <!-- NEW: close button (only visible in the mobile drawer) -->
-                <button type="button" id="menuClose" class="menu-close" aria-label="Close menu">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M6 6l12 12M18 6L6 18" />
-                    </svg>
-                </button>
             </div>
 
             <nav class="nav" aria-label="Agricultural Technician sections">
@@ -105,21 +98,6 @@
                     Crop Assessments
                 </a>
 
-                <a href="#recommendations" data-view="recommendations">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 3v3" />
-                        <path d="M12 18v3" />
-                        <path d="M3 12h3" />
-                        <path d="M18 12h3" />
-                        <path d="m5.6 5.6 2.1 2.1" />
-                        <path d="m16.3 16.3 2.1 2.1" />
-                        <path d="m18.4 5.6-2.1 2.1" />
-                        <path d="m7.7 16.3-2.1 2.1" />
-                        <circle cx="12" cy="12" r="5" />
-                    </svg>
-                    Recommendations
-                </a>
-
                 <a href="#monitoring-reports" data-view="monitoring-reports">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M5 21V11" />
@@ -148,14 +126,6 @@
         <main class="main">
 
             <header class="topbar">
-
-                <!-- NEW: hamburger button (only visible at 900px and below) -->
-                <button type="button" id="menuToggle" class="menu-toggle" aria-label="Open menu"
-                    aria-controls="sidebar" aria-expanded="false">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M4 7h16M4 12h16M4 17h16" />
-                    </svg>
-                </button>
 
                 <label class="search">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
@@ -190,14 +160,12 @@
             <div id="view" role="region" aria-live="polite"></div>
 
         </main>
-
-        <!-- NEW: dimmed backdrop behind the open drawer -->
-        <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
     </div>
 
     <div id="toast" class="toast" role="status" hidden></div>
 
     <script type="module" src="../../../js/agricultural-technician/main.js"></script>
+    <script type="module" src="../../../js/agricultural-technician/sidebar.js"></script>
 </body>
 
 </html>

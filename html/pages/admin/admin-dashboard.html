@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -24,6 +23,7 @@
     <link rel="stylesheet" href="../../../css/admin/staff.css">
     <link rel="stylesheet" href="../../../css/admin/shell.css">
     <link rel="stylesheet" href="../../../css/admin/audit.css">
+    <link rel="stylesheet" href="../../../css/admin/settings.css">
     <link rel="stylesheet" href="../../../css/admin/assigned-agricultural-technicians.css">
     <script>
         document.documentElement.dataset.theme = localStorage.getItem('theme') || 'light';
@@ -82,7 +82,16 @@
                 <a href="#audit" data-view="audit"><svg viewBox="0 0 24 24">
                         <path d="M4 6h16M4 12h16M4 18h10" />
                         <circle cx="18" cy="18" r="2" />
-                    </svg>Audit logs</a>
+                    </svg>Audit logs
+                </a>
+                <a href="#settings" data-view="settings">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="3" />
+                        <path
+                            d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 2.9-.2-.1a1.7 1.7 0 0 0-1.8.2l-.2.1h-3.4l-.1-.2a1.7 1.7 0 0 0-1.5-1h-.2l-.2.1-2.9-1.7.1-.2a1.7 1.7 0 0 0-.2-1.8l-.1-.2v-3.4l.2-.1a1.7 1.7 0 0 0 1-1.5v-.2l-.1-.2 1.7-2.9.2.1a1.7 1.7 0 0 0 1.8-.2l.2-.1h3.4l.1.2a1.7 1.7 0 0 0 1.5 1h.2l.2-.1 2.9 1.7-.1.2a1.7 1.7 0 0 0 .2 1.8l.1.2z" />
+                    </svg>
+                    Settings
+                </a>
             </nav>
 
             <button type="button" id="logoutButton" class="nav-logout">Log out</button>

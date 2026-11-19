@@ -467,3 +467,494 @@ body { font-family: 'Poppins', system-ui, sans-serif; color: var(--primary-text)
         animation: none !important;
     }
 }
+
+
+/* ============================================================
+   ADMIN-STYLE OVERRIDES
+   Nasa pinakadulo para ma-override ang mga rule sa taas nang
+   walang binubura. Pareho ng itsura ng admin shell: card-pill
+   nav, walang divider sa logo, non-sticky topbar, 52px pills,
+   at stacked sidebar sa tablet/phone.
+   ============================================================ */
+
+/* ---------- Sidebar ---------- */
+.shell {
+    --sidebar-w: 264px;
+}
+
+.sidebar {
+    gap: 32px;
+    padding: 32px 24px;
+    border-right: 1px solid transparent;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.sidebar::-webkit-scrollbar { display: none; }
+
+.sidebar .logo {
+    padding: 0;
+    border-bottom: 0;
+}
+
+/* ---------- Nav pills (card style, may shadow) ---------- */
+.nav {
+    gap: 14px;
+}
+
+.nav > a {
+    padding: 13px 20px;
+    border: 1px solid transparent;
+    background: var(--card, var(--surface-card));
+    color: var(--muted, var(--secondary-text));
+    font-size: inherit;
+    font-weight: 500;
+    box-shadow: var(--shadow, 0 2px 10px rgba(101, 53, 40, .09));
+    transition: background .2s, color .2s, border-color .2s, transform .2s;
+}
+
+.nav > a:hover {
+    background: var(--card, var(--surface-card));
+    color: var(--primary-dark, var(--primary-hover));
+}
+
+.nav > a.active,
+.nav > a[aria-current="page"] {
+    background: var(--mint, color-mix(in srgb, var(--primary-color) 14%, var(--surface-card)));
+    color: var(--primary-dark, var(--primary-hover));
+    font-weight: 600;
+}
+
+/* ---------- Logout ---------- */
+.nav-logout {
+    margin-top: auto;
+    padding: 12px;
+    border-color: rgba(255, 255, 255, .55);
+    color: #fff;
+}
+
+.nav-logout:hover:not(:disabled) {
+    background-color: var(--card, var(--surface-card));
+    border-color: var(--card, var(--surface-card));
+    color: var(--red, var(--error));
+}
+
+/* ---------- Dark mode (admin look) ---------- */
+:root[data-theme="dark"] .sidebar {
+    background-color: var(--side, color-mix(in srgb, var(--primary-color) 7%, var(--background)));
+    border-right-color: var(--border);
+}
+
+:root[data-theme="dark"] .nav > a {
+    border-color: var(--border);
+    background: var(--card, var(--surface-card));
+    color: var(--muted, var(--secondary-text));
+    box-shadow: none;
+}
+
+:root[data-theme="dark"] .nav > a:hover {
+    background: var(--card, var(--surface-card));
+    color: var(--primary-dark, var(--primary-hover));
+}
+
+:root[data-theme="dark"] .nav > a.active,
+:root[data-theme="dark"] .nav > a[aria-current="page"] {
+    border-color: var(--border);
+    background: var(--mint, color-mix(in srgb, var(--primary-color) 14%, var(--surface-card)));
+    color: var(--primary-dark, var(--primary-hover));
+}
+
+:root[data-theme="dark"] .nav-logout {
+    border-color: var(--border);
+    background-color: transparent;
+    color: var(--secondary-text);
+}
+
+:root[data-theme="dark"] .nav-logout:hover:not(:disabled) {
+    background-color: transparent;
+    border-color: var(--red, var(--error));
+    color: var(--red, var(--error));
+}
+
+/* ---------- Main ---------- */
+.main {
+    gap: clamp(22px, 3vw, 32px);
+    padding: clamp(24px, 3vw, 40px);
+}
+
+.main > .topbar + * {
+    margin-top: 0;
+}
+
+/* ---------- Topbar (hindi na sticky, walang border/band) ---------- */
+.topbar {
+    position: static;
+    height: auto;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-inline: 0;
+    padding: 0;
+    border-bottom: 0;
+    background-color: transparent;
+}
+
+.topbar-right {
+    flex-wrap: wrap;
+    gap: 14px;
+    min-width: 0;
+}
+
+.search,
+.chip {
+    min-height: 52px;
+    padding: 0 20px;
+    background-color: var(--card, var(--surface-card));
+    box-shadow: var(--shadow, 0 2px 10px rgba(101, 53, 40, .09));
+}
+
+.search {
+    flex: 0 1 320px;
+    height: auto;
+    min-width: 180px;
+    max-width: 100%;
+    gap: 12px;
+}
+
+.chip {
+    padding: 0 8px 0 20px;
+    gap: 12px;
+    font-size: .85rem;
+}
+
+.icon-btn {
+    width: 36px;
+    height: 36px;
+    border: 0;
+    background-color: var(--mint, color-mix(in srgb, var(--primary-color) 14%, var(--surface-card)));
+    color: var(--primary-dark, var(--primary-hover));
+}
+
+.icon-btn:hover {
+    border: 0;
+    background-color: var(--mint, color-mix(in srgb, var(--primary-color) 14%, var(--surface-card)));
+}
+
+.avatar {
+    width: 52px;
+    height: 52px;
+    font-size: .8rem;
+}
+
+:root[data-theme="dark"] .search,
+:root[data-theme="dark"] .chip {
+    box-shadow: none;
+}
+
+/* ---------- Responsive (admin breakpoints) ---------- */
+@media (max-width: 1200px) {
+    .shell {
+        --sidebar-w: 230px;
+    }
+
+    .sidebar {
+        padding: 28px 18px;
+        gap: 26px;
+    }
+
+    .nav > a {
+        padding: 12px 16px;
+    }
+}
+
+/* Tablet: sidebar nasa itaas, naka-wrap ang nav (hindi na horizontal scroll) */
+@media (max-width: 900px) {
+    .sidebar {
+        position: relative;
+        width: 100%;
+        padding: 20px;
+        gap: 20px;
+        flex-wrap: wrap;
+        border-right: 0;
+        border-bottom: 0;
+    }
+
+    .sidebar .logo {
+        flex: 1 1 180px;
+    }
+
+    .nav {
+        flex: none;
+        flex-wrap: wrap;
+        gap: 10px;
+        order: 3;
+        width: 100%;
+        overflow: visible;
+    }
+
+    .nav > a {
+        padding: 10px 15px;
+        font-size: inherit;
+    }
+
+    .nav-logout {
+        margin: 0 0 0 auto;
+        padding: 10px 16px;
+        font-size: inherit;
+    }
+
+    .main {
+        padding: 26px 22px 40px;
+        gap: 24px;
+    }
+
+    .topbar {
+        align-items: stretch;
+    }
+
+    .topbar-right {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .search {
+        flex: 1 1 240px;
+    }
+
+    .chip {
+        min-height: 46px;
+    }
+}
+
+/* Phone */
+@media (max-width: 600px) {
+    .sidebar {
+        padding: 16px;
+        gap: 18px;
+    }
+
+    .nav {
+        gap: 8px;
+    }
+
+    .nav > a {
+        padding: 10px 12px;
+        font-size: .84rem;
+    }
+
+    .nav-logout {
+        padding: 9px 12px;
+        font-size: .84rem;
+    }
+
+    .main {
+        padding: 22px 14px 32px;
+        gap: 20px;
+    }
+
+    .topbar {
+        padding: 0;
+    }
+
+    .topbar-right {
+        gap: 10px;
+    }
+
+    .search {
+        flex: 1 1 100%;
+        height: 46px;
+        min-height: 46px;
+        min-width: 0;
+        padding: 0 14px;
+    }
+
+    .chip {
+        min-height: 44px;
+        padding: 0 10px;
+    }
+
+    .avatar {
+        width: 44px;
+        height: 44px;
+    }
+}
+
+
+/* ============================================================
+   MOBILE DRAWER (<= 900px)
+   Hamburger sa topbar -> sidebar slide-in mula sa kaliwa,
+   may X sa loob, may backdrop, at Log out sa ILALIM.
+   Kailangan ng: #menuToggle, #menuClose, #sidebarBackdrop
+   at #sidebar sa HTML + sidebar-drawer.js
+   ============================================================ */
+
+/* desktop: nakatago ang drawer controls */
+.menu-toggle,
+.menu-close,
+.sidebar-backdrop {
+    display: none;
+}
+
+@media (max-width: 900px) {
+
+    /* ---------- Hamburger (topbar) ---------- */
+    .menu-toggle {
+        display: inline-grid;
+        place-items: center;
+        flex: 0 0 auto;
+        width: 52px;
+        height: 52px;
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        background: var(--card, var(--surface-card));
+        color: var(--text, var(--primary-text));
+        box-shadow: var(--shadow, 0 2px 10px rgba(101, 53, 40, .09));
+        cursor: pointer;
+    }
+
+    .menu-toggle:focus-visible,
+    .menu-close:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 2px;
+    }
+
+    :root[data-theme="dark"] .menu-toggle {
+        box-shadow: none;
+    }
+
+    /* row 1: hamburger ... chip + avatar   |   row 2: search */
+    .topbar-right {
+        width: auto;
+        flex: 1 1 auto;
+        justify-content: flex-end;
+    }
+
+    .topbar .search {
+        order: 3;
+        flex: 1 1 100%;
+    }
+
+    /* ---------- Drawer ---------- */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        z-index: 1000;
+        width: min(300px, 86vw);
+        height: 100vh;
+        height: 100dvh;
+        padding: 24px 20px;
+        gap: 24px;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        border-right: 1px solid transparent;
+        border-bottom: 0;
+        box-shadow: 0 0 40px rgba(0, 0, 0, .35);
+        transform: translateX(-105%);
+        visibility: hidden;
+        transition: transform .28s ease, visibility 0s linear .28s;
+    }
+
+    :root[data-theme="dark"] .sidebar {
+        border-right: 1px solid var(--border);
+        border-bottom: 0;
+    }
+
+    body.menu-open .sidebar {
+        transform: none;
+        visibility: visible;
+        transition: transform .28s ease, visibility 0s;
+    }
+
+    .sidebar .logo {
+        flex: none;
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .sidebar .logo-image {
+        display: block;
+    }
+
+    .sidebar .logo h1 {
+        margin-right: auto;
+    }
+
+    /* ---------- X (close) ---------- */
+    .menu-close {
+        display: inline-grid;
+        place-items: center;
+        flex: 0 0 auto;
+        width: 40px;
+        height: 40px;
+        margin-left: auto;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, .45);
+        border-radius: 50%;
+        background: transparent;
+        color: #fff;
+        cursor: pointer;
+    }
+
+    :root[data-theme="dark"] .menu-close {
+        border-color: var(--border);
+        color: var(--primary-text);
+    }
+
+    /* ---------- Nav = patayo, Log out = sa ilalim ---------- */
+    .nav {
+        flex: 1 1 auto;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        order: 0;
+        width: 100%;
+        gap: 10px;
+        overflow: visible;
+    }
+
+    .nav > a {
+        padding: 13px 18px;
+        font-size: inherit;
+    }
+
+    .nav-logout {
+        flex: none;
+        width: 100%;
+        margin: 0;
+        padding: 12px;
+        font-size: inherit;
+    }
+
+    /* ---------- Backdrop ---------- */
+    .sidebar-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 999;
+        background: rgba(20, 18, 16, .55);
+        backdrop-filter: blur(2px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .28s ease;
+    }
+
+    body.menu-open .sidebar-backdrop {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    body.menu-open {
+        overflow: hidden;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar,
+    .sidebar-backdrop {
+        transition: none !important;
+    }
+}

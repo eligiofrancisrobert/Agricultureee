@@ -1,0 +1,262 @@
+/* ============ TOOLBAR (heading + search/filter) ============ */
+
+.recommendations-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+}
+
+.recommendations-toolbar .section-heading {
+    display: grid;
+    gap: var(--space-xs);
+    min-width: 0;
+}
+
+.recommendations-toolbar .section-heading h2 {
+    margin: 0;
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    color: var(--primary-text);
+}
+
+.recommendations-toolbar .section-heading p {
+    margin: 0;
+    font-size: var(--fs-sm);
+    color: var(--secondary-text);
+}
+
+.recommendation-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+}
+
+.recommendation-filters input,
+.recommendation-filters select {
+    min-width: 0;
+    padding: 0.65rem 0.85rem;
+    font: inherit;
+    font-size: var(--fs-sm);
+    color: var(--primary-text);
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.recommendation-filters input {
+    width: 260px;
+}
+
+.recommendation-filters input:focus,
+.recommendation-filters select:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* ============ SUMMARY CARDS ============ */
+
+.recommendation-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-md);
+}
+
+.recommendation-summary .summary-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    padding: var(--space-md);
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    color: var(--primary-text);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.recommendation-summary .summary-card span {
+    font-size: var(--fs-xs);
+    font-weight: 400;
+    color: var(--secondary-text);
+}
+
+.recommendation-summary .summary-card h3 {
+    margin: 0;
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+/* ============ RECOMMENDATION LIST (responsive grid) ============ */
+
+.recommendation-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: var(--space-md);
+    align-items: start;
+}
+
+.recommendation-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    max-width: 520px;
+    padding: var(--space-md);
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    color: var(--primary-text);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.recommendation-card:hover {
+    border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border));
+}
+
+/* ---------- Header ---------- */
+
+.recommendation-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-md);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border);
+}
+
+.recommendation-card h3 {
+    min-width: 0;
+    margin: 0;
+    font-family: 'Outfit', 'Poppins', sans-serif;
+    font-size: var(--fs-md);
+    font-weight: 500;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+/* ---------- Tags ---------- */
+
+.recommendation-tag {
+    --tag-color: var(--primary-color);
+
+    display: inline-block;
+    flex-shrink: 0;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-transform: capitalize;
+    color: var(--tag-color);
+    background: color-mix(in srgb, var(--tag-color) 15%, transparent);
+}
+
+.recommendation-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs) var(--space-sm);
+}
+
+.recommendation-meta .recommendation-tag {
+    --tag-color: var(--secondary-text);
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* ---------- Sections ---------- */
+
+.recommendation-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--border);
+}
+
+.recommendation-section strong {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.recommendation-section p {
+    margin: 0;
+    font-size: var(--fs-sm);
+    line-height: 1.7;
+    color: var(--secondary-text);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* Optional: add "recommendation-section--primary" in JS to the Recommended Action block */
+.recommendation-section--primary {
+    padding: var(--space-sm) var(--space-md);
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.recommendation-section--primary p {
+    color: var(--primary-text);
+}
+
+/* ============ LOADING / EMPTY / ERROR ============ */
+
+.recommendation-list .loading-state,
+.recommendation-empty {
+    grid-column: 1 / -1;
+    padding: var(--space-lg) var(--space-md);
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    text-align: center;
+    font-size: var(--fs-sm);
+    line-height: 1.6;
+    color: var(--secondary-text);
+}
+
+/* ============ RESPONSIVE ============ */
+
+@media (max-width: 700px) {
+    .recommendation-list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .recommendation-card {
+        max-width: none;
+        padding: var(--space-sm) var(--space-md);
+    }
+
+    .recommendation-filters {
+        width: 100%;
+    }
+
+    .recommendation-filters input,
+    .recommendation-filters select {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .recommendation-card-header {
+        flex-direction: column;
+    }
+}
+
+/* ============ SOURCE VARIANTS (optional: add class in JS) ============ */
+
+.recommendation-card--monitoring .recommendation-card-header .recommendation-tag {
+    --tag-color: var(--success);
+}
+
+.recommendation-card--inspection .recommendation-card-header .recommendation-tag {
+    --tag-color: var(--secondary);
+}

@@ -1,7 +1,12 @@
 
 import { supabase } from '../connection.js';
 import { h, toast } from '../admin/ui.js';
-import { initSidebarMenu } from '../agricultural-technician/responsive.js';
+import { initSidebarMenu } from './responsive.js';
+import {
+    loadPermissions,
+    hasPermission,
+    clearPermissions
+} from './permissions.js';
 
 const AGRICULTURAL_TECHNICIAN_ROLE_ID = 3;
 const ACTIVE_STATUS_ID = 1;
@@ -12,9 +17,18 @@ const TITLES = {
     'crop-monitoring': 'Crop Monitoring',
     'field-inspections': 'Field Inspections',
     'crop-assessments': 'Crop Assessments',
-    recommendations: 'Recommendations',
     'monitoring-reports': 'Monitoring Reports',
     settings: 'Settings'
+};
+
+const ROUTE_PERMISSIONS = {
+    dashboard: 'dashboard.view',
+    'assigned-farms': 'assigned_farms.view',
+    'crop-monitoring': 'crop_monitoring.view',
+    'field-inspections': 'field_inspections.view',
+    'crop-assessments': 'crop_assessments.view',
+    'monitoring-reports': 'monitoring_reports.view',
+    settings: 'profile.view'
 };
 
 const root = document.getElementById('view');
@@ -24,17 +38,53 @@ const html = document.documentElement;
 
 const ctx = {
     query: '',
-    staff: null
+    staff: null,
+    hasPermission
 };
 
 let authorized = false;
 let checking = false;
 let activeViewModule = null;
+let viewRequest = 0;
+
+// ============================================================
+// ROUTING
+// ============================================================
 
 const route = () => {
     const name = location.hash.slice(1).split('/')[0];
     return TITLES[name] ? name : 'dashboard';
 };
+
+function canAccessRoute(key) {
+    const permission = ROUTE_PERMISSIONS[key];
+    return Boolean(permission && hasPermission(permission));
+}
+
+function getFirstAllowedRoute() {
+    return Object.keys(TITLES).find(canAccessRoute) || null;
+}
+
+// ============================================================
+// SIDEBAR PERMISSIONS
+// ============================================================
+
+function updateSidebarPermissions() {
+    document.querySelectorAll('.nav a[data-view]').forEach((anchor) => {
+        const key = anchor.dataset.view;
+        const allowed = canAccessRoute(key);
+
+        anchor.hidden = !allowed;
+        anchor.style.display = allowed ? '' : 'none';
+        anchor.setAttribute('aria-hidden', String(!allowed));
+        anchor.tabIndex = allowed ? 0 : -1;
+
+        if (!allowed) {
+            anchor.classList.remove('active');
+            anchor.removeAttribute('aria-current');
+        }
+    });
+}
 
 // ============================================================
 // AUTHENTICATION AND ROLE VALIDATION
@@ -71,7 +121,26 @@ async function requireAgriculturalTechnician() {
         return null;
     }
 
-    return staff;
+    return {
+        ...staff,
+        user_id: user.id
+    };
+}
+
+// ============================================================
+// VIEW CLEANUP
+// ============================================================
+
+async function cleanupCurrentView() {
+    if (activeViewModule?.cleanup) {
+        try {
+            await activeViewModule.cleanup();
+        } catch (error) {
+            console.error('View cleanup failed:', error);
+        }
+    }
+
+    activeViewModule = null;
 }
 
 // ============================================================
@@ -81,15 +150,40 @@ async function requireAgriculturalTechnician() {
 async function show() {
     if (!authorized) return;
 
-    if (activeViewModule?.cleanup) {
-        await activeViewModule.cleanup();
+    const requestId = ++viewRequest;
+    let key = route();
+
+    if (!canAccessRoute(key)) {
+        const fallback = getFirstAllowedRoute();
+
+        if (!fallback) {
+            await cleanupCurrentView();
+
+            root.replaceChildren(
+                h(
+                    'section',
+                    { class: 'at-access-denied' },
+                    h('h2', {}, 'Access Restricted'),
+                    h(
+                        'p',
+                        {},
+                        'You do not have permission to access any available section. Please contact your administrator.'
+                    )
+                )
+            );
+
+            return;
+        }
+
+        key = fallback;
+        history.replaceState(null, '', `#${fallback}`);
     }
 
-    activeViewModule = null;
+    await cleanupCurrentView();
 
-    const key = route();
+    if (requestId !== viewRequest) return;
 
-    document.querySelectorAll('.nav > a').forEach((anchor) => {
+    document.querySelectorAll('.nav a[data-view]').forEach((anchor) => {
         const active = anchor.dataset.view === key;
 
         anchor.classList.toggle('active', active);
@@ -110,6 +204,8 @@ async function show() {
     try {
         const view = await import(`./${key}.js`);
 
+        if (requestId !== viewRequest) return;
+
         if (typeof view.render !== 'function') {
             throw new Error(
                 `${key}.js must export an async render(root, ctx) function.`
@@ -123,6 +219,8 @@ async function show() {
         await view.render(root, ctx);
 
     } catch (err) {
+        if (requestId !== viewRequest) return;
+
         console.error(
             `Failed to load Agricultural Technician page (${key}):`,
             err
@@ -150,38 +248,76 @@ async function boot() {
 
     html.classList.remove('at-authorized');
 
-    const staff = await requireAgriculturalTechnician();
+    try {
+        const staff = await requireAgriculturalTechnician();
 
-    checking = false;
+        if (!staff) {
+            clearPermissions();
+            await supabase.auth.signOut().catch(() => {});
+            location.replace('../../login.html');
+            return;
+        }
 
-    if (!staff) {
-        await supabase.auth.signOut().catch(() => {});
-        location.replace('../../login.html');
-        return;
+        ctx.staff = staff;
+
+        const avatar = document.getElementById('atAvatar');
+
+        if (avatar) {
+            avatar.textContent = (staff.full_name || 'AT')
+                .split(/\s+/)
+                .filter(Boolean)
+                .map((part) => part[0])
+                .slice(0, 2)
+                .join('')
+                .toUpperCase();
+        }
+
+        // Load role defaults and individual overrides.
+        await loadPermissions(true);
+
+        console.log(
+            'Dashboard permission:',
+            hasPermission('dashboard.view')
+        );
+
+        updateSidebarPermissions();
+
+        authorized = true;
+        html.classList.add('at-authorized');
+
+        const firstAllowed = getFirstAllowedRoute();
+
+        if (!firstAllowed) {
+            await show();
+            return;
+        }
+
+        if (!canAccessRoute(route())) {
+            history.replaceState(null, '', `#${firstAllowed}`);
+        }
+
+        await show();
+
+    } catch (error) {
+        console.error(
+            'Agricultural Technician initialization failed:',
+            error
+        );
+
+        html.classList.add('at-authorized');
+
+        root.replaceChildren(
+            h(
+                'p',
+                { class: 'msg error' },
+                'Unable to initialize your account permissions. Check the browser console for details.'
+            )
+        );
+
+    } finally {
+        checking = false;
     }
-
-    ctx.staff = staff;
-
-    const avatar = document.getElementById('atAvatar');
-
-    if (avatar) {
-        avatar.textContent = (staff.full_name || 'AT')
-            .split(/\s+/)
-            .filter(Boolean)
-            .map((part) => part[0])
-            .slice(0, 2)
-            .join('')
-            .toUpperCase();
-    }
-
-    authorized = true;
-
-    html.classList.add('at-authorized');
-
-    await show();
 }
-
-
 
 // ============================================================
 // TOPBAR AND EVENT LISTENERS
@@ -222,8 +358,14 @@ function setupChrome() {
                 ctx.query = search.value.trim().toLowerCase();
 
                 if (route() === 'dashboard' && ctx.query) {
-                    location.hash = 'assigned-farms';
-                } else {
+                    const target = canAccessRoute('assigned-farms')
+                        ? 'assigned-farms'
+                        : getFirstAllowedRoute();
+
+                    if (target) {
+                        location.hash = target;
+                    }
+                } else if (authorized) {
                     show();
                 }
             }, 200);
@@ -246,15 +388,15 @@ function setupChrome() {
             logoutButton.textContent = 'Logging out...';
 
             try {
-                if (activeViewModule?.cleanup) {
-                    await activeViewModule.cleanup();
-                }
+                await cleanupCurrentView();
 
                 const { error } = await supabase.auth.signOut();
 
                 if (error) throw error;
 
                 authorized = false;
+                clearPermissions();
+
                 html.classList.remove('at-authorized');
 
                 location.replace('../../login.html');
@@ -270,6 +412,10 @@ function setupChrome() {
         });
     }
 }
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
 
 initSidebarMenu({
     breakpoint: 900,

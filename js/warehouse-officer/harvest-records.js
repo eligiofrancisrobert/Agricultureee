@@ -5,6 +5,9 @@ let activeChannel = null;
 let refreshTimer = null;
 let renderToken = 0;
 
+const HARVEST_VIEW_PERMISSION = 'produce_records.view';
+const HARVEST_EDIT_PERMISSION = 'harvest_inventory.edit';
+
 function el(tag, className = '', text = '') {
     const node = document.createElement(tag);
 
@@ -15,6 +18,20 @@ function el(tag, className = '', text = '') {
     }
 
     return node;
+}
+
+async function checkHarvestPermission(permissionKey) {
+    const { data, error } = await supabase.rpc(
+        'has_tanikala_permission',
+        { p_permission_key: permissionKey }
+    );
+
+    if (error) {
+        console.error(`Permission check failed: ${permissionKey}`, error);
+        return false;
+    }
+
+    return data === true;
 }
 
 async function loadOfficerAssignedFarm(ctx) {
@@ -180,30 +197,47 @@ function createVerificationForm(record, refresh) {
     form.addEventListener('submit', async event => {
         event.preventDefault();
 
-        const decision = decisionSelect.value;
-        const verifiedQuantity = decision === 'confirmed'
-            ? Number(quantityInput.value)
-            : null;
-
-        const verificationNotes = notesInput.value.trim();
-
-        if (
-            decision === 'confirmed' &&
-            (!Number.isFinite(verifiedQuantity) || verifiedQuantity <= 0)
-        ) {
-            alert('Enter a valid verified quantity greater than zero.');
-            return;
-        }
-
-        if (decision === 'rejected' && !verificationNotes) {
-            alert('Please provide a reason for rejecting this harvest.');
-            return;
-        }
+        if (submitButton.disabled) return;
 
         submitButton.disabled = true;
-        submitButton.textContent = 'Submitting...';
+        submitButton.textContent = 'Checking permission...';
 
         try {
+            const allowed = await checkHarvestPermission(
+                HARVEST_EDIT_PERMISSION
+            );
+
+            if (!allowed) {
+                throw new Error(
+                    'You do not have permission to verify harvest records.'
+                );
+            }
+
+            const decision = decisionSelect.value;
+
+            const verifiedQuantity = decision === 'confirmed'
+                ? Number(quantityInput.value)
+                : null;
+
+            const verificationNotes = notesInput.value.trim();
+
+            if (
+                decision === 'confirmed' &&
+                (!Number.isFinite(verifiedQuantity) || verifiedQuantity <= 0)
+            ) {
+                throw new Error(
+                    'Enter a valid verified quantity greater than zero.'
+                );
+            }
+
+            if (decision === 'rejected' && !verificationNotes) {
+                throw new Error(
+                    'Please provide a reason for rejecting this harvest.'
+                );
+            }
+
+            submitButton.textContent = 'Submitting...';
+
             const { error } = await supabase.rpc(
                 'finalize_harvest_verification',
                 {
@@ -236,7 +270,7 @@ function createVerificationForm(record, refresh) {
     return form;
 }
 
-function createRecordCard(record, ctx, refresh) {
+function createRecordCard(record, ctx, refresh, canEditHarvest) {
     const card = el('article', 'wo-harvest-card');
     const header = el('div', 'wo-harvest-card-header');
     const titleGroup = el('div', 'wo-harvest-card-title');
@@ -277,42 +311,77 @@ function createRecordCard(record, ctx, refresh) {
     const footer = el('div', 'wo-harvest-card-footer');
 
     if (record.confirmation_status === 'pending') {
-        const claimButton = el(
-            'button',
-            'wo-button wo-button-primary',
-            'Claim Harvest'
-        );
+        if (canEditHarvest) {
+            const claimButton = el(
+                'button',
+                'wo-button wo-button-primary',
+                'Claim Harvest'
+            );
 
-        claimButton.type = 'button';
+            claimButton.type = 'button';
 
-        claimButton.addEventListener('click', async () => {
-            claimButton.disabled = true;
-            claimButton.textContent = 'Claiming...';
+            claimButton.addEventListener('click', async () => {
+                if (claimButton.disabled) return;
 
-            try {
-                const { error } = await supabase.rpc(
-                    'claim_harvest',
-                    { p_harvest_id: record.harvest_id }
-                );
+                claimButton.disabled = true;
+                claimButton.textContent = 'Checking permission...';
 
-                if (error) throw error;
+                try {
+                    const allowed = await checkHarvestPermission(
+                        HARVEST_EDIT_PERMISSION
+                    );
 
-                alert('Harvest successfully claimed for verification.');
-                await refresh();
+                    if (!allowed) {
+                        throw new Error(
+                            'You do not have permission to claim harvest records.'
+                        );
+                    }
 
-            } catch (error) {
-                console.error('Failed to claim harvest:', error);
-                alert(error.message || 'Unable to claim this harvest.');
-                claimButton.disabled = false;
-                claimButton.textContent = 'Claim Harvest';
-            }
-        });
+                    claimButton.textContent = 'Claiming...';
 
-        footer.append(claimButton);
+                    const { error } = await supabase.rpc(
+                        'claim_harvest',
+                        { p_harvest_id: record.harvest_id }
+                    );
+
+                    if (error) throw error;
+
+                    alert('Harvest successfully claimed for verification.');
+                    await refresh();
+
+                } catch (error) {
+                    console.error('Failed to claim harvest:', error);
+                    alert(error.message || 'Unable to claim this harvest.');
+                } finally {
+                    claimButton.disabled = false;
+                    claimButton.textContent = 'Claim Harvest';
+                }
+            });
+
+            footer.append(claimButton);
+        } else {
+            footer.append(
+                el(
+                    'p',
+                    'wo-harvest-info',
+                    'You have view-only access to this harvest record.'
+                )
+            );
+        }
 
     } else if (record.confirmation_status === 'in_progress') {
         if (record.claimed_by === ctx.staff?.staff_id) {
-            footer.append(createVerificationForm(record, refresh));
+            if (canEditHarvest) {
+                footer.append(createVerificationForm(record, refresh));
+            } else {
+                footer.append(
+                    el(
+                        'p',
+                        'wo-harvest-info',
+                        'You have view-only access to this harvest record.'
+                    )
+                );
+            }
         } else {
             footer.append(
                 el(
@@ -367,6 +436,31 @@ export async function render(root, ctx) {
     let records = [];
     let assignedFarm = null;
     let farmId = null;
+
+    // Check page-view permission.
+    const canViewHarvest = await checkHarvestPermission(
+        HARVEST_VIEW_PERMISSION
+    );
+
+    if (currentToken !== renderToken) return;
+
+    if (!canViewHarvest) {
+        root.replaceChildren(
+            el(
+                'p',
+                'msg error',
+                'You do not have permission to view harvest records.'
+            )
+        );
+        return;
+    }
+
+    // Check action permission separately.
+    const canEditHarvest = await checkHarvestPermission(
+        HARVEST_EDIT_PERMISSION
+    );
+
+    if (currentToken !== renderToken) return;
 
     const page = el('section', 'wo-harvest-records');
     const heading = el('div', 'wo-page-heading');
@@ -458,11 +552,15 @@ export async function render(root, ctx) {
 
         recordsContainer.replaceChildren(
             ...filtered.map(record =>
-                createRecordCard(record, ctx, loadRecords)
+                createRecordCard(
+                    record,
+                    ctx,
+                    loadRecords,
+                    canEditHarvest
+                )
             )
         );
     }
-
 
     async function loadRecords() {
         if (currentToken !== renderToken) return;
@@ -552,11 +650,6 @@ export async function render(root, ctx) {
             }));
 
             console.log('[HARVEST DEBUG] Total records:', records.length);
-            console.log('[HARVEST DEBUG] New Mandrake record:',
-                records.find(record =>
-                    record.harvest_id === '083dc3e7-a72e-4dfb-b073-336b957f57d5'
-                )
-            );
 
             displayRecords();
 
@@ -574,7 +667,6 @@ export async function render(root, ctx) {
             );
         }
     }
-
 
     function subscribeToHarvestChanges() {
         if (currentToken !== renderToken || !farmId) return;
@@ -628,6 +720,8 @@ export async function render(root, ctx) {
 
     } catch (error) {
         console.error('Failed to resolve assigned farm:', error);
+
+        if (currentToken !== renderToken) return;
 
         farmInfo.textContent = 'Assigned Farm: Not available';
 

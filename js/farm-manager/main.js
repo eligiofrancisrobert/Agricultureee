@@ -22,6 +22,26 @@ const TITLES = {
     'browse-products': 'Browse Products'
 };
 
+const ROUTE_PERMISSIONS = {
+    dashboard: 'dashboard.view',
+    farms: 'farms.view',
+    workers: 'staff.view',
+    'farm-actions': 'farm_actions.view',
+    'plant-now': 'plant_now.view',
+    crops: 'crops.view',
+    harvest: 'harvest_records.view',
+    reports: 'reports.view',
+    settings: 'profile.view',
+    'browse-products': 'browse_produce.view'
+};
+
+const CART_PERMISSIONS = [
+    'shopping_cart.view',
+    'shopping_cart.create',
+    'shopping_cart.edit',
+    'shopping_cart.delete'
+];
+
 const root = document.getElementById('view');
 const search = document.getElementById('fmSearch');
 const logoutButton = document.getElementById('logoutButton');
@@ -43,6 +63,8 @@ let cartBadge = null;
 let cartChannel = null;
 let cartUserId = null;
 
+let permissionState = new Map();
+
 const route = () => {
     const name = location.hash.slice(1).split('/')[0];
     return TITLES[name] ? name : 'dashboard';
@@ -52,6 +74,7 @@ function getRouteRequestId() {
     if (route() !== 'browse-products') return null;
 
     const parts = location.hash.slice(1).split('/');
+
     return parts[1] && parts[1] !== 'cart'
         ? parts[1]
         : null;
@@ -63,6 +86,10 @@ function isCartRoute() {
     return location.hash.slice(1).split('/')[1] === 'cart';
 }
 
+// ============================================================
+// AUTHENTICATION
+// ============================================================
+
 async function requireFarmManager() {
     const {
         data: { user },
@@ -73,7 +100,7 @@ async function requireFarmManager() {
 
     const { data: staff, error: staffError } = await supabase
         .from('staff_accounts')
-        .select('staff_id, full_name, role_id, status_id')
+        .select('staff_id, user_id, full_name, role_id, status_id')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -87,6 +114,100 @@ async function requireFarmManager() {
     }
 
     return staff;
+}
+
+// ============================================================
+// PERMISSIONS
+// ============================================================
+
+async function loadPermissions() {
+    permissionState.clear();
+
+    const permissionKeys = [
+        ...new Set([
+            ...Object.values(ROUTE_PERMISSIONS),
+            ...CART_PERMISSIONS,
+            'reports.export'
+        ])
+    ];
+
+    const results = await Promise.all(
+        permissionKeys.map(async (permissionKey) => {
+            const { data, error } = await supabase.rpc(
+                'has_tanikala_permission',
+                {
+                    p_permission_key: permissionKey
+                }
+            );
+
+            console.log('PERMISSION CHECK:', {
+                permissionKey,
+                data,
+                error
+            });
+
+            if (error) {
+                console.error(
+                    `Permission check failed: ${permissionKey}`,
+                    error
+                );
+
+                return [permissionKey, false];
+            }
+
+            return [permissionKey, data === true];
+        })
+    );
+
+    permissionState = new Map(results);
+}
+
+function hasPermission(permissionKey) {
+    return permissionState.get(permissionKey) === true;
+}
+
+
+function canAccessRoute(routeKey) {
+    if (routeKey === 'browse-products') {
+        // Cart page only requires shopping_cart.view.
+        if (isCartRoute()) {
+            return hasPermission('shopping_cart.view');
+        }
+
+        // Browse Products page has its own permission.
+        return hasPermission('browse_produce.view');
+    }
+
+    const permissionKey = ROUTE_PERMISSIONS[routeKey];
+
+    if (!permissionKey) return false;
+
+    return hasPermission(permissionKey);
+}
+
+
+function applyNavigationPermissions() {
+    document.querySelectorAll('.nav > a').forEach((anchor) => {
+        const viewKey = anchor.dataset.view;
+        const permissionKey = ROUTE_PERMISSIONS[viewKey];
+
+        if (!permissionKey) {
+            anchor.hidden = true;
+            return;
+        }
+
+        anchor.hidden = !hasPermission(permissionKey);
+    });
+}
+
+function showAccessDenied() {
+    root.replaceChildren(
+        h(
+            'div',
+            { class: 'msg error' },
+            'You do not have permission to access this page. Contact your administrator if you need access.'
+        )
+    );
 }
 
 // ============================================================
@@ -133,6 +254,7 @@ async function updateCartBadge() {
         : String(total);
 
     cartBadge.hidden = total === 0;
+
     cartButton?.setAttribute(
         'aria-label',
         `Shopping cart, ${total} items`
@@ -141,6 +263,9 @@ async function updateCartBadge() {
 
 async function setupShoppingCart() {
     cleanupCartButton();
+
+    // The global cart icon requires shopping_cart.view.
+    if (!hasPermission('shopping_cart.view')) return;
 
     const topbar = document.querySelector('.topbar-right');
 
@@ -237,7 +362,6 @@ async function setupShoppingCart() {
         location.hash = 'browse-products/cart';
     });
 
-    // Place the cart immediately before the notification bell.
     const notificationCenter = topbar.querySelector(
         '.notification-center'
     );
@@ -284,13 +408,28 @@ async function setupShoppingCart() {
 async function show() {
     if (!authorized) return;
 
+    const key = route();
+
+    if (!canAccessRoute(key)) {
+        if (activeViewModule?.cleanup) {
+            activeViewModule.cleanup();
+        }
+
+        activeViewModule = null;
+
+        document.querySelectorAll('.nav > a').forEach((anchor) => {
+            anchor.classList.remove('active');
+        });
+
+        showAccessDenied();
+        return;
+    }
+
     if (activeViewModule?.cleanup) {
         activeViewModule.cleanup();
     }
 
     activeViewModule = null;
-
-    const key = route();
 
     ctx.replenishmentRequestId = getRouteRequestId();
     ctx.cartMode = isCartRoute();
@@ -315,6 +454,11 @@ async function show() {
             throw new Error(
                 `${key}.js must export an async render(root, ctx) function.`
             );
+        }
+
+        if (!canAccessRoute(key)) {
+            showAccessDenied();
+            return;
         }
 
         activeViewModule = view;
@@ -353,7 +497,7 @@ async function setupNotifications() {
 }
 
 // ============================================================
-// AUTHENTICATION
+// BOOT
 // ============================================================
 
 async function boot() {
@@ -369,15 +513,18 @@ async function boot() {
 
     const staff = await requireFarmManager();
 
-    checking = false;
-
     if (!staff) {
-        await supabase.auth.signOut().catch(() => {});
+        checking = false;
+        permissionState.clear();
+
+        await supabase.auth.signOut().catch(() => { });
         location.replace('../../login.html');
         return;
     }
 
     ctx.staff = staff;
+
+    await loadPermissions();
 
     const avatar = document.getElementById('fmAvatar');
 
@@ -391,7 +538,10 @@ async function boot() {
             .toUpperCase();
     }
 
+    applyNavigationPermissions();
+
     authorized = true;
+    checking = false;
 
     html.classList.add('fm-authorized');
 
@@ -471,6 +621,8 @@ function setupChrome() {
                 if (error) throw error;
 
                 authorized = false;
+                permissionState.clear();
+
                 html.classList.remove('fm-authorized');
 
                 location.replace('../../login.html');
