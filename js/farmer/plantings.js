@@ -1,7 +1,7 @@
+
 import { supabase } from "../connection.js";
 
 // ---------- THEME ----------
-// Same key as js/feature/theme.js ("theme"), shared by every farmer page.
 
 const THEME_KEY = "theme";
 
@@ -54,6 +54,8 @@ function applyTheme(theme) {
     });
 })();
 
+// ---------- ELEMENTS ----------
+
 const plantingList = document.getElementById("plantingList");
 const farmerName = document.getElementById("farmerName");
 const farmerAvatar = document.getElementById("farmerAvatar");
@@ -67,18 +69,23 @@ let cropStatuses = [];
 let plantingRealtimeChannel = null;
 let plantingReloadTimer = null;
 
-// Pagination state
+let canViewPlantings = false;
+let canEditPlantings = false;
+
+// Pagination
 const PAGE_SIZE = 6;
 let currentPage = 1;
 let allPlantings = [];
 let fieldsMap = new Map();
 let farmsMap = new Map();
 
-// Pagination controls
 const paginationNav = document.createElement("nav");
 paginationNav.className = "pagination";
 paginationNav.setAttribute("aria-label", "Planting records pages");
-plantingList.after(paginationNav);
+
+if (plantingList) {
+    plantingList.after(paginationNav);
+}
 
 const paginationStyle = document.createElement("style");
 paginationStyle.textContent = `
@@ -142,11 +149,15 @@ function formatDate(dateValue) {
 }
 
 function displayMessage(message, className = "empty-state") {
-    paginationNav.replaceChildren();
+    if (paginationNav) {
+        paginationNav.replaceChildren();
+    }
 
-    plantingList.replaceChildren(
-        createElement("div", className, message)
-    );
+    if (plantingList) {
+        plantingList.replaceChildren(
+            createElement("div", className, message)
+        );
+    }
 }
 
 function createDetail(label, value) {
@@ -169,6 +180,153 @@ function getFarmerDisplayName(user, profile) {
         user.email?.split("@")[0] ||
         "Farmer"
     );
+}
+
+// ---------- PERMISSIONS ----------
+
+const FARMER_NAVIGATION_PERMISSIONS = {
+    "farmer-dashboard.html": "dashboard.view",
+    "activities.html": "activities.view",
+    "plantings.html": "plantings.view",
+    "recommendations.html": "recommendations.view",
+    "harvest-records.html": "harvest_records.view"
+};
+
+const permissionCache = new Map();
+
+async function checkPermission(permissionKey) {
+    if (permissionCache.has(permissionKey)) {
+        return permissionCache.get(permissionKey);
+    }
+
+    try {
+        const { data, error } = await supabase.rpc(
+            "has_tanikala_permission",
+            {
+                p_permission_key: permissionKey
+            }
+        );
+
+        if (error) {
+            console.error(
+                `Permission check failed (${permissionKey}):`,
+                error
+            );
+
+            permissionCache.set(permissionKey, false);
+            return false;
+        }
+
+        const allowed = data === true;
+
+        permissionCache.set(permissionKey, allowed);
+
+        return allowed;
+
+    } catch (error) {
+        console.error(
+            `Permission check error (${permissionKey}):`,
+            error
+        );
+
+        permissionCache.set(permissionKey, false);
+        return false;
+    }
+}
+
+async function loadPlantingPermissions() {
+    const [viewPermission, editPermission] = await Promise.all([
+        checkPermission("plantings.view"),
+        checkPermission("plantings.edit")
+    ]);
+
+    canViewPlantings = viewPermission;
+    canEditPlantings = editPermission;
+
+    return canViewPlantings;
+}
+
+/**
+ * Checks every Farmer navigation permission.
+ * This makes the sidebar consistent on every tab.
+ */
+async function applyNavigationPermissions() {
+    const entries = Object.entries(
+        FARMER_NAVIGATION_PERMISSIONS
+    );
+
+    const results = await Promise.all(
+        entries.map(async ([page, permissionKey]) => ({
+            page,
+            allowed: await checkPermission(permissionKey)
+        }))
+    );
+
+    const permissionMap = new Map(
+        results.map(result => [
+            result.page,
+            result.allowed
+        ])
+    );
+
+    const navigationLinks = document.querySelectorAll(
+        ".navigation a.nav-link[href], " +
+        ".quick-access a.access-card[href]"
+    );
+
+    navigationLinks.forEach(link => {
+        const href = link.getAttribute("href");
+
+        if (!href) return;
+
+        let page;
+
+        try {
+            page = new URL(href, window.location.href)
+                .pathname
+                .split("/")
+                .pop()
+                .toLowerCase();
+        } catch {
+            return;
+        }
+
+        if (!Object.hasOwn(FARMER_NAVIGATION_PERMISSIONS, page)) {
+            return;
+        }
+
+        const allowed = permissionMap.get(page) === true;
+
+        link.hidden = !allowed;
+        link.style.display = allowed ? "" : "none";
+
+        if (allowed) {
+            link.removeAttribute("aria-hidden");
+            link.removeAttribute("tabindex");
+        } else {
+            link.setAttribute("aria-hidden", "true");
+            link.setAttribute("tabindex", "-1");
+        }
+    });
+
+    return permissionMap;
+}
+
+function hidePermissionsLoading() {
+    document.body.classList.remove("permissions-loading");
+}
+
+function showAccessDenied() {
+    cleanupPlantingRealtime();
+
+    displayMessage(
+        "You do not have permission to view planting records. Please contact your Farm Manager or Administrator.",
+        "empty-state"
+    );
+
+    if (paginationNav) {
+        paginationNav.replaceChildren();
+    }
 }
 
 // ---------- FARMER PROFILE ----------
@@ -261,7 +419,6 @@ async function loadFarms(farmIds) {
 
 // ---------- LOAD LINKED PLANTINGS ----------
 
-/** Load planting records and their related activity/farm information. */
 async function loadPlantings(plantingIds) {
     const uniquePlantingIds = [...new Set(plantingIds.filter(Boolean))];
 
@@ -317,7 +474,6 @@ function createStatusDropdown(label, statuses, currentValue, onChange) {
         select.append(option);
     });
 
-    // Preserve the current value if it is no longer active.
     if (
         currentValue &&
         !statuses.some(status => status.code === currentValue)
@@ -340,14 +496,21 @@ function createStatusDropdown(label, statuses, currentValue, onChange) {
     );
 
     select.addEventListener("change", async () => {
+        if (!canEditPlantings) {
+            select.value = currentValue || "";
+            return;
+        }
+
         feedback.textContent = "Saving...";
         feedback.className = "status-save-message";
 
         select.disabled = true;
 
-        await onChange(select.value, select, feedback);
-
-        select.disabled = false;
+        try {
+            await onChange(select.value, select, feedback);
+        } finally {
+            select.disabled = false;
+        }
     });
 
     wrapper.append(labelElement, select, feedback);
@@ -364,6 +527,15 @@ async function savePlantingStatus(
     select,
     feedback
 ) {
+    if (!canEditPlantings) {
+        select.value = planting[column] || "";
+        feedback.textContent = "You do not have permission to edit plantings.";
+        feedback.className =
+            "status-save-message status-save-error";
+
+        return false;
+    }
+
     const previousValue = planting[column];
 
     if (newValue === previousValue) {
@@ -409,7 +581,6 @@ async function savePlantingStatus(
 function createPlantingCard(planting, activity, farm) {
     const card = createElement("article", "activity-card");
 
-    // Header
     const header = createElement("div", "activity-card-header");
     const titleSection = createElement("div");
 
@@ -438,7 +609,6 @@ function createPlantingCard(planting, activity, farm) {
     header.append(titleSection, statusBadge);
     card.append(header);
 
-    // Farm information
     const farmDetails = createElement("div", "activity-details");
 
     farmDetails.append(
@@ -448,7 +618,6 @@ function createPlantingCard(planting, activity, farm) {
 
     card.append(farmDetails);
 
-    // Planting details
     const plantingDetails = createElement("div", "activity-details");
 
     plantingDetails.append(
@@ -462,51 +631,51 @@ function createPlantingCard(planting, activity, farm) {
 
     card.append(plantingDetails);
 
-    // Editable statuses
-    const statusDetails = createElement("div", "activity-details");
+    if (canEditPlantings) {
+        const statusDetails = createElement("div", "activity-details");
 
-    const activityDropdown = createStatusDropdown(
-        "Planting Activity Status",
-        plantingActivityStatuses,
-        planting.activity_status,
-        async (newValue, select, feedback) => {
-            const saved = await savePlantingStatus(
-                planting,
-                "activity_status",
-                newValue,
-                select,
-                feedback
-            );
+        const activityDropdown = createStatusDropdown(
+            "Planting Activity Status",
+            plantingActivityStatuses,
+            planting.activity_status,
+            async (newValue, select, feedback) => {
+                const saved = await savePlantingStatus(
+                    planting,
+                    "activity_status",
+                    newValue,
+                    select,
+                    feedback
+                );
 
-            if (saved) {
-                statusBadge.textContent =
-                    newValue.replaceAll("_", " ");
+                if (saved) {
+                    statusBadge.textContent =
+                        newValue.replaceAll("_", " ");
 
-                statusBadge.className =
-                    `activity-status activity-status--${toStatusClass(newValue)}`;
+                    statusBadge.className =
+                        `activity-status activity-status--${toStatusClass(newValue)}`;
+                }
             }
-        }
-    );
+        );
 
-    const cropDropdown = createStatusDropdown(
-        "Crop Status",
-        cropStatuses,
-        planting.crop_status,
-        async (newValue, select, feedback) => {
-            await savePlantingStatus(
-                planting,
-                "crop_status",
-                newValue,
-                select,
-                feedback
-            );
-        }
-    );
+        const cropDropdown = createStatusDropdown(
+            "Crop Status",
+            cropStatuses,
+            planting.crop_status,
+            async (newValue, select, feedback) => {
+                await savePlantingStatus(
+                    planting,
+                    "crop_status",
+                    newValue,
+                    select,
+                    feedback
+                );
+            }
+        );
 
-    statusDetails.append(activityDropdown, cropDropdown);
-    card.append(statusDetails);
+        statusDetails.append(activityDropdown, cropDropdown);
+        card.append(statusDetails);
+    }
 
-    // Notes
     if (planting.notes) {
         card.append(
             createElement("p", "activity-description", planting.notes)
@@ -519,13 +688,13 @@ function createPlantingCard(planting, activity, farm) {
 // ---------- LOAD MY PLANTINGS ----------
 
 async function loadMyPlantings() {
+    if (!canViewPlantings || !currentUser) return;
+
     displayMessage(
         "Loading your planting records...",
         "loading-state"
     );
 
-    // 1. Get planting records assigned directly to this Farmer.
-    //    Oldest planting date first before status sorting.
     const { data: plantings, error } = await supabase
         .from("farm_plantings")
         .select(`
@@ -562,43 +731,48 @@ async function loadMyPlantings() {
         displayMessage(
             "You currently have no planting records assigned to you."
         );
+
         return;
     }
 
-    // 2. Get the associated fields.
     const fieldIds = [
         ...new Set(plantings.map(p => p.field_id).filter(Boolean))
     ];
 
-    const { data: fields, error: fieldError } = await supabase
-        .from("farm_fields")
-        .select("id, farm_id, field_name")
-        .in("id", fieldIds);
+    if (fieldIds.length) {
+        const { data: fields, error: fieldError } = await supabase
+            .from("farm_fields")
+            .select("id, farm_id, field_name")
+            .in("id", fieldIds);
 
-    if (fieldError) {
-        console.error("Field loading error:", fieldError);
+        if (fieldError) {
+            console.error("Field loading error:", fieldError);
 
-        displayMessage(
-            "Unable to load the farm field information.",
-            "error-state"
+            displayMessage(
+                "Unable to load the farm field information.",
+                "error-state"
+            );
+
+            return;
+        }
+
+        fieldsMap = new Map(
+            (fields || []).map(field => [field.id, field])
         );
-
-        return;
+    } else {
+        fieldsMap = new Map();
     }
 
-    fieldsMap = new Map(
-        (fields || []).map(field => [field.id, field])
-    );
-
-    // 3. Get the associated farms.
     const farmIds = [
-        ...new Set((fields || []).map(field => field.farm_id).filter(Boolean))
+        ...new Set(
+            [...fieldsMap.values()]
+                .map(field => field.farm_id)
+                .filter(Boolean)
+        )
     ];
 
     farmsMap = await loadFarms(farmIds);
 
-    // 4. Sort by Planting Activity Status display order.
-    //    Same-status plantings retain oldest planting date first.
     const activityStatusOrder = new Map(
         plantingActivityStatuses.map((status, index) => [
             status.code,
@@ -616,7 +790,6 @@ async function loadMyPlantings() {
         return orderA - orderB;
     });
 
-    // 5. Store the sorted records and display the first page.
     allPlantings = plantings;
     currentPage = 1;
 
@@ -633,10 +806,15 @@ function goToPage(page) {
     currentPage = page;
     renderPlantingsPage();
 
-    plantingList.scrollIntoView({ behavior: "smooth", block: "start" });
+    plantingList.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
 }
 
 function renderPlantingsPage() {
+    if (!canViewPlantings) return;
+
     const totalPages = getTotalPages();
 
     currentPage = Math.min(Math.max(currentPage, 1), totalPages);
@@ -676,18 +854,26 @@ function renderPagination(start, shownCount, totalPages) {
         "pagination-button",
         "Previous"
     );
+
     previousButton.type = "button";
     previousButton.disabled = currentPage === 1;
-    previousButton.addEventListener("click", () => goToPage(currentPage - 1));
+
+    previousButton.addEventListener("click", () => {
+        goToPage(currentPage - 1);
+    });
 
     const nextButton = createElement(
         "button",
         "pagination-button",
         "Next"
     );
+
     nextButton.type = "button";
     nextButton.disabled = currentPage === totalPages;
-    nextButton.addEventListener("click", () => goToPage(currentPage + 1));
+
+    nextButton.addEventListener("click", () => {
+        goToPage(currentPage + 1);
+    });
 
     const info = createElement(
         "span",
@@ -702,6 +888,8 @@ function renderPagination(start, shownCount, totalPages) {
 // ---------- SUPABASE REALTIME ----------
 
 function schedulePlantingsReload() {
+    if (!canViewPlantings) return;
+
     clearTimeout(plantingReloadTimer);
 
     plantingReloadTimer = setTimeout(async () => {
@@ -709,8 +897,9 @@ function schedulePlantingsReload() {
     }, 300);
 }
 
-/** Subscribe to planting updates and schedule a page data refresh. */
 function subscribeToPlantingChanges() {
+    if (!canViewPlantings || !currentUser) return;
+
     if (plantingRealtimeChannel) {
         supabase.removeChannel(plantingRealtimeChannel);
     }
@@ -729,7 +918,7 @@ function subscribeToPlantingChanges() {
                 schedulePlantingsReload();
             }
         )
-        .subscribe((status) => {
+        .subscribe(status => {
             if (status === "SUBSCRIBED") {
                 console.log("My Plantings Realtime connected.");
             } else if (status === "CHANNEL_ERROR") {
@@ -753,7 +942,9 @@ function initializeLogout() {
     if (!logoutButton) return;
 
     logoutButton.addEventListener("click", async () => {
-        if (logoutLabel) logoutLabel.textContent = "Logging out...";
+        if (logoutLabel) {
+            logoutLabel.textContent = "Logging out...";
+        }
 
         logoutButton.disabled = true;
 
@@ -762,7 +953,9 @@ function initializeLogout() {
         if (error) {
             console.error("Logout error:", error);
 
-            if (logoutLabel) logoutLabel.textContent = "Log out";
+            if (logoutLabel) {
+                logoutLabel.textContent = "Log out";
+            }
 
             logoutButton.disabled = false;
             return;
@@ -774,8 +967,9 @@ function initializeLogout() {
 
 // ---------- INITIALIZATION ----------
 
-/** Verify the farmer session and initialize the planting list and controls. */
 async function initializeFarmerPlantings() {
+    document.body.classList.add("permissions-loading");
+
     try {
         initializeLogout();
 
@@ -804,6 +998,19 @@ async function initializeFarmerPlantings() {
 
         if (!profile) return;
 
+        // Check all sidebar permissions, including the current page.
+        const permissionMap = await applyNavigationPermissions();
+
+        canViewPlantings =
+            permissionMap.get("plantings.html") === true;
+
+        canEditPlantings = await checkPermission("plantings.edit");
+
+        if (!canViewPlantings) {
+            showAccessDenied();
+            return;
+        }
+
         await loadPlantingStatusOptions();
         await loadMyPlantings();
 
@@ -816,8 +1023,11 @@ async function initializeFarmerPlantings() {
             error.message || "Something went wrong while loading the page.",
             "error-state"
         );
+    } finally {
+        document.body.classList.remove("permissions-loading");
     }
 }
 
 initializeFarmerPlantings();
+
 window.addEventListener("beforeunload", cleanupPlantingRealtime);

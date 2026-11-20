@@ -1,4 +1,10 @@
+
 import { supabase } from '../connection.js';
+import {
+  buyerReady,
+  hasPermission,
+  requirePermission
+} from './main.js';
 
 const TABLE_CART = 'buyer_cart_items';
 const TABLE_INVENTORY = 'warehouse_produce_inventory';
@@ -45,6 +51,44 @@ const peso = new Intl.NumberFormat('en-PH', {
   currency: 'PHP',
   minimumFractionDigits: 2,
 });
+
+/* =========================================================
+   PERMISSION CONTROL
+========================================================= */
+
+function hideCheckoutPage() {
+  const main = document.querySelector('main');
+
+  if (main) {
+    main.hidden = true;
+  }
+
+  const pageContent = document.querySelector(
+    '.main-content, .dashboard-content, .page-content'
+  );
+
+  if (pageContent) {
+    pageContent.hidden = true;
+  }
+
+  if (el.checkoutLoading) el.checkoutLoading.hidden = true;
+  if (el.checkoutLayout) el.checkoutLayout.hidden = true;
+  if (el.checkoutEmpty) el.checkoutEmpty.hidden = true;
+
+  state.cartItems = [];
+  state.selectedCartItemIds = [];
+
+  // Do not retain checkout selections when access is denied.
+  try {
+    sessionStorage.removeItem(CHECKOUT_KEY);
+  } catch {
+    // Ignore unavailable session storage.
+  }
+}
+
+/* =========================================================
+   HELPERS
+========================================================= */
 
 function normalize(value) {
   return String(value ?? '').trim().toLowerCase();
@@ -97,48 +141,25 @@ function showToast(message, type = 'success') {
 }
 
 function showError(message) {
+  if (!el.checkoutError) return;
+
   el.checkoutError.textContent = message;
   el.checkoutError.hidden = false;
 }
 
 function hideError() {
+  if (!el.checkoutError) return;
+
   el.checkoutError.hidden = true;
   el.checkoutError.textContent = '';
 }
 
-async function loadBuyerHeader() {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error) throw error;
-
-  if (!user) {
-    window.location.replace('../../login.html');
-    return null;
-  }
-
-  state.buyerId = user.id;
-
-  const metadata = user.user_metadata || {};
-
-  const displayName =
-    metadata.full_name ||
-    metadata.fullName ||
-    metadata.name ||
-    user.email ||
-    'Buyer';
-
-  el.userName.textContent = displayName;
-  el.userInitial.textContent =
-    displayName.trim().charAt(0).toUpperCase() || 'B';
-
-  return user;
-}
+/* =========================================================
+   CART COUNT
+========================================================= */
 
 async function loadCartCount() {
-  if (!state.buyerId) return;
+  if (!state.buyerId || !hasPermission('orders.create')) return;
 
   const { count, error } = await supabase
     .from(TABLE_CART)
@@ -155,9 +176,15 @@ async function loadCartCount() {
 
   const total = Number(count || 0);
 
+  if (!el.cartCount) return;
+
   el.cartCount.textContent = total > 99 ? '99+' : String(total);
   el.cartCount.hidden = total === 0;
 }
+
+/* =========================================================
+   PRODUCT PHOTOS
+========================================================= */
 
 async function resolvePhotoUrl(path) {
   if (!path) return '';
@@ -188,6 +215,10 @@ function createPlaceholder() {
   `;
 }
 
+/* =========================================================
+   CHECKOUT VALIDATION
+========================================================= */
+
 function isItemValid(item) {
   const product = item.product;
   const price = product.unit_price;
@@ -205,6 +236,10 @@ function isItemValid(item) {
     Number(price) >= 0
   );
 }
+
+/* =========================================================
+   CHECKOUT ITEM DISPLAY
+========================================================= */
 
 function createCheckoutItemMarkup(item) {
   const product = item.product;
@@ -233,7 +268,6 @@ function createCheckoutItemMarkup(item) {
 
   return `
     <article class="checkout-item">
-
       <div class="checkout-item-image-wrap">
         ${imageMarkup}
       </div>
@@ -248,12 +282,20 @@ function createCheckoutItemMarkup(item) {
         ${lineTotal !== null ? peso.format(lineTotal) : 'Unavailable'}
         <small>Item total</small>
       </div>
-
     </article>
   `;
 }
 
+/* =========================================================
+   RENDER CHECKOUT
+========================================================= */
+
 function renderCheckout() {
+  if (!hasPermission('orders.create')) {
+    hideCheckoutPage();
+    return;
+  }
+
   const items = state.cartItems;
 
   el.checkoutLoading.hidden = true;
@@ -292,7 +334,7 @@ function renderCheckout() {
   }, 0);
 
   const invalidItems = items.filter(
-    (item) => !isItemValid(item)
+    item => !isItemValid(item)
   );
 
   el.orderItemCount.textContent =
@@ -310,25 +352,31 @@ function renderCheckout() {
     showError(
       'Some items have insufficient stock, are unavailable, or have no valid price. Please return to your cart and update or remove those items.'
     );
-
   } else {
     el.placeOrderBtn.disabled = false;
     hideError();
   }
 }
 
+/* =========================================================
+   LOAD SELECTED CART ITEMS
+========================================================= */
+
 async function loadCheckoutItems() {
+  if (!hasPermission('orders.create')) return;
+
   el.checkoutLoading.hidden = false;
   el.checkoutLayout.hidden = true;
   el.checkoutEmpty.hidden = true;
+
   hideError();
 
   try {
-    // Retrieve selected cart item IDs from the Cart page.
     let selectedIds = [];
 
     try {
       const storedSelection = sessionStorage.getItem(CHECKOUT_KEY);
+
       selectedIds = storedSelection
         ? JSON.parse(storedSelection)
         : [];
@@ -336,12 +384,10 @@ async function loadCheckoutItems() {
       selectedIds = [];
     }
 
-    if (
-      !Array.isArray(selectedIds) ||
-      selectedIds.length === 0
-    ) {
+    if (!Array.isArray(selectedIds) || selectedIds.length === 0) {
       state.cartItems = [];
       state.selectedCartItemIds = [];
+
       renderCheckout();
 
       showError(
@@ -353,7 +399,6 @@ async function loadCheckoutItems() {
 
     state.selectedCartItemIds = selectedIds;
 
-    // Fetch only the selected cart items belonging to this buyer.
     const { data: cartRows, error: cartError } = await supabase
       .from(TABLE_CART)
       .select('cart_item_id, buyer_id, produce_id, quantity, created_at')
@@ -363,7 +408,6 @@ async function loadCheckoutItems() {
 
     if (cartError) throw cartError;
 
-    // Prevent checkout if some selected items are missing.
     if (
       !cartRows?.length ||
       cartRows.length !== selectedIds.length
@@ -381,14 +425,14 @@ async function loadCheckoutItems() {
       supabase
         .from(TABLE_INVENTORY)
         .select(`
-                    produce_id,
-                    farm_id,
-                    crop_name,
-                    photo_path,
-                    available_quantity,
-                    unit,
-                    produce_status
-                `)
+          produce_id,
+          farm_id,
+          crop_name,
+          photo_path,
+          available_quantity,
+          unit,
+          produce_status
+        `)
         .in('produce_id', produceIds),
 
       supabase
@@ -434,6 +478,7 @@ async function loadCheckoutItems() {
         }
 
         const unitPrice = priceMap.get(priceKey(inventory));
+
         const photoUrl = await resolvePhotoUrl(
           inventory.photo_path
         );
@@ -443,8 +488,7 @@ async function loadCheckoutItems() {
           product: {
             ...inventory,
             unit_price:
-              unitPrice !== undefined &&
-                Number.isFinite(unitPrice)
+              unitPrice !== undefined && Number.isFinite(unitPrice)
                 ? unitPrice
                 : null,
             photo_url: photoUrl,
@@ -472,7 +516,12 @@ async function loadCheckoutItems() {
   }
 }
 
+/* =========================================================
+   PLACE ORDER
+========================================================= */
+
 async function placeOrder() {
+  if (!requirePermission('orders.create')) return;
   if (state.isCheckingOut) return;
 
   if (!state.cartItems.length) {
@@ -481,7 +530,7 @@ async function placeOrder() {
   }
 
   const invalidItems = state.cartItems.filter(
-    (item) => !isItemValid(item)
+    item => !isItemValid(item)
   );
 
   if (invalidItems.length) {
@@ -524,7 +573,7 @@ async function placeOrder() {
       ? data.orders
       : [];
 
-    if (!orders.length || orders.some((order) => !order.sale_id)) {
+    if (!orders.length || orders.some(order => !order.sale_id)) {
       throw new Error(
         'The checkout response did not include valid order references. Please check My Orders before trying again.'
       );
@@ -565,31 +614,36 @@ async function placeOrder() {
   }
 }
 
-async function logout() {
-  const { error } = await supabase.auth.signOut();
-
-  if (error) {
-    showToast(error.message || 'Unable to log out.', 'error');
-    return;
-  }
-
-  window.location.replace('../../login.html');
-}
+/* =========================================================
+   EVENTS
+========================================================= */
 
 function bindEvents() {
-  el.logoutBtn?.addEventListener('click', logout);
+  // Logout is already handled by buyers/main.js.
+
   el.placeOrderBtn?.addEventListener('click', placeOrder);
 }
 
-/** Authenticate the buyer and initialize the checkout summary and controls. */
+/* =========================================================
+   INITIALIZATION
+========================================================= */
+
 async function init() {
-  setToday();
-  bindEvents();
-
   try {
-    const user = await loadBuyerHeader();
+    const auth = await buyerReady;
 
-    if (!user) return;
+    if (!auth) return;
+
+    // Checkout page access depends on orders.create.
+    if (!hasPermission('orders.create')) {
+      hideCheckoutPage();
+      return;
+    }
+
+    state.buyerId = auth.user.id;
+
+    setToday();
+    bindEvents();
 
     await Promise.all([
       loadCheckoutItems(),
@@ -599,7 +653,9 @@ async function init() {
   } catch (error) {
     console.error('Place Order initialization failed:', error);
 
-    el.checkoutLoading.hidden = true;
+    if (el.checkoutLoading) {
+      el.checkoutLoading.hidden = true;
+    }
 
     showError(
       error?.message || 'Unable to initialize the Place Order page.'

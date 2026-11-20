@@ -1,4 +1,9 @@
+
 import { supabase } from "../connection.js";
+
+// ==========================================
+// ELEMENTS
+// ==========================================
 
 const recommendationList = document.getElementById("recommendationList");
 const searchInput = document.getElementById("recommendationSearch");
@@ -9,6 +14,129 @@ const monitoringCount = document.getElementById("monitoringCount");
 const inspectionCount = document.getElementById("inspectionCount");
 
 let recommendations = [];
+let currentUser = null;
+let canViewRecommendations = false;
+
+const permissionCache = new Map();
+
+// ==========================================
+// NAVIGATION PERMISSIONS
+// ==========================================
+
+const FARMER_NAVIGATION_PERMISSIONS = {
+    "farmer-dashboard.html": "dashboard.view",
+    "activities.html": "activities.view",
+    "plantings.html": "plantings.view",
+    "recommendations.html": "recommendations.view",
+    "harvest-records.html": "harvest_records.view"
+};
+
+async function checkPermission(permissionKey) {
+    if (permissionCache.has(permissionKey)) {
+        return permissionCache.get(permissionKey);
+    }
+
+    try {
+        const { data, error } = await supabase.rpc(
+            "has_tanikala_permission",
+            {
+                p_permission_key: permissionKey
+            }
+        );
+
+        if (error) {
+            console.error(
+                `[Recommendations] Permission check failed (${permissionKey}):`,
+                error
+            );
+
+            permissionCache.set(permissionKey, false);
+            return false;
+        }
+
+        const allowed = data === true;
+
+        permissionCache.set(permissionKey, allowed);
+
+        return allowed;
+
+    } catch (error) {
+        console.error(
+            `[Recommendations] Permission check error (${permissionKey}):`,
+            error
+        );
+
+        permissionCache.set(permissionKey, false);
+        return false;
+    }
+}
+
+async function applyNavigationPermissions() {
+    const entries = Object.entries(FARMER_NAVIGATION_PERMISSIONS);
+
+    const results = await Promise.all(
+        entries.map(async ([page, permissionKey]) => ({
+            page,
+            allowed: await checkPermission(permissionKey)
+        }))
+    );
+
+    const permissionMap = new Map(
+        results.map(result => [result.page, result.allowed])
+    );
+
+    document.querySelectorAll(
+        ".navigation a.nav-link[href]"
+    ).forEach(link => {
+        const href = link.getAttribute("href");
+
+        if (!href) return;
+
+        const page = href
+            .split("?")[0]
+            .split("#")[0]
+            .split("/")
+            .pop();
+
+        if (!permissionMap.has(page)) return;
+
+        const allowed = permissionMap.get(page) === true;
+
+        link.hidden = !allowed;
+        link.style.display = allowed ? "" : "none";
+
+        if (!allowed) {
+            link.setAttribute("aria-hidden", "true");
+            link.setAttribute("tabindex", "-1");
+        } else {
+            link.removeAttribute("aria-hidden");
+            link.removeAttribute("tabindex");
+        }
+    });
+}
+
+function finishPermissionLoading() {
+    document.body.classList.remove("permissions-loading");
+}
+
+function showAccessDenied() {
+    if (recommendationList) {
+        recommendationList.innerHTML = `
+            <div class="loading-state">
+                You do not have permission to view recommendations.
+                Please contact your Farm Manager or Administrator.
+            </div>
+        `;
+    }
+
+    if (totalRecommendations) totalRecommendations.textContent = "0";
+    if (monitoringCount) monitoringCount.textContent = "0";
+    if (inspectionCount) inspectionCount.textContent = "0";
+}
+
+// ==========================================
+// HELPERS
+// ==========================================
 
 function escapeHTML(value = "") {
     return String(value ?? "").replace(/[&<>"']/g, character => ({
@@ -46,19 +174,35 @@ function getStatus(value) {
     return String(value || "").trim().toLowerCase();
 }
 
+// ==========================================
+// SUMMARY
+// ==========================================
+
 function updateSummary() {
-    totalRecommendations.textContent = recommendations.length;
+    if (totalRecommendations) {
+        totalRecommendations.textContent = recommendations.length;
+    }
 
-    monitoringCount.textContent = recommendations.filter(
-        item => item.source === "monitoring"
-    ).length;
+    if (monitoringCount) {
+        monitoringCount.textContent = recommendations.filter(
+            item => item.source === "monitoring"
+        ).length;
+    }
 
-    inspectionCount.textContent = recommendations.filter(
-        item => item.source === "inspection"
-    ).length;
+    if (inspectionCount) {
+        inspectionCount.textContent = recommendations.filter(
+            item => item.source === "inspection"
+        ).length;
+    }
 }
 
+// ==========================================
+// RENDER RECOMMENDATIONS
+// ==========================================
+
 function renderRecommendations() {
+    if (!recommendationList) return;
+
     const searchTerm = searchInput?.value.trim().toLowerCase() || "";
     const selectedSource = sourceFilter?.value || "all";
 
@@ -169,11 +313,17 @@ function renderRecommendations() {
     `).join("");
 }
 
+// ==========================================
+// LOAD RECOMMENDATIONS
+// ==========================================
+
 async function loadRecommendations() {
     try {
-        recommendationList.innerHTML = `
-            <div class="loading-state">Loading recommendations...</div>
-        `;
+        if (recommendationList) {
+            recommendationList.innerHTML = `
+                <div class="loading-state">Loading recommendations...</div>
+            `;
+        }
 
         const {
             data: { user },
@@ -183,11 +333,26 @@ async function loadRecommendations() {
         if (authError) throw authError;
 
         if (!user) {
-            window.location.href = "../../login.html";
+            window.location.replace("../../login.html");
             return;
         }
 
+        currentUser = user;
+
         console.log("[Recommendations] Current farmer:", user.id);
+
+        // Check all Farmer navigation permissions.
+        await applyNavigationPermissions();
+
+        // Check current page permission.
+        canViewRecommendations = await checkPermission(
+            "recommendations.view"
+        );
+
+        if (!canViewRecommendations) {
+            showAccessDenied();
+            return;
+        }
 
         // 1. Retrieve the current farmer's plantings.
         const { data: plantings, error: plantingError } = await supabase
@@ -237,7 +402,6 @@ async function loadRecommendations() {
         );
 
         // 3. Retrieve inspection records.
-        // Exclude drafts so unfinished technician entries are not displayed.
         const { data: inspectionRecords, error: inspectionError } =
             await supabase
                 .from("agricultural_inspections")
@@ -341,17 +505,30 @@ async function loadRecommendations() {
     } catch (error) {
         console.error("[Recommendations] Loading failed:", error);
 
-        recommendationList.innerHTML = `
-            <div class="loading-state">
-                Unable to load recommendations.
-                <br><br>
-                ${escapeHTML(error.message)}
-            </div>
-        `;
+        if (recommendationList) {
+            recommendationList.innerHTML = `
+                <div class="loading-state">
+                    Unable to load recommendations.
+                    <br><br>
+                    ${escapeHTML(error.message)}
+                </div>
+            `;
+        }
+
+    } finally {
+        document.body.classList.remove("permissions-loading");
     }
 }
 
+// ==========================================
+// EVENT LISTENERS
+// ==========================================
+
 searchInput?.addEventListener("input", renderRecommendations);
 sourceFilter?.addEventListener("change", renderRecommendations);
+
+// ==========================================
+// INITIALIZATION
+// ==========================================
 
 loadRecommendations();

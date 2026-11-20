@@ -1,11 +1,11 @@
-
 import { supabase } from "../connection.js";
 
 import {
     initAccountantPage,
     escapeHtml,
     formatPeso,
-    formatDate
+    formatDate,
+    hasPermission
 } from "./main.js";
 
 const $ = id => document.getElementById(id);
@@ -17,7 +17,8 @@ const state = {
     buyers: new Map(),
     filteredSales: [],
     currentPage: 1,
-    loading: false
+    loading: false,
+    initialized: false
 };
 
 const amount = value => Number(value) || 0;
@@ -43,11 +44,10 @@ const getPaymentAmount = sale => {
         return paidAmount;
     }
 
-    if (sale.payment_status === "paid") {
-        return amount(sale.total_amount);
-    }
-
-    if (sale.payment_status === "refunded") {
+    if (
+        sale.payment_status === "paid" ||
+        sale.payment_status === "refunded"
+    ) {
         return amount(sale.total_amount);
     }
 
@@ -77,8 +77,35 @@ const getStatusClass = status => {
         : "unknown";
 };
 
+/* ============================================================
+   PERMISSION
+   ============================================================ */
+
+function checkPaymentHistoryPermission() {
+    if (hasPermission("payment_history.view")) {
+        return true;
+    }
+
+    $("loadingState").hidden = true;
+    $("paymentContent").hidden = true;
+    $("errorState").hidden = false;
+
+    $("errorMessage").textContent =
+        "You do not have permission to view payment history.";
+
+    return false;
+}
+
+/* ============================================================
+   DATA
+   ============================================================ */
+
 /** Fetch sales, resolve available buyer names, and apply the initial filters. */
 async function loadPaymentHistory() {
+    if (!state.initialized || !hasPermission("payment_history.view")) {
+        return;
+    }
+
     const { data, error } = await supabase
         .from("warehouse_sales")
         .select(`
@@ -141,6 +168,10 @@ async function loadBuyers() {
     });
 }
 
+/* ============================================================
+   FILTERS
+   ============================================================ */
+
 /** Filter loaded sales by search/status/type and reset pagination. */
 function applyFilters() {
     const search = normalize($("paymentSearch")?.value);
@@ -175,6 +206,10 @@ function applyFilters() {
     renderTable();
 }
 
+/* ============================================================
+   TABLE
+   ============================================================ */
+
 /** Render the current page of payment history and its empty state. */
 function renderTable() {
     const tbody = $("paymentHistoryBody");
@@ -201,12 +236,18 @@ function renderTable() {
 
     if (!pageRecords.length) {
         tbody.innerHTML = "";
-        empty.hidden = false;
+
+        if (empty) {
+            empty.hidden = false;
+        }
     } else {
-        empty.hidden = true;
+        if (empty) {
+            empty.hidden = true;
+        }
 
         tbody.innerHTML = pageRecords.map(sale => {
             const buyer = escapeHtml(getBuyerName(sale));
+
             const orderId = escapeHtml(
                 String(sale.sale_id || "").slice(0, 8).toUpperCase()
             );
@@ -224,6 +265,7 @@ function renderTable() {
                 : "-";
 
             const status = getStatusClass(sale.payment_status);
+
             const statusLabel = escapeHtml(
                 getStatusLabel(sale.payment_status)
             );
@@ -255,6 +297,10 @@ function renderTable() {
     renderPagination(totalRecords, totalPages);
 }
 
+/* ============================================================
+   PAGINATION
+   ============================================================ */
+
 function renderPagination(totalRecords, totalPages) {
     const start = totalRecords === 0
         ? 0
@@ -265,20 +311,35 @@ function renderPagination(totalRecords, totalPages) {
         totalRecords
     );
 
-    $("paymentPaginationInfo").textContent =
-        `Showing ${start}-${end} of ${totalRecords} records`;
+    const paginationInfo = $("paymentPaginationInfo");
+    const pageNumber = $("paymentPageNumber");
+    const previousButton = $("previousPageBtn");
+    const nextButton = $("nextPageBtn");
 
-    $("paymentPageNumber").textContent =
-        `Page ${state.currentPage} of ${totalPages}`;
+    if (paginationInfo) {
+        paginationInfo.textContent =
+            `Showing ${start}-${end} of ${totalRecords} records`;
+    }
 
-    $("previousPageBtn").disabled =
-        state.currentPage <= 1;
+    if (pageNumber) {
+        pageNumber.textContent =
+            `Page ${state.currentPage} of ${totalPages}`;
+    }
 
-    $("nextPageBtn").disabled =
-        state.currentPage >= totalPages;
+    if (previousButton) {
+        previousButton.disabled =
+            state.currentPage <= 1;
+    }
+
+    if (nextButton) {
+        nextButton.disabled =
+            state.currentPage >= totalPages;
+    }
 }
 
 function changePage(direction) {
+    if (!hasPermission("payment_history.view")) return;
+
     const totalPages = Math.max(
         1,
         Math.ceil(state.filteredSales.length / PAGE_SIZE)
@@ -292,6 +353,10 @@ function changePage(direction) {
 
     renderTable();
 }
+
+/* ============================================================
+   UI STATES
+   ============================================================ */
 
 function showLoading() {
     $("loadingState").hidden = false;
@@ -316,8 +381,17 @@ function showError(error) {
         error?.message || "Unable to load payment history.";
 }
 
+/* ============================================================
+   REFRESH
+   ============================================================ */
+
 async function refreshPaymentHistory() {
-    if (state.loading) return;
+    if (!state.initialized || state.loading) return;
+
+    if (!hasPermission("payment_history.view")) {
+        checkPaymentHistoryPermission();
+        return;
+    }
 
     state.loading = true;
 
@@ -325,13 +399,20 @@ async function refreshPaymentHistory() {
 
     try {
         await loadPaymentHistory();
+
         showContent();
+
     } catch (error) {
         showError(error);
+
     } finally {
         state.loading = false;
     }
 }
+
+/* ============================================================
+   EVENTS
+   ============================================================ */
 
 function bindEvents() {
     $("paymentSearch")?.addEventListener(
@@ -370,11 +451,19 @@ function bindEvents() {
     );
 }
 
+/* ============================================================
+   INITIALIZATION
+   ============================================================ */
+
 async function init() {
     try {
         const context = await initAccountantPage();
 
         if (!context) return;
+
+        if (!checkPaymentHistoryPermission()) return;
+
+        state.initialized = true;
 
         bindEvents();
 
@@ -390,4 +479,10 @@ async function init() {
     }
 }
 
-init();
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, {
+        once: true
+    });
+} else {
+    init();
+}

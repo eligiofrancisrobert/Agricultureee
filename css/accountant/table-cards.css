@@ -1,0 +1,311 @@
+/* ============================================================
+   ACCOUNTANT - TABLES AS CARDS ON SMALL SCREENS
+   File: css/accountant/table-cards.css
+   Needs js/accountant/table-cards.js (adds .ac-* classes + data-label).
+
+   LOAD THIS LAST, after every other accountant stylesheet
+   (and after sidebar.css). It replaces the older per-page
+   "stacked card" rules for these tables on screens <= 760px.
+
+   Card layout
+   +--------------------------------------+
+   | SALE ID                     [ Paid ] |  <- title + status pill
+   | #1042                                |
+   |--------------------------------------|
+   | BUYER                      Juan Cruz |  <- key rows
+   | TOTAL                      ₱1,250.00 |
+   |            Show details  ▾           |  <- long rows only (tap card)
+   |--------------------------------------|
+   |                         [ View ]     |  <- actions
+   +--------------------------------------+
+   ============================================================ */
+
+@media screen and (max-width: 760px) {
+
+    /* ---------- Wrapper + table become plain blocks ---------- */
+    .ac-cards-wrap.ac-cards-wrap.ac-cards-wrap {
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    table.ac-cards.ac-cards,
+    table.ac-cards.ac-cards > tbody {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    /* Header row: hidden visually, still read by screen readers */
+    table.ac-cards.ac-cards > thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    /* ---------- The card ---------- */
+    table.ac-cards tr.ac-card {
+        --ac-accent: var(--primary-color);
+        --ac-tint: color-mix(in srgb, var(--ac-accent) 7%, var(--surface-card));
+
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: stretch;
+        margin: 0 0 14px;
+        padding: 0;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--ac-accent);
+        border-radius: 16px;
+        background-color: var(--surface-card);
+        box-shadow: 0 2px 10px rgba(101, 53, 40, 0.09);
+        -webkit-tap-highlight-color: transparent;
+        animation: acCardIn 0.35s ease both;
+        animation-delay: calc(var(--ac-i, 0) * 45ms);
+        transition: box-shadow 0.2s ease, transform 0.15s ease, background-color 0.2s ease;
+    }
+
+    table.ac-cards tr.ac-card:last-child {
+        margin-bottom: 0;
+    }
+
+    /* Status colors (set by JS from the badge) */
+    table.ac-cards tr.ac-card.ac-tone-success { --ac-accent: var(--success); }
+    table.ac-cards tr.ac-card.ac-tone-warning { --ac-accent: var(--warning); }
+    table.ac-cards tr.ac-card.ac-tone-error   { --ac-accent: var(--error); }
+    table.ac-cards tr.ac-card.ac-tone-muted   { --ac-accent: var(--secondary-text); }
+
+    /* Tap feedback */
+    table.ac-cards tr.ac-card:active {
+        transform: scale(0.985);
+    }
+
+    table.ac-cards tr.ac-card.is-expanded {
+        box-shadow:
+            0 8px 24px rgba(0, 0, 0, 0.14),
+            0 0 0 1px color-mix(in srgb, var(--ac-accent) 35%, transparent);
+    }
+
+    table.ac-cards tr.ac-card:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 2px;
+    }
+
+    /* ---------- Cells (default: label left, value right) ---------- */
+    table.ac-cards tr.ac-card > td.ac-cell {
+        grid-column: 1 / -1;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        min-width: 0;
+        margin: 0;
+        padding: 10px 16px;
+        border: 0;
+        border-top: 1px dashed var(--border);
+        background: transparent;
+        color: var(--primary-text);
+        font-size: var(--fs-sm);
+        text-align: right;
+        overflow-wrap: anywhere;
+    }
+
+    table.ac-cards tr.ac-card > td.ac-cell::before {
+        content: attr(data-label);
+        display: block;
+        flex: 0 1 42%;
+        margin-right: auto;
+        color: var(--secondary-text);
+        font-size: var(--fs-xs);
+        font-weight: 600;
+        letter-spacing: 0.045em;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    table.ac-cards tr.ac-card > td.ac-key {
+        font-weight: 600;
+    }
+
+    /* ---------- Title (first column) ---------- */
+    table.ac-cards tr.ac-card > td.ac-head {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 2px;
+        padding: 14px 16px 12px;
+        border-top: 0;
+        background-color: var(--ac-tint);
+        font-size: var(--fs-md, 1rem);
+        font-weight: 600;
+        text-align: left;
+    }
+
+    table.ac-cards tr.ac-card > td.ac-head::before {
+        flex: none;
+        margin: 0;
+    }
+
+    /* ---------- Status pill beside the title ---------- */
+    table.ac-cards tr.ac-card.ac-has-status > td.ac-head {
+        grid-column: 1;
+    }
+
+    table.ac-cards tr.ac-card > td.ac-status {
+        grid-column: 2;
+        grid-row: 1;
+        justify-content: flex-end;
+        padding: 14px 16px 12px 0;
+        border-top: 0;
+        background-color: var(--ac-tint);
+    }
+
+    table.ac-cards tr.ac-card > td.ac-status::before {
+        display: none;
+    }
+
+    /* ---------- Tap to expand (long rows) ---------- */
+    table.ac-cards tr.ac-card.ac-collapsible {
+        cursor: pointer;
+    }
+
+    table.ac-cards tr.ac-card.ac-collapsible:not(.is-expanded) > td.ac-extra {
+        display: none;
+    }
+
+    table.ac-cards tr.ac-card.ac-collapsible.is-expanded > td.ac-extra {
+        animation: acReveal 0.25s ease both;
+    }
+
+    table.ac-cards tr.ac-card.ac-collapsible::after {
+        content: "Show details  \25BE";
+        order: 9;
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        border-top: 1px solid var(--border);
+        color: var(--primary-color);
+        font-size: var(--fs-xs);
+        font-weight: 600;
+        letter-spacing: 0.03em;
+    }
+
+    table.ac-cards tr.ac-card.ac-collapsible.is-expanded::after {
+        content: "Hide details  \25B4";
+    }
+
+    /* ---------- Actions footer ---------- */
+    table.ac-cards tr.ac-card > td.ac-actions {
+        order: 10;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 10px 12px;
+        border-top: 1px solid var(--border);
+        background-color: color-mix(in srgb, var(--secondary) 6%, var(--surface-card));
+    }
+
+    table.ac-cards tr.ac-card > td.ac-actions::before {
+        display: none;
+    }
+
+    table.ac-cards .ac-actions .action-buttons,
+    table.ac-cards .ac-actions .row-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    table.ac-cards .ac-actions :is(
+        .btn-view, .btn-sm, .btn-approve, .btn-reject, .btn-outline, .table-action-btn
+    ) {
+        min-height: 40px;
+    }
+
+    table.ac-cards .ac-actions :is(.btn-view, .btn-sm, .btn-approve, .btn-reject, .btn-outline) {
+        flex: 1 1 auto;
+    }
+
+    table.ac-cards .ac-actions :is(button, a):active {
+        transform: scale(0.95);
+    }
+
+    /* ---------- Loading / empty / error rows (not cards) ---------- */
+    table.ac-cards > tbody > tr:not(.ac-card) {
+        display: block;
+        margin-bottom: 14px;
+        border: 1px dashed var(--border);
+        border-radius: 16px;
+        background-color: var(--surface-card);
+        box-shadow: none;
+    }
+
+    table.ac-cards > tbody > tr:not(.ac-card) > td {
+        display: block;
+        padding: var(--space-lg, 32px) var(--space-md, 20px);
+        text-align: center;
+        color: var(--secondary-text);
+    }
+
+    table.ac-cards > tbody > tr:not(.ac-card) > td::before {
+        display: none;
+    }
+
+    /* ---------- Touch-friendly pagination ---------- */
+    .pagination-controls button,
+    .ar-pager button {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    /* ---------- Dark mode ---------- */
+    :root[data-theme="dark"] table.ac-cards tr.ac-card {
+        box-shadow: none;
+    }
+
+    :root[data-theme="dark"] table.ac-cards tr.ac-card.is-expanded {
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--ac-accent) 45%, transparent);
+    }
+}
+
+/* Hover only on devices that really hover (not sticky on touch) */
+@media screen and (max-width: 760px) and (hover: hover) {
+    table.ac-cards tr.ac-card:hover {
+        background-color: var(--surface-card);
+        box-shadow:
+            0 6px 20px rgba(0, 0, 0, 0.12),
+            0 0 0 1px color-mix(in srgb, var(--ac-accent) 30%, transparent);
+    }
+}
+
+@keyframes acCardIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes acReveal {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    table.ac-cards tr.ac-card,
+    table.ac-cards tr.ac-card > td {
+        animation: none !important;
+        transition: none !important;
+    }
+}

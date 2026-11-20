@@ -33,7 +33,21 @@ let assignedPlantings = [];
 let harvestRealtimeChannel = null;
 let resubmittingHarvestId = null;
 
+let canViewHarvests = false;
+let canCreateHarvest = false;
+let canEditHarvest = false;
+
+const permissionCache = new Map();
+
 const THEME_KEY = 'theme';
+
+const FARMER_NAVIGATION_PERMISSIONS = {
+    'farmer-dashboard.html': 'dashboard.view',
+    'activities.html': 'activities.view',
+    'plantings.html': 'plantings.view',
+    'recommendations.html': 'recommendations.view',
+    'harvest-records.html': 'harvest_records.view'
+};
 
 // ==========================================
 // THEME
@@ -80,7 +94,10 @@ function applyTheme(theme) {
     }
 
     window.addEventListener('storage', event => {
-        if (event.key === THEME_KEY && event.newValue) {
+        if (
+            (event.key === THEME_KEY || event.key === 'tanikala-theme') &&
+            event.newValue
+        ) {
             applyTheme(event.newValue);
         }
     });
@@ -170,6 +187,167 @@ function resetResubmissionState() {
     }
 }
 
+function hidePermissionsLoading() {
+    document.body.classList.remove('permissions-loading');
+}
+
+// ==========================================
+// PERMISSIONS
+// ==========================================
+
+async function checkPermission(permissionKey) {
+    if (permissionCache.has(permissionKey)) {
+        return permissionCache.get(permissionKey);
+    }
+
+    try {
+        const { data, error } = await supabase.rpc(
+            'has_tanikala_permission',
+            {
+                p_permission_key: permissionKey
+            }
+        );
+
+        if (error) {
+            console.error(
+                `Permission check failed (${permissionKey}):`,
+                error
+            );
+
+            permissionCache.set(permissionKey, false);
+            return false;
+        }
+
+        const allowed = data === true;
+
+        permissionCache.set(permissionKey, allowed);
+
+        return allowed;
+
+    } catch (error) {
+        console.error(
+            `Permission check error (${permissionKey}):`,
+            error
+        );
+
+        permissionCache.set(permissionKey, false);
+        return false;
+    }
+}
+
+async function loadHarvestPermissions() {
+    const [
+        viewPermission,
+        createPermission,
+        editPermission
+    ] = await Promise.all([
+        checkPermission('harvest_records.view'),
+        checkPermission('harvest_records.create'),
+        checkPermission('harvest_records.edit')
+    ]);
+
+    canViewHarvests = viewPermission;
+    canCreateHarvest = createPermission;
+    canEditHarvest = editPermission;
+
+    return canViewHarvests;
+}
+
+async function applyNavigationPermissions() {
+    const entries = Object.entries(FARMER_NAVIGATION_PERMISSIONS);
+
+    const results = await Promise.all(
+        entries.map(async ([page, permissionKey]) => ({
+            page,
+            allowed: await checkPermission(permissionKey)
+        }))
+    );
+
+    const permissionMap = new Map(
+        results.map(result => [result.page, result.allowed])
+    );
+
+    document.querySelectorAll(
+        '.navigation a.nav-link[href]'
+    ).forEach(link => {
+        const href = link.getAttribute('href');
+
+        if (!href) return;
+
+        const page = href
+            .split('?')[0]
+            .split('#')[0]
+            .split('/')
+            .pop();
+
+        if (!permissionMap.has(page)) return;
+
+        const allowed = permissionMap.get(page) === true;
+
+        link.hidden = !allowed;
+        link.style.display = allowed ? '' : 'none';
+
+        if (!allowed) {
+            link.setAttribute('aria-hidden', 'true');
+            link.setAttribute('tabindex', '-1');
+        } else {
+            link.removeAttribute('aria-hidden');
+            link.removeAttribute('tabindex');
+        }
+    });
+}
+
+function configureHarvestForm() {
+    if (!harvestForm) return;
+
+    const canUseForm = canCreateHarvest || canEditHarvest;
+
+    harvestForm.hidden = !canUseForm;
+
+    if (!canUseForm) return;
+
+    if (submitHarvestButton) {
+        submitHarvestButton.disabled = true;
+
+        submitHarvestButton.textContent = canCreateHarvest
+            ? 'Submit Harvest Record'
+            : 'Select a rejected record to resubmit';
+    }
+
+    if (plantingSelect) {
+        plantingSelect.disabled = !canCreateHarvest && !canEditHarvest;
+    }
+}
+
+function showAccessDenied() {
+    if (harvestForm) {
+        harvestForm.hidden = true;
+    }
+
+    if (harvestHistoryBody) {
+        harvestHistoryBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="harvest-empty">
+                    You do not have permission to view harvest records.
+                    Please contact your Farm Manager or Administrator.
+                </td>
+            </tr>
+        `;
+    }
+
+    if (rejectedHarvestBody) {
+        rejectedHarvestBody.innerHTML = `
+            <tr>
+                <td colspan="5" class="harvest-empty">
+                    You do not have permission to view harvest records.
+                </td>
+            </tr>
+        `;
+    }
+
+    cleanupHarvestRealtime();
+}
+
 // ==========================================
 // AUTHENTICATION
 // ==========================================
@@ -195,7 +373,9 @@ async function validateFarmerSession() {
         profileError ||
         !profile ||
         profile.role !== 'farmer' ||
-        !['active', 'approved'].includes(profile.status)
+        !['active', 'approved'].includes(
+            String(profile.status || '').toLowerCase()
+        )
     ) {
         await supabase.auth.signOut();
         window.location.replace('../../login.html');
@@ -255,6 +435,9 @@ function displayFarmerProfile() {
 // ==========================================
 
 async function loadAssignedPlantings() {
+    if (!canCreateHarvest && !canEditHarvest) return;
+    if (!plantingSelect) return;
+
     plantingSelect.innerHTML = `
         <option value="">Loading your plantings...</option>
     `;
@@ -295,13 +478,15 @@ async function loadAssignedPlantings() {
         `;
 
         plantingSelect.disabled = true;
-        submitHarvestButton.disabled = true;
+
+        if (submitHarvestButton) {
+            submitHarvestButton.disabled = true;
+        }
 
         return;
     }
 
     plantingSelect.disabled = false;
-    submitHarvestButton.disabled = false;
 
     plantingSelect.innerHTML = `
         <option value="">Select an assigned planting</option>
@@ -311,10 +496,27 @@ async function loadAssignedPlantings() {
             </option>
         `).join('')}
     `;
+
+    updateSubmitButtonState();
+}
+
+function updateSubmitButtonState() {
+    if (!submitHarvestButton) return;
+
+    if (resubmittingHarvestId) {
+        submitHarvestButton.disabled = !canEditHarvest;
+        submitHarvestButton.textContent = 'Resubmit Harvest';
+        return;
+    }
+
+    submitHarvestButton.disabled =
+        !canCreateHarvest || assignedPlantings.length === 0;
+
+    submitHarvestButton.textContent = 'Submit Harvest Record';
 }
 
 // ==========================================
-// SUBMIT / OVERRIDE HARVEST RECORD
+// SUBMIT / RESUBMIT HARVEST RECORD
 // ==========================================
 
 async function handleHarvestSubmission(event) {
@@ -326,11 +528,29 @@ async function handleHarvestSubmission(event) {
         return;
     }
 
-    const plantingId = plantingSelect.value;
-    const harvestedDate = harvestedDateInput.value;
-    const quantity = Number(harvestQuantityInput.value);
-    const unit = harvestUnitInput.value.trim();
-    const notes = harvestNotesInput.value.trim();
+    const isResubmission = Boolean(resubmittingHarvestId);
+
+    if (isResubmission && !canEditHarvest) {
+        showMessage(
+            'You do not have permission to edit or resubmit harvest records.',
+            'error'
+        );
+        return;
+    }
+
+    if (!isResubmission && !canCreateHarvest) {
+        showMessage(
+            'You do not have permission to create harvest records.',
+            'error'
+        );
+        return;
+    }
+
+    const plantingId = plantingSelect?.value;
+    const harvestedDate = harvestedDateInput?.value;
+    const quantity = Number(harvestQuantityInput?.value);
+    const unit = harvestUnitInput?.value.trim();
+    const notes = harvestNotesInput?.value.trim();
 
     const selectedPlanting = assignedPlantings.find(
         planting => planting.id === plantingId
@@ -361,13 +581,14 @@ async function handleHarvestSubmission(event) {
         return;
     }
 
-    const isResubmission = Boolean(resubmittingHarvestId);
     const targetHarvestId = resubmittingHarvestId;
 
-    submitHarvestButton.disabled = true;
-    submitHarvestButton.textContent = isResubmission
-        ? 'Resubmitting...'
-        : 'Submitting...';
+    if (submitHarvestButton) {
+        submitHarvestButton.disabled = true;
+        submitHarvestButton.textContent = isResubmission
+            ? 'Resubmitting...'
+            : 'Submitting...';
+    }
 
     try {
         const harvestRecord = {
@@ -382,11 +603,7 @@ async function handleHarvestSubmission(event) {
             notes: notes || null
         };
 
-        let error;
-
         if (isResubmission) {
-            // OVERRIDE the existing rejected record.
-            // No new harvested_crops row is created.
             const result = await supabase
                 .from('harvested_crops')
                 .update(harvestRecord)
@@ -396,9 +613,7 @@ async function handleHarvestSubmission(event) {
                 .select('harvest_id')
                 .maybeSingle();
 
-            error = result.error;
-
-            if (error) throw error;
+            if (result.error) throw result.error;
 
             if (!result.data) {
                 throw new Error(
@@ -406,7 +621,6 @@ async function handleHarvestSubmission(event) {
                 );
             }
         } else {
-            // New submission: create a new record.
             const result = await supabase
                 .from('harvested_crops')
                 .insert({
@@ -414,13 +628,14 @@ async function handleHarvestSubmission(event) {
                     farmer_id: currentUser.id
                 });
 
-            error = result.error;
-
-            if (error) throw error;
+            if (result.error) throw result.error;
         }
 
         resetResubmissionState();
-        harvestForm.reset();
+
+        if (harvestForm) {
+            harvestForm.reset();
+        }
 
         showMessage(
             isResubmission
@@ -440,13 +655,7 @@ async function handleHarvestSubmission(event) {
         );
 
     } finally {
-        submitHarvestButton.disabled = assignedPlantings.length === 0;
-
-        if (!resubmittingHarvestId) {
-            submitHarvestButton.textContent = 'Submit Harvest Record';
-        } else {
-            submitHarvestButton.textContent = 'Resubmit Harvest';
-        }
+        updateSubmitButtonState();
     }
 }
 
@@ -455,7 +664,7 @@ async function handleHarvestSubmission(event) {
 // ==========================================
 
 async function loadHarvestHistory() {
-    if (!currentUser) return;
+    if (!currentUser || !canViewHarvests) return;
 
     const { data: harvestRecords, error } = await supabase
         .from('harvested_crops')
@@ -478,13 +687,15 @@ async function loadHarvestHistory() {
     if (error) {
         console.error('Failed to load harvest history:', error);
 
-        harvestHistoryBody.innerHTML = `
-            <tr>
-                <td colspan="6" class="harvest-empty">
-                    Unable to load harvest records.
-                </td>
-            </tr>
-        `;
+        if (harvestHistoryBody) {
+            harvestHistoryBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="harvest-empty">
+                        Unable to load harvest records.
+                    </td>
+                </tr>
+            `;
+        }
 
         if (rejectedHarvestBody) {
             rejectedHarvestBody.innerHTML = `
@@ -502,13 +713,15 @@ async function loadHarvestHistory() {
     const records = harvestRecords || [];
 
     if (records.length === 0) {
-        harvestHistoryBody.innerHTML = `
-            <tr>
-                <td colspan="6" class="harvest-empty">
-                    You have not submitted any harvest records yet.
-                </td>
-            </tr>
-        `;
+        if (harvestHistoryBody) {
+            harvestHistoryBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="harvest-empty">
+                        You have not submitted any harvest records yet.
+                    </td>
+                </tr>
+            `;
+        }
 
         if (rejectedHarvestBody) {
             rejectedHarvestBody.innerHTML = `
@@ -524,7 +737,7 @@ async function loadHarvestHistory() {
     }
 
     const plantingIds = [
-        ...new Set(records.map(record => record.planting_id))
+        ...new Set(records.map(record => record.planting_id).filter(Boolean))
     ];
 
     const { data: plantings, error: plantingError } = await supabase
@@ -543,74 +756,59 @@ async function loadHarvestHistory() {
         ])
     );
 
-    // ==========================================
-    // MY HARVEST HISTORY
-    // Show pending, in-progress, and confirmed only.
-    // Rejected records are displayed separately.
-    // ==========================================
-
     const historyRecords = records.filter(record =>
         record.confirmation_status !== 'rejected'
     );
 
-    if (historyRecords.length === 0) {
-        harvestHistoryBody.innerHTML = `
-            <tr>
-                <td colspan="6" class="harvest-empty">
-                    No active or verified harvest records.
-                </td>
-            </tr>
-        `;
-    } else {
-        harvestHistoryBody.innerHTML = historyRecords.map(record => {
-            const cropName =
-                plantingMap.get(record.planting_id) || 'Crop record';
-
-            const status = record.confirmation_status || 'pending';
-
-            const verifiedQuantity =
-                status === 'confirmed'
-                    ? formatQuantity(
-                        record.verified_quantity,
-                        record.harvest_unit
-                    )
-                    : '—';
-
-            const remarks =
-                status === 'confirmed'
-                    ? record.verification_notes || '—'
-                    : '—';
-
-            return `
+    if (harvestHistoryBody) {
+        if (historyRecords.length === 0) {
+            harvestHistoryBody.innerHTML = `
                 <tr>
-                    <td>${escapeHTML(cropName)}</td>
-
-                    <td>${escapeHTML(formatDate(record.harvested_date))}</td>
-
-                    <td>
-                        ${escapeHTML(formatQuantity(
-                record.harvest_quantity,
-                record.harvest_unit
-            ))}
+                    <td colspan="6" class="harvest-empty">
+                        No active or verified harvest records.
                     </td>
-
-                    <td>${escapeHTML(verifiedQuantity)}</td>
-
-                    <td>
-                        <span class="harvest-status status-${escapeHTML(status)}">
-                            ${escapeHTML(getStatusLabel(status))}
-                        </span>
-                    </td>
-
-                    <td>${escapeHTML(remarks)}</td>
                 </tr>
             `;
-        }).join('');
-    }
+        } else {
+            harvestHistoryBody.innerHTML = historyRecords.map(record => {
+                const cropName =
+                    plantingMap.get(record.planting_id) || 'Crop record';
 
-    // ==========================================
-    // REJECTED HARVESTS
-    // ==========================================
+                const status = record.confirmation_status || 'pending';
+
+                const verifiedQuantity =
+                    status === 'confirmed'
+                        ? formatQuantity(
+                            record.verified_quantity,
+                            record.harvest_unit
+                        )
+                        : '—';
+
+                const remarks =
+                    status === 'confirmed'
+                        ? record.verification_notes || '—'
+                        : '—';
+
+                return `
+                    <tr>
+                        <td>${escapeHTML(cropName)}</td>
+                        <td>${escapeHTML(formatDate(record.harvested_date))}</td>
+                        <td>${escapeHTML(formatQuantity(
+                            record.harvest_quantity,
+                            record.harvest_unit
+                        ))}</td>
+                        <td>${escapeHTML(verifiedQuantity)}</td>
+                        <td>
+                            <span class="harvest-status status-${escapeHTML(status)}">
+                                ${escapeHTML(getStatusLabel(status))}
+                            </span>
+                        </td>
+                        <td>${escapeHTML(remarks)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
 
     if (!rejectedHarvestBody) return;
 
@@ -637,44 +835,39 @@ async function loadHarvestHistory() {
         return `
             <tr>
                 <td>${escapeHTML(cropName)}</td>
-
                 <td>${escapeHTML(formatDate(record.harvested_date))}</td>
-
+                <td>${escapeHTML(formatQuantity(
+                    record.harvest_quantity,
+                    record.harvest_unit
+                ))}</td>
+                <td>${escapeHTML(
+                    record.verification_notes ||
+                    'No rejection remarks provided.'
+                )}</td>
                 <td>
-                    ${escapeHTML(formatQuantity(
-            record.harvest_quantity,
-            record.harvest_unit
-        ))}
-                </td>
-
-                <td>
-                    ${escapeHTML(
-            record.verification_notes ||
-            'No rejection remarks provided.'
-        )}
-                </td>
-
-                <td>
-                    <button
-                        type="button"
-                        class="harvest-resubmit-btn"
-                        data-resubmit-id="${escapeHTML(record.harvest_id)}"
-                    >
-                        Resubmit
-                    </button>
+                    ${canEditHarvest
+                        ? `<button
+                            type="button"
+                            class="harvest-resubmit-btn"
+                            data-resubmit-id="${escapeHTML(record.harvest_id)}"
+                        >
+                            Resubmit
+                        </button>`
+                        : '—'
+                    }
                 </td>
             </tr>
         `;
     }).join('');
 
-    // ==========================================
-    // RESUBMIT BUTTON EVENTS
-    // ==========================================
+    if (!canEditHarvest) return;
 
     rejectedHarvestBody
         .querySelectorAll('[data-resubmit-id]')
         .forEach(button => {
             button.addEventListener('click', () => {
+                if (!canEditHarvest) return;
+
                 const rejectedRecord = rejectedRecords.find(
                     record =>
                         String(record.harvest_id) ===
@@ -691,34 +884,49 @@ async function loadHarvestHistory() {
 
                 resubmittingHarvestId = rejectedRecord.harvest_id;
 
-                plantingSelect.value = rejectedRecord.planting_id;
-                harvestedDateInput.value =
-                    rejectedRecord.harvested_date || '';
+                if (plantingSelect) {
+                    plantingSelect.value = rejectedRecord.planting_id;
+                }
 
-                harvestQuantityInput.value =
-                    rejectedRecord.harvest_quantity ?? '';
+                if (harvestedDateInput) {
+                    harvestedDateInput.value =
+                        rejectedRecord.harvested_date || '';
+                }
 
-                harvestUnitInput.value =
-                    rejectedRecord.harvest_unit || '';
+                if (harvestQuantityInput) {
+                    harvestQuantityInput.value =
+                        rejectedRecord.harvest_quantity ?? '';
+                }
 
-                harvestNotesInput.value =
-                    rejectedRecord.notes || '';
+                if (harvestUnitInput) {
+                    harvestUnitInput.value =
+                        rejectedRecord.harvest_unit || '';
+                }
 
-                submitHarvestButton.textContent = 'Resubmit Harvest';
+                if (harvestNotesInput) {
+                    harvestNotesInput.value =
+                        rejectedRecord.notes || '';
+                }
+
+                if (submitHarvestButton) {
+                    submitHarvestButton.disabled = false;
+                    submitHarvestButton.textContent = 'Resubmit Harvest';
+                }
 
                 showMessage(
-                    `Rejection Reason: ${rejectedRecord.verification_notes ||
-                    'No reason provided.'
+                    `Rejection Reason: ${
+                        rejectedRecord.verification_notes ||
+                        'No reason provided.'
                     } Please correct your details before resubmitting.`,
                     'error'
                 );
 
-                harvestForm.scrollIntoView({
+                harvestForm?.scrollIntoView({
                     behavior: 'smooth',
                     block: 'center'
                 });
 
-                harvestQuantityInput.focus();
+                harvestQuantityInput?.focus();
             });
         });
 }
@@ -727,9 +935,8 @@ async function loadHarvestHistory() {
 // REALTIME HARVEST UPDATES
 // ==========================================
 
-/** Subscribe to harvest changes and refresh the current harvest display. */
 function subscribeToHarvestUpdates() {
-    if (!currentUser) return;
+    if (!currentUser || !canViewHarvests) return;
 
     if (harvestRealtimeChannel) {
         supabase.removeChannel(harvestRealtimeChannel);
@@ -756,15 +963,19 @@ function subscribeToHarvestUpdates() {
         });
 }
 
+function cleanupHarvestRealtime() {
+    if (harvestRealtimeChannel) {
+        supabase.removeChannel(harvestRealtimeChannel);
+        harvestRealtimeChannel = null;
+    }
+}
+
 // ==========================================
 // LOGOUT
 // ==========================================
 
 async function handleLogout() {
-    if (harvestRealtimeChannel) {
-        await supabase.removeChannel(harvestRealtimeChannel);
-        harvestRealtimeChannel = null;
-    }
+    cleanupHarvestRealtime();
 
     const { error } = await supabase.auth.signOut();
 
@@ -781,42 +992,66 @@ async function handleLogout() {
 // INITIALIZATION
 // ==========================================
 
-/** Verify the farmer session, load harvest data, and attach page handlers. */
 async function initializeHarvestPage() {
-    applyTheme(readSavedTheme() || 'light');
+    try {
+        applyTheme(readSavedTheme() || 'light');
 
-    harvestedDateInput.max = getLocalDate();
+        if (harvestedDateInput) {
+            harvestedDateInput.max = getLocalDate();
+        }
 
-    const isValidFarmer = await validateFarmerSession();
+        const isValidFarmer = await validateFarmerSession();
 
-    if (!isValidFarmer) return;
+        if (!isValidFarmer) return;
 
-    displayFarmerProfile();
+        displayFarmerProfile();
 
-    await loadAssignedPlantings();
-    await loadHarvestHistory();
+        const hasViewPermission = await loadHarvestPermissions();
 
-    subscribeToHarvestUpdates();
+        await applyNavigationPermissions();
 
-    harvestForm.addEventListener('submit', handleHarvestSubmission);
-    logoutButton?.addEventListener('click', handleLogout);
+        if (!hasViewPermission) {
+            showAccessDenied();
+            return;
+        }
 
-    document.querySelectorAll('[data-coming-soon]').forEach(link => {
-        link.addEventListener('click', event => {
-            event.preventDefault();
-            alert('This feature is not yet available.');
+        configureHarvestForm();
+
+        if (canCreateHarvest || canEditHarvest) {
+            await loadAssignedPlantings();
+        }
+
+        await loadHarvestHistory();
+
+        subscribeToHarvestUpdates();
+
+        harvestForm?.addEventListener('submit', handleHarvestSubmission);
+        logoutButton?.addEventListener('click', handleLogout);
+
+        document.querySelectorAll('[data-coming-soon]').forEach(link => {
+            link.addEventListener('click', event => {
+                event.preventDefault();
+                alert('This feature is not yet available.');
+            });
         });
-    });
+
+    } catch (error) {
+        console.error('Farmer Harvest Page Initialization Error:', error);
+
+        showMessage(
+            error.message || 'Something went wrong while loading the page.',
+            'error'
+        );
+
+    } finally {
+        hidePermissionsLoading();
+    }
 }
 
 // ==========================================
 // CLEANUP
 // ==========================================
 
-window.addEventListener('beforeunload', () => {
-    if (harvestRealtimeChannel) {
-        supabase.removeChannel(harvestRealtimeChannel);
-    }
-});
+window.addEventListener('beforeunload', cleanupHarvestRealtime);
 
 initializeHarvestPage();

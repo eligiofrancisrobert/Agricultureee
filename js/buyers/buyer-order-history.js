@@ -1,12 +1,16 @@
-
 import { supabase } from '../connection.js';
+
+import {
+    buyerReady,
+    hasPermission
+} from './main.js';
 
 /* =========================================================
    TANIKALA - BUYER ORDER HISTORY
+   Permission: order_history.view
    ========================================================= */
 
 const TABLE_SALES = 'warehouse_sales';
-const TABLE_ITEMS = 'warehouse_sale_items';
 
 const state = {
     buyer: null,
@@ -52,6 +56,51 @@ const elements = {
 
     toastStack: document.getElementById('toastStack')
 };
+
+/* =========================================================
+   PAGE ACCESS
+   ========================================================= */
+
+function hideOrderHistoryPage() {
+    cleanupRealtime();
+
+    const main = document.querySelector('main');
+
+    if (main) {
+        main.hidden = true;
+    } else {
+        const pageElements = [
+            elements.historyLoading,
+            elements.historyError,
+            elements.historyOrdersContainer,
+            elements.historyEmpty,
+            elements.historyModal
+        ];
+
+        pageElements.forEach(element => {
+            if (element) element.hidden = true;
+        });
+    }
+
+    const existingMessage = document.getElementById(
+        'orderHistoryAccessDenied'
+    );
+
+    if (existingMessage) return;
+
+    const denied = document.createElement('section');
+
+    denied.id = 'orderHistoryAccessDenied';
+    denied.className = 'access-denied';
+    denied.setAttribute('role', 'alert');
+
+    denied.innerHTML = `
+        <h2>Access Restricted</h2>
+        <p>You do not have permission to view your order history.</p>
+    `;
+
+    document.body.appendChild(denied);
+}
 
 /* =========================================================
    UTILITIES
@@ -121,19 +170,23 @@ function formatQuantity(quantity, unit) {
 function formatOrderNumber(saleId) {
     if (!saleId) return 'ORDER';
 
-    return `ORDER #${saleId.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+    return `ORDER #${String(saleId)
+        .replace(/-/g, '')
+        .slice(0, 8)
+        .toUpperCase()}`;
 }
 
 function showToast(message, type = 'success') {
     if (!elements.toastStack) return;
 
     const toast = document.createElement('div');
+
     toast.className = `toast toast-${type}`;
     toast.textContent = message;
 
     elements.toastStack.appendChild(toast);
 
-    setTimeout(() => {
+    window.setTimeout(() => {
         toast.remove();
     }, 3500);
 }
@@ -141,20 +194,38 @@ function showToast(message, type = 'success') {
 function setLoading(loading) {
     state.loading = loading;
 
-    elements.historyLoading.hidden = !loading;
+    if (elements.historyLoading) {
+        elements.historyLoading.hidden = !loading;
+    }
 
     if (loading) {
-        elements.historyOrdersContainer.hidden = true;
-        elements.historyEmpty.hidden = true;
-        elements.historyError.hidden = true;
+        if (elements.historyOrdersContainer) {
+            elements.historyOrdersContainer.hidden = true;
+        }
+
+        if (elements.historyEmpty) {
+            elements.historyEmpty.hidden = true;
+        }
+
+        if (elements.historyError) {
+            elements.historyError.hidden = true;
+        }
     }
 }
 
 function showError(message) {
+    if (!elements.historyError) return;
+
     elements.historyError.textContent = message;
     elements.historyError.hidden = false;
-    elements.historyOrdersContainer.hidden = true;
-    elements.historyEmpty.hidden = true;
+
+    if (elements.historyOrdersContainer) {
+        elements.historyOrdersContainer.hidden = true;
+    }
+
+    if (elements.historyEmpty) {
+        elements.historyEmpty.hidden = true;
+    }
 }
 
 function getOrderItems(order) {
@@ -164,45 +235,15 @@ function getOrderItems(order) {
 }
 
 /* =========================================================
-   AUTHENTICATION
-   ========================================================= */
-
-async function initializeBuyer() {
-    const {
-        data: { user },
-        error
-    } = await supabase.auth.getUser();
-
-    if (error || !user) {
-       window.location.replace('../../login.html');
-        return false;
-    }
-
-    state.buyer = user;
-
-    const metadata = user.user_metadata || {};
-
-    const fullName =
-        metadata.full_name ||
-        metadata.fullName ||
-        metadata.name ||
-        user.email?.split('@')[0] ||
-        'Buyer';
-
-    elements.userName.textContent = fullName;
-    elements.userInitial.textContent =
-        fullName.trim().charAt(0).toUpperCase();
-
-    return true;
-}
-
-/* =========================================================
    LOAD COMPLETED ORDERS
    ========================================================= */
 
-/** Load completed sales with their items and refresh history summaries/filters. */
 async function loadOrders() {
-    if (!state.buyer) return;
+    if (!state.buyer || !hasPermission('order_history.view')) {
+        return;
+    }
+
+    if (state.loading) return;
 
     setLoading(true);
 
@@ -246,7 +287,9 @@ async function loadOrders() {
         calculateSummary();
         applyFilters();
 
-        elements.historyError.hidden = true;
+        if (elements.historyError) {
+            elements.historyError.hidden = true;
+        }
 
     } catch (error) {
         console.error('Order History Error:', error);
@@ -296,8 +339,9 @@ function calculateSummary() {
    FILTER AND SORT
    ========================================================= */
 
-/** Apply the current search, completion date, and sort to loaded orders. */
 function applyFilters() {
+    if (!hasPermission('order_history.view')) return;
+
     let filtered = [...state.orders];
 
     if (state.search.trim()) {
@@ -323,11 +367,15 @@ function applyFilters() {
                 ? new Date(order.completed_at)
                 : null;
 
-            if (!completedDate || Number.isNaN(completedDate.getTime())) {
+            if (
+                !completedDate ||
+                Number.isNaN(completedDate.getTime())
+            ) {
                 return false;
             }
 
             const year = completedDate.getFullYear();
+
             const month = String(
                 completedDate.getMonth() + 1
             ).padStart(2, '0');
@@ -426,7 +474,9 @@ function createOrderCardHTML(order) {
         `
         : '';
 
-    const paymentStatus = escapeHTML(order.payment_status || 'unpaid');
+    const paymentStatus = escapeHTML(
+        order.payment_status || 'unpaid'
+    );
 
     const paymentType = order.payment_type
         ? escapeHTML(order.payment_type)
@@ -503,6 +553,8 @@ function createOrderCardHTML(order) {
    ========================================================= */
 
 function renderOrders() {
+    if (!hasPermission('order_history.view')) return;
+
     const orders = state.filteredOrders;
 
     elements.historyOrdersList.innerHTML = '';
@@ -548,8 +600,10 @@ function renderOrders() {
    ========================================================= */
 
 function openOrderDetails(saleId) {
+    if (!hasPermission('order_history.view')) return;
+
     const order = state.orders.find(
-        item => item.sale_id === saleId
+        item => String(item.sale_id) === String(saleId)
     );
 
     if (!order) return;
@@ -673,6 +727,8 @@ function openOrderDetails(saleId) {
 }
 
 function closeOrderDetails() {
+    if (!elements.historyModal) return;
+
     elements.historyModal.hidden = true;
     elements.historyModal.setAttribute('aria-hidden', 'true');
 
@@ -687,21 +743,29 @@ function closeOrderDetails() {
 
 function initializeFilters() {
     elements.historySearch.addEventListener('input', event => {
+        if (!hasPermission('order_history.view')) return;
+
         state.search = event.target.value;
         applyFilters();
     });
 
     elements.historyDateFilter.addEventListener('change', event => {
+        if (!hasPermission('order_history.view')) return;
+
         state.date = event.target.value;
         applyFilters();
     });
 
     elements.historySort.addEventListener('change', event => {
+        if (!hasPermission('order_history.view')) return;
+
         state.sort = event.target.value;
         applyFilters();
     });
 
     elements.resetHistoryFilters.addEventListener('click', () => {
+        if (!hasPermission('order_history.view')) return;
+
         state.search = '';
         state.date = '';
         state.sort = 'newest';
@@ -720,6 +784,8 @@ function initializeFilters() {
 
 function initializeModal() {
     elements.historyOrdersList.addEventListener('click', event => {
+        if (!hasPermission('order_history.view')) return;
+
         const button = event.target.closest(
             '[data-action="view-details"]'
         );
@@ -760,11 +826,14 @@ function initializeModal() {
    ========================================================= */
 
 function initializeRealtime() {
-    if (!state.buyer) return;
-
-    if (state.realtimeChannel) {
-        supabase.removeChannel(state.realtimeChannel);
+    if (
+        !state.buyer ||
+        !hasPermission('order_history.view')
+    ) {
+        return;
     }
+
+    cleanupRealtime();
 
     state.realtimeChannel = supabase
         .channel(`buyer-order-history-${state.buyer.id}`)
@@ -777,7 +846,9 @@ function initializeRealtime() {
                 filter: `buyer_id=eq.${state.buyer.id}`
             },
             () => {
-                loadOrders();
+                if (hasPermission('order_history.view')) {
+                    loadOrders();
+                }
             }
         )
         .subscribe(status => {
@@ -789,68 +860,41 @@ function initializeRealtime() {
         });
 }
 
-/* =========================================================
-   HEADER AND LOGOUT
-   ========================================================= */
-
-function initializeHeader() {
-    if (elements.todayLabel) {
-        elements.todayLabel.textContent =
-            new Date().toLocaleDateString('en-PH', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-            });
+function cleanupRealtime() {
+    if (state.realtimeChannel) {
+        supabase.removeChannel(state.realtimeChannel);
+        state.realtimeChannel = null;
     }
-
-    elements.logoutBtn?.addEventListener('click', async () => {
-        const button = elements.logoutBtn;
-
-        button.disabled = true;
-
-        try {
-            const { error } = await supabase.auth.signOut();
-
-            if (error) throw error;
-
-            window.location.replace('../../login.html');
-
-        } catch (error) {
-            console.error('Logout Error:', error);
-
-            showToast('Unable to log out. Please try again.', 'error');
-
-            button.disabled = false;
-        }
-    });
 }
 
 /* =========================================================
    CLEANUP
    ========================================================= */
 
-window.addEventListener('pagehide', () => {
-    if (state.realtimeChannel) {
-        supabase.removeChannel(state.realtimeChannel);
-        state.realtimeChannel = null;
-    }
-});
+window.addEventListener('pagehide', cleanupRealtime);
 
 /* =========================================================
    INITIALIZATION
    ========================================================= */
 
-/** Load the buyer identity before setting up the completed-order history page. */
 async function initializeOrderHistory() {
     try {
-        initializeHeader();
+        // Wait for shared Buyer authentication and permission loading.
+        const auth = await buyerReady;
+
+        if (!auth) return;
+
+        // Stop initialization completely when permission is disabled.
+        if (!hasPermission('order_history.view')) {
+            hideOrderHistoryPage();
+            return;
+        }
+
+        state.buyer = auth.user;
+
+        // Shared main.js handles the header and logout.
         initializeFilters();
         initializeModal();
-
-        const authenticated = await initializeBuyer();
-
-        if (!authenticated) return;
 
         await loadOrders();
 

@@ -2,16 +2,17 @@
 import { supabase } from "../connection.js";
 
 /* ============================================================
-   BUYER - shared module
-   Theme, authentication guard, logout, toast and formatters.
-
-   Directly reference this file in every Buyer HTML:
-   <script type="module" src="../js/buyers/main.js"></script>
+   BUYER - SHARED MODULE
+   Authentication, permissions, theme, logout and formatters.
    ============================================================ */
 
 const THEME_KEY = "theme";
 const LOGIN_URL = "../../login.html";
 const BUYER_ROLE = "buyer";
+
+let currentPermissions = new Map();
+let permissionsLoaded = false;
+let sessionGuardReady = false;
 
 /* ============ THEME ============ */
 
@@ -38,7 +39,9 @@ function initializeTheme() {
 
     const toggle = document.getElementById("themeToggle");
 
-    if (toggle) {
+    if (toggle && toggle.dataset.themeInitialized !== "true") {
+        toggle.dataset.themeInitialized = "true";
+
         toggle.addEventListener("click", event => {
             event.stopImmediatePropagation();
 
@@ -113,10 +116,122 @@ export function showToast(message, type = "success") {
     );
 
     toast.textContent = message;
-
     stack.appendChild(toast);
 
     setTimeout(() => toast.remove(), 4000);
+}
+
+/* ============ PERMISSIONS ============ */
+
+async function loadBuyerPermissions(userId) {
+    const [roleResult, userResult] = await Promise.all([
+        supabase
+            .from("role_permissions")
+            .select("permission_key, is_allowed")
+            .eq("role_key", BUYER_ROLE),
+
+        supabase
+            .from("user_permissions")
+            .select("permission_key, is_allowed")
+            .eq("user_id", userId)
+    ]);
+
+    if (roleResult.error) {
+        throw roleResult.error;
+    }
+
+    if (userResult.error) {
+        throw userResult.error;
+    }
+
+    const roleDefaults = new Map(
+        (roleResult.data || []).map(item => [
+            item.permission_key,
+            Boolean(item.is_allowed)
+        ])
+    );
+
+    const individualOverrides = new Map(
+        (userResult.data || []).map(item => [
+            item.permission_key,
+            Boolean(item.is_allowed)
+        ])
+    );
+
+    currentPermissions = new Map(roleDefaults);
+
+    // Individual permissions override role defaults.
+    for (const [key, allowed] of individualOverrides) {
+        currentPermissions.set(key, allowed);
+    }
+
+    permissionsLoaded = true;
+
+    console.log("Buyer permissions loaded:", {
+        roleDefaults: roleDefaults.size,
+        individualOverrides: individualOverrides.size,
+        effectivePermissions: currentPermissions.size
+    });
+
+    return currentPermissions;
+}
+
+export function hasPermission(permissionKey) {
+    if (!permissionsLoaded || !permissionKey) {
+        return false;
+    }
+
+    return currentPermissions.get(permissionKey) === true;
+}
+
+export function hasAnyPermission(permissionKeys = []) {
+    return permissionKeys.some(key => hasPermission(key));
+}
+
+export function hasAllPermissions(permissionKeys = []) {
+    return permissionKeys.every(key => hasPermission(key));
+}
+
+export function getBuyerPermissions() {
+    return new Map(currentPermissions);
+}
+
+export function requirePermission(permissionKey) {
+    if (hasPermission(permissionKey)) {
+        return true;
+    }
+
+    showToast(
+        "You do not have permission to perform this action.",
+        "error"
+    );
+
+    return false;
+}
+
+export function applyPermissionVisibility(container = document) {
+    const elements = [];
+
+    if (container.matches?.("[data-permission]")) {
+        elements.push(container);
+    }
+
+    elements.push(
+        ...container.querySelectorAll("[data-permission]")
+    );
+
+    elements.forEach(element => {
+        const permissionKey = element.dataset.permission;
+        const action = element.dataset.permissionAction || "hide";
+        const allowed = hasPermission(permissionKey);
+
+        if (action === "disable") {
+            element.disabled = !allowed;
+            element.setAttribute("aria-disabled", String(!allowed));
+        } else {
+            element.hidden = !allowed;
+        }
+    });
 }
 
 /* ============ HEADER ============ */
@@ -159,7 +274,11 @@ function setupHeader(user) {
 function setupLogout() {
     const button = document.getElementById("logoutBtn");
 
-    if (!button) return;
+    if (!button || button.dataset.logoutInitialized === "true") {
+        return;
+    }
+
+    button.dataset.logoutInitialized = "true";
 
     const defaultHTML = button.innerHTML;
 
@@ -190,11 +309,73 @@ function setupLogout() {
     });
 }
 
-/* ============ AUTHENTICATION ============ */
+/* ============ SESSION GUARD ============ */
 
-async function initializeBuyer() {
+function setupSessionGuard() {
+    if (sessionGuardReady) return;
+
+    sessionGuardReady = true;
+
+    window.addEventListener("pageshow", async () => {
+        try {
+            const {
+                data: { session },
+                error
+            } = await supabase.auth.getSession();
+
+            if (error || !session) {
+                window.location.replace(LOGIN_URL);
+            }
+        } catch (error) {
+            console.error("Buyer session validation failed:", error);
+            window.location.replace(LOGIN_URL);
+        }
+    });
+
+    supabase.auth.onAuthStateChange(event => {
+        if (event === "SIGNED_OUT") {
+            currentPermissions.clear();
+            permissionsLoaded = false;
+
+            window.location.replace(LOGIN_URL);
+        }
+    });
+}
+
+/* ============ ACCESS DENIED ============ */
+
+function showAccessDenied(
+    message = "Your account is not authorized to access this page."
+) {
+    currentPermissions.clear();
+    permissionsLoaded = false;
+
+    document.body.innerHTML = `
+        <main style="padding:40px;text-align:center">
+            <h2>Access Denied</h2>
+            <p>${escapeHtml(message)}</p>
+            <button id="returnToLogin">
+                Return to Login
+            </button>
+        </main>
+    `;
+
+    document
+        .getElementById("returnToLogin")
+        ?.addEventListener("click", () => {
+            window.location.replace(LOGIN_URL);
+        });
+}
+
+/* ============ PAGE INIT ============ */
+
+export async function initBuyerPage() {
     initializeTheme();
     setupLogout();
+    setupSessionGuard();
+
+    currentPermissions.clear();
+    permissionsLoaded = false;
 
     try {
         const {
@@ -204,7 +385,7 @@ async function initializeBuyer() {
 
         if (authError || !user) {
             window.location.replace(LOGIN_URL);
-            return;
+            return null;
         }
 
         const {
@@ -216,7 +397,9 @@ async function initializeBuyer() {
             .eq("id", user.id)
             .maybeSingle();
 
-        if (profileError) throw profileError;
+        if (profileError) {
+            throw profileError;
+        }
 
         const role = String(profile?.role ?? "")
             .trim()
@@ -226,36 +409,47 @@ async function initializeBuyer() {
             .trim()
             .toLowerCase();
 
-        const statusOk = ["active", "approved"].includes(status);
+        const authorized =
+            Boolean(profile) &&
+            role === BUYER_ROLE &&
+            ["active", "approved"].includes(status);
 
-        if (!profile || role !== BUYER_ROLE || !statusOk) {
-            console.warn("Buyer access denied:", profile);
+        if (!authorized) {
+            console.error("Buyer access denied:", {
+                userId: user.id,
+                role,
+                status
+            });
 
-            await supabase.auth.signOut();
-
-            window.location.replace(LOGIN_URL);
-            return;
+            showAccessDenied();
+            return null;
         }
 
-        setupHeader(user);
+        // Permissions must load before page scripts continue.
+        await loadBuyerPermissions(user.id);
 
-        console.log("Buyer authenticated:", {
-            userId: user.id,
-            profile
-        });
+        setupHeader(user);
+        applyPermissionVisibility();
+
+        return {
+            user,
+            profile,
+            permissions: getBuyerPermissions()
+        };
 
     } catch (error) {
         console.error("Buyer initialization failed:", error);
 
-        showToast(
-            "Unable to initialize your account. Please log in again.",
-            "error"
+        showAccessDenied(
+            "Unable to verify your account permissions. Please contact the administrator."
         );
 
-        window.location.replace(LOGIN_URL);
+        return null;
     }
 }
 
 /* ============ AUTOMATIC INITIALIZATION ============ */
 
-initializeBuyer();
+// Export the same initialization promise to Buyer page scripts.
+// Do not call initBuyerPage() again inside individual page scripts.
+export const buyerReady = initBuyerPage();

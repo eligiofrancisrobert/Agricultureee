@@ -1,5 +1,8 @@
-
 import { supabase } from '../connection.js';
+import {
+    initAccountantPage,
+    hasPermission
+} from './main.js';
 
 /* =========================================================
    TANIKALA - ACCOUNTANT SALES RECORDS
@@ -25,7 +28,8 @@ const state = {
     monthlyYear: new Date().getFullYear(),
     charts: {},
     realtimeChannel: null,
-    loading: false
+    loading: false,
+    initialized: false
 };
 
 const $ = selector => document.querySelector(selector);
@@ -114,7 +118,6 @@ function formatDate(value) {
     });
 }
 
-/** Format a date/time value for the accountant's transaction display. */
 function formatDateTime(value) {
     if (!value) return '—';
 
@@ -177,7 +180,6 @@ function getSaleItems(saleId) {
     return state.items.filter(item => item.sale_id === saleId);
 }
 
-/** Resolve the buyer label from the current buyer lookup and sale ID. */
 function getBuyerName(sale) {
     const buyer = state.buyers.find(
         item => item.user_id === sale.buyer_id
@@ -195,10 +197,59 @@ function getPaymentStatusClass(status) {
 }
 
 /* =========================================================
+   PERMISSIONS
+   ========================================================= */
+
+function applyPermissionVisibility() {
+    const canExport = hasPermission('reports.export');
+
+    if (elements.export) {
+        elements.export.hidden = !canExport;
+        elements.export.disabled = !canExport;
+    }
+}
+
+function checkSalesPermission() {
+    if (hasPermission('sales_records.view')) {
+        return true;
+    }
+
+    showToast(
+        'You do not have permission to view sales records.',
+        'error'
+    );
+
+    if (elements.refresh) elements.refresh.hidden = true;
+    if (elements.export) elements.export.hidden = true;
+
+    if (elements.tableBody) {
+        elements.tableBody.innerHTML = `
+            <tr>
+                <td colspan="9" class="table-loading">
+                    You do not have permission to view sales records.
+                </td>
+            </tr>
+        `;
+    }
+
+    if (elements.emptyState) {
+        elements.emptyState.hidden = true;
+    }
+
+    return false;
+}
+
+/* =========================================================
    FETCH DATA
    ========================================================= */
 
 async function fetchSales() {
+    if (!state.initialized || !hasPermission('sales_records.view')) {
+        return;
+    }
+
+    if (state.loading) return;
+
     setLoading(true);
 
     try {
@@ -305,7 +356,6 @@ async function fetchSales() {
    REPORTING PERIOD
    ========================================================= */
 
-/** Return the start/end boundaries selected by the reporting-period control. */
 function getPeriodRange() {
     const now = new Date();
 
@@ -438,18 +488,17 @@ function renderSummary() {
         0
     );
 
-    elements.revenue.textContent = peso(revenue);
-    elements.totalOrders.textContent = number(periodSales.length);
-    elements.paidOrders.textContent = number(paid.length);
-    elements.unpaidOrders.textContent = number(unpaid.length);
-    elements.refundedOrders.textContent = number(refunded.length);
+    if (elements.revenue) elements.revenue.textContent = peso(revenue);
+    if (elements.totalOrders) elements.totalOrders.textContent = number(periodSales.length);
+    if (elements.paidOrders) elements.paidOrders.textContent = number(paid.length);
+    if (elements.unpaidOrders) elements.unpaidOrders.textContent = number(unpaid.length);
+    if (elements.refundedOrders) elements.refundedOrders.textContent = number(refunded.length);
 }
 
 /* =========================================================
    TRANSACTION TABLE
    ========================================================= */
 
-/** Filter and draw transactions for the selected reporting period. */
 function renderTransactions() {
     const filtered = state.filteredSales;
 
@@ -574,6 +623,8 @@ function renderTransactions() {
    ========================================================= */
 
 function openSaleDetails(saleId) {
+    if (!hasPermission('sales_records.view')) return;
+
     const sale = state.sales.find(
         item => item.sale_id === saleId
     );
@@ -680,7 +731,6 @@ function closeSaleDetails() {
    CHART UTILITIES
    ========================================================= */
 
-/** Destroy a named chart instance before replacing its visualization. */
 function destroyChart(name) {
     if (state.charts[name]) {
         state.charts[name].destroy();
@@ -995,6 +1045,14 @@ function renderMonthlySalesChart() {
    ========================================================= */
 
 function exportSalesCSV() {
+    if (!hasPermission('reports.export')) {
+        showToast(
+            'You do not have permission to export reports.',
+            'error'
+        );
+        return;
+    }
+
     if (!state.filteredSales.length) {
         showToast('There are no transactions to export.', 'error');
         return;
@@ -1105,6 +1163,8 @@ function renderAll() {
    ========================================================= */
 
 function subscribeRealtime() {
+    if (!hasPermission('sales_records.view')) return;
+
     if (state.realtimeChannel) {
         supabase.removeChannel(state.realtimeChannel);
     }
@@ -1224,9 +1284,41 @@ function bindEvents() {
    ========================================================= */
 
 async function initAccountantSales() {
-    bindEvents();
-    await fetchSales();
-    subscribeRealtime();
+    try {
+        const context = await initAccountantPage();
+
+        if (!context) return;
+
+        if (!checkSalesPermission()) return;
+
+        state.initialized = true;
+
+        applyPermissionVisibility();
+        bindEvents();
+
+        await fetchSales();
+
+        subscribeRealtime();
+
+    } catch (error) {
+        console.error(
+            'Accountant sales initialization failed:',
+            error
+        );
+
+        showToast(
+            'Unable to initialize sales records. Please refresh the page.',
+            'error'
+        );
+    }
 }
 
-document.addEventListener('DOMContentLoaded', initAccountantSales);
+if (document.readyState === 'loading') {
+    document.addEventListener(
+        'DOMContentLoaded',
+        initAccountantSales,
+        { once: true }
+    );
+} else {
+    initAccountantSales();
+}

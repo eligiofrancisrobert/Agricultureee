@@ -1,10 +1,10 @@
-
 import { supabase } from "../connection.js";
 import {
     initAccountantPage,
     escapeHtml,
     formatPeso,
-    formatDate
+    formatDate,
+    hasPermission
 } from "./main.js";
 
 /* ============================================================
@@ -134,6 +134,7 @@ async function loadBuyers() {
 /* ============================================================
    FILTER HELPERS
    ============================================================ */
+
 const paidSales = () =>
     state.sales.filter(isPaid);
 
@@ -451,6 +452,18 @@ async function initializeDashboard() {
 
         if (!context) return;
 
+        /* Check dashboard viewing permission before loading records. */
+        if (!hasPermission("dashboard.view")) {
+            $("loadingState").hidden = true;
+            $("dashboardContent").hidden = true;
+            $("errorState").hidden = false;
+
+            $("errorState").textContent =
+                "You do not have permission to access the Accountant Dashboard.";
+
+            return;
+        }
+
         state.sales = await loadSales();
 
         /*
@@ -462,6 +475,7 @@ async function initializeDashboard() {
 
         $("loadingState").hidden = true;
         $("dashboardContent").hidden = false;
+        $("errorState").hidden = true;
 
         renderStats();
         renderRecent();
@@ -494,6 +508,7 @@ async function initializeDashboard() {
         );
 
         $("loadingState").hidden = true;
+        $("dashboardContent").hidden = true;
         $("errorState").hidden = false;
 
         $("errorState").textContent =

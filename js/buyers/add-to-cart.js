@@ -1,4 +1,11 @@
+
 import { supabase } from '../connection.js';
+
+import {
+  buyerReady,
+  hasPermission,
+  requirePermission,
+} from './main.js';
 
 const TABLE_CART = 'buyer_cart_items';
 const TABLE_INVENTORY = 'warehouse_produce_inventory';
@@ -8,14 +15,12 @@ const STORAGE_BUCKET = 'warehouse-inventory-photos';
 const SIGNED_URL_EXPIRY = 3600;
 
 // sessionStorage keys
-const DESELECTED_KEY = 'tanikala_cart_deselected';   // unchecked items (kept while on the cart page)
-const CHECKOUT_KEY = 'tanikala_checkout_items';      // cart_item_ids passed to place-order
+const DESELECTED_KEY = 'tanikala_cart_deselected';
+const CHECKOUT_KEY = 'tanikala_checkout_items';
 
 const state = {
   buyerId: null,
   cartItems: [],
-  // Items are selected by default. Only unchecked ones are tracked,
-  // so newly added items are automatically selected.
   deselectedIds: loadDeselectedIds(),
 };
 
@@ -23,7 +28,6 @@ const el = {
   todayLabel: document.getElementById('todayLabel'),
   userName: document.getElementById('userName'),
   userInitial: document.getElementById('userInitial'),
-  logoutBtn: document.getElementById('logoutBtn'),
 
   cartCount: document.getElementById('cartCount'),
   cartLoading: document.getElementById('cartLoading'),
@@ -47,6 +51,68 @@ const peso = new Intl.NumberFormat('en-PH', {
   minimumFractionDigits: 2,
 });
 
+let pageInitialized = false;
+
+/* ============================================================
+   PERMISSIONS
+   ============================================================ */
+
+function canViewCart() {
+  return hasPermission('cart.view');
+}
+
+function canEditCart() {
+  return hasPermission('cart.edit');
+}
+
+function canDeleteCart() {
+  return hasPermission('cart.delete');
+}
+
+function canCreateOrders() {
+  return hasPermission('orders.create');
+}
+
+function denyCartPage() {
+  state.cartItems = [];
+
+  const main = document.querySelector('main');
+
+  if (main) {
+    main.hidden = true;
+  }
+
+  if (el.cartLoading) el.cartLoading.hidden = true;
+  if (el.cartLayout) el.cartLayout.hidden = true;
+  if (el.cartEmpty) el.cartEmpty.hidden = true;
+
+  const existing = document.getElementById('buyerPermissionDenied');
+
+  if (existing) return;
+
+  const message = document.createElement('section');
+
+  message.id = 'buyerPermissionDenied';
+  message.style.cssText = `
+    max-width: 600px;
+    margin: 80px auto;
+    padding: 40px 24px;
+    text-align: center;
+  `;
+
+  message.innerHTML = `
+    <h2>Access Denied</h2>
+    <p>You do not have permission to view your shopping cart.</p>
+    <a href="dashboard.html">Return to Dashboard</a>
+  `;
+
+  document.body.appendChild(message);
+}
+
+/* ============================================================
+   GENERAL HELPERS
+   ============================================================ */
+
 function normalize(value) {
   return String(value ?? '').trim().toLowerCase();
 }
@@ -69,7 +135,51 @@ function priceKey(item) {
   ].join('::');
 }
 
-/* ============ SELECTION (checkboxes) ============ */
+function showToast(message, type = 'success') {
+  if (!el.toastStack) return;
+
+  const toast = document.createElement('div');
+  toast.className = `produce-toast ${type}`;
+  toast.textContent = message;
+
+  el.toastStack.appendChild(toast);
+
+  requestAnimationFrame(() => toast.classList.add('show'));
+
+  window.setTimeout(() => {
+    toast.classList.remove('show');
+    window.setTimeout(() => toast.remove(), 250);
+  }, 3000);
+}
+
+function showError(message) {
+  if (!el.cartError) return;
+
+  el.cartError.textContent = message;
+  el.cartError.hidden = false;
+}
+
+function hideError() {
+  if (!el.cartError) return;
+
+  el.cartError.hidden = true;
+  el.cartError.textContent = '';
+}
+
+function setToday() {
+  if (!el.todayLabel) return;
+
+  el.todayLabel.textContent = new Intl.DateTimeFormat('en-PH', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date());
+}
+
+/* ============================================================
+   SELECTION
+   ============================================================ */
 
 function loadDeselectedIds() {
   try {
@@ -89,7 +199,7 @@ function saveDeselectedIds() {
       JSON.stringify([...state.deselectedIds])
     );
   } catch {
-    /* storage unavailable: selection just won't persist */
+    // Ignore unavailable session storage.
   }
 }
 
@@ -101,7 +211,6 @@ function hasValidPrice(product) {
   );
 }
 
-// Unavailable items can never be selected for checkout.
 function isUnavailable(item) {
   const product = item.product;
 
@@ -125,93 +234,32 @@ function getSelectedItems() {
 }
 
 function pruneDeselectedIds() {
-  // Drop ids that are no longer in the cart.
-  const currentIds = new Set(state.cartItems.map((item) => item.cart_item_id));
+  const currentIds = new Set(
+    state.cartItems.map((item) => item.cart_item_id)
+  );
 
   for (const id of [...state.deselectedIds]) {
-    if (!currentIds.has(id)) state.deselectedIds.delete(id);
+    if (!currentIds.has(id)) {
+      state.deselectedIds.delete(id);
+    }
   }
 
   saveDeselectedIds();
 }
 
-/* ============ UI HELPERS ============ */
-
-function setToday() {
-  if (!el.todayLabel) return;
-
-  el.todayLabel.textContent = new Intl.DateTimeFormat('en-PH', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date());
-}
-
-function showToast(message, type = 'success') {
-  if (!el.toastStack) return;
-
-  const toast = document.createElement('div');
-  toast.className = `produce-toast ${type}`;
-  toast.textContent = message;
-
-  el.toastStack.appendChild(toast);
-
-  requestAnimationFrame(() => toast.classList.add('show'));
-
-  window.setTimeout(() => {
-    toast.classList.remove('show');
-    window.setTimeout(() => toast.remove(), 250);
-  }, 3000);
-}
-
-function showError(message) {
-  el.cartError.textContent = message;
-  el.cartError.hidden = false;
-}
-
-function hideError() {
-  el.cartError.hidden = true;
-  el.cartError.textContent = '';
-}
-
-async function loadBuyerHeader() {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error) throw error;
-
-  if (!user) {
-    window.location.replace('../../login.html');
-    return null;
-  }
-
-  state.buyerId = user.id;
-
-  const metadata = user.user_metadata || {};
-
-  const displayName =
-    metadata.full_name ||
-    metadata.fullName ||
-    metadata.name ||
-    user.email ||
-    'Buyer';
-
-  el.userName.textContent = displayName;
-  el.userInitial.textContent =
-    displayName.trim().charAt(0).toUpperCase() || 'B';
-
-  return user;
-}
+/* ============================================================
+   CART COUNT
+   ============================================================ */
 
 async function loadCartCount() {
-  if (!state.buyerId) return;
+  if (!state.buyerId || !canViewCart()) return;
 
   const { count, error } = await supabase
     .from(TABLE_CART)
-    .select('cart_item_id', { count: 'exact', head: true })
+    .select('cart_item_id', {
+      count: 'exact',
+      head: true,
+    })
     .eq('buyer_id', state.buyerId);
 
   if (error) {
@@ -221,12 +269,18 @@ async function loadCartCount() {
 
   const total = Number(count || 0);
 
-  el.cartCount.textContent = total > 99 ? '99+' : String(total);
-  el.cartCount.hidden = total === 0;
+  if (el.cartCount) {
+    el.cartCount.textContent = total > 99 ? '99+' : String(total);
+    el.cartCount.hidden = total === 0;
+  }
 }
 
+/* ============================================================
+   PHOTO
+   ============================================================ */
+
 async function resolvePhotoUrl(path) {
-  if (!path) return '';
+  if (!path || !canViewCart()) return '';
 
   const cleanPath = String(path).replace(/^\/+/, '');
 
@@ -254,6 +308,10 @@ function createPlaceholder() {
   `;
 }
 
+/* ============================================================
+   CART ITEM MARKUP
+   ============================================================ */
+
 function createSelectAllMarkup() {
   return `
     <div class="cart-select-bar">
@@ -273,6 +331,7 @@ function createSelectAllMarkup() {
 
 function createCartItemMarkup(item) {
   const product = item.product;
+
   const name = escapeHTML(product.crop_name || 'Unnamed produce');
   const unit = escapeHTML(product.unit || 'unit');
 
@@ -283,8 +342,8 @@ function createCartItemMarkup(item) {
   const quantity = Number(item.quantity);
   const available = Number(product.available_quantity);
   const price = Number(product.unit_price);
-  const priceIsValid = hasValidPrice(product);
 
+  const priceIsValid = hasValidPrice(product);
   const lineTotal = quantity * price;
 
   const imageMarkup = product.photo_url
@@ -301,6 +360,54 @@ function createCartItemMarkup(item) {
   const unavailable = isUnavailable(item);
   const stockIssue = !unavailable && hasStockIssue(item);
   const selected = isSelected(item);
+
+  // Quantity input and Update button require cart.edit.
+  const editMarkup = canEditCart()
+    ? `
+      <label for="quantity-${escapeHTML(item.cart_item_id)}">
+        Quantity (${unit})
+      </label>
+
+      <input
+        id="quantity-${escapeHTML(item.cart_item_id)}"
+        class="cart-quantity-input"
+        type="number"
+        min="${min}"
+        max="${available}"
+        step="${step}"
+        value="${quantity}"
+        data-quantity-input
+        ${unavailable ? 'disabled' : ''}
+      >
+
+      <button
+        type="button"
+        class="cart-action-button cart-save-button"
+        data-action="update"
+        ${unavailable ? 'disabled' : ''}
+      >
+        Update quantity
+      </button>
+    `
+    : `
+      <div class="cart-readonly-quantity">
+        <span>Quantity</span>
+        <strong>${quantity.toLocaleString('en-PH')} ${unit}</strong>
+      </div>
+    `;
+
+  // Remove button requires cart.delete.
+  const removeMarkup = canDeleteCart()
+    ? `
+      <button
+        type="button"
+        class="cart-action-button cart-remove-button"
+        data-action="remove"
+      >
+        Remove
+      </button>
+    `
+    : '';
 
   return `
     <article
@@ -343,39 +450,10 @@ function createCartItemMarkup(item) {
         <div class="cart-item-bottom">
 
           <div class="cart-quantity-control">
-            <label for="quantity-${escapeHTML(item.cart_item_id)}">
-              Quantity (${unit})
-            </label>
-
-            <input
-              id="quantity-${escapeHTML(item.cart_item_id)}"
-              class="cart-quantity-input"
-              type="number"
-              min="${min}"
-              max="${available}"
-              step="${step}"
-              value="${quantity}"
-              data-quantity-input
-              ${unavailable ? 'disabled' : ''}
-            >
+            ${editMarkup}
 
             <div class="cart-item-actions">
-              <button
-                type="button"
-                class="cart-action-button cart-save-button"
-                data-action="update"
-                ${unavailable ? 'disabled' : ''}
-              >
-                Update quantity
-              </button>
-
-              <button
-                type="button"
-                class="cart-action-button cart-remove-button"
-                data-action="remove"
-              >
-                Remove
-              </button>
+              ${removeMarkup}
             </div>
           </div>
 
@@ -388,7 +466,8 @@ function createCartItemMarkup(item) {
 
         ${unavailable ? `
           <div class="cart-error">
-            This produce is currently unavailable or has no valid price, so it cannot be selected for checkout. You can remove it from your cart.
+            This produce is currently unavailable or has no valid price, so it cannot be selected for checkout.
+            ${canDeleteCart() ? 'You can remove it from your cart.' : ''}
           </div>
         ` : ''}
 
@@ -403,7 +482,9 @@ function createCartItemMarkup(item) {
   `;
 }
 
-/* ============ SUMMARY + SELECTION SYNC ============ */
+/* ============================================================
+   SELECTION UI
+   ============================================================ */
 
 function syncSelectionUI() {
   const selectableItems = state.cartItems.filter(
@@ -412,7 +493,6 @@ function syncSelectionUI() {
 
   const selectedCount = selectableItems.filter(isSelected).length;
 
-  // Per-item checkbox + card state
   el.cartItemsList
     .querySelectorAll('.cart-item')
     .forEach((card) => {
@@ -431,21 +511,25 @@ function syncSelectionUI() {
       card.classList.toggle('is-unselected', !selected);
     });
 
-  // Select all checkbox
   const selectAll = el.cartItemsList.querySelector('[data-select-all]');
 
   if (selectAll) {
     selectAll.disabled = selectableItems.length === 0;
+
     selectAll.checked =
-      selectableItems.length > 0 && selectedCount === selectableItems.length;
+      selectableItems.length > 0 &&
+      selectedCount === selectableItems.length;
+
     selectAll.indeterminate =
-      selectedCount > 0 && selectedCount < selectableItems.length;
+      selectedCount > 0 &&
+      selectedCount < selectableItems.length;
   }
 
   const countLabel = el.cartItemsList.querySelector('[data-select-count]');
 
   if (countLabel) {
-    countLabel.textContent = `${selectedCount} of ${state.cartItems.length} selected`;
+    countLabel.textContent =
+      `${selectedCount} of ${state.cartItems.length} selected`;
   }
 }
 
@@ -459,62 +543,115 @@ function updateSummary() {
   );
 
   const subtotal = selectedItems.reduce(
-    (sum, item) => sum + Number(item.product.unit_price) * Number(item.quantity),
+    (sum, item) =>
+      sum + Number(item.product.unit_price) * Number(item.quantity),
     0
   );
 
-  el.cartItemCount.textContent =
-    `${items.length} ${items.length === 1 ? 'item' : 'items'} in your cart · ${selectedItems.length} selected`;
+  if (el.cartItemCount) {
+    el.cartItemCount.textContent =
+      `${items.length} ${items.length === 1 ? 'item' : 'items'} in your cart · ${selectedItems.length} selected`;
+  }
 
-  el.summaryItemCount.textContent = selectedItems.length
-    ? `${selectedItems.length} (${totalQuantity.toLocaleString('en-PH')} total quantity)`
-    : '0';
+  if (el.summaryItemCount) {
+    el.summaryItemCount.textContent = selectedItems.length
+      ? `${selectedItems.length} (${totalQuantity.toLocaleString('en-PH')} total quantity)`
+      : '0';
+  }
 
-  el.cartSubtotal.textContent = peso.format(subtotal);
-  el.cartTotal.textContent = peso.format(subtotal);
+  if (el.cartSubtotal) {
+    el.cartSubtotal.textContent = peso.format(subtotal);
+  }
 
-  // Only the selected items can block checkout.
+  if (el.cartTotal) {
+    el.cartTotal.textContent = peso.format(subtotal);
+  }
+
   const hasCheckoutIssue = selectedItems.some(
     (item) => isUnavailable(item) || hasStockIssue(item)
   );
 
-  el.proceedCheckoutBtn.disabled =
-    selectedItems.length === 0 || hasCheckoutIssue;
+  if (el.proceedCheckoutBtn) {
+    el.proceedCheckoutBtn.disabled =
+      !canCreateOrders() ||
+      selectedItems.length === 0 ||
+      hasCheckoutIssue;
+
+    el.proceedCheckoutBtn.hidden = !canCreateOrders();
+  }
 
   syncSelectionUI();
 }
 
+/* ============================================================
+   RENDER CART
+   ============================================================ */
+
 function renderCart() {
-  const items = state.cartItems;
-
-  el.cartLoading.hidden = true;
-
-  if (!items.length) {
-    el.cartLayout.hidden = true;
-    el.cartEmpty.hidden = false;
-    el.cartItemCount.textContent = '0 items in your cart';
-    el.summaryItemCount.textContent = '0';
-    el.cartSubtotal.textContent = peso.format(0);
-    el.cartTotal.textContent = peso.format(0);
-    el.proceedCheckoutBtn.disabled = true;
+  if (!canViewCart()) {
+    denyCartPage();
     return;
   }
 
-  el.cartEmpty.hidden = true;
-  el.cartLayout.hidden = false;
+  const items = state.cartItems;
 
-  el.cartItemsList.innerHTML =
-    createSelectAllMarkup() +
-    items.map(createCartItemMarkup).join('');
+  if (el.cartLoading) {
+    el.cartLoading.hidden = true;
+  }
+
+  if (!items.length) {
+    if (el.cartLayout) el.cartLayout.hidden = true;
+    if (el.cartEmpty) el.cartEmpty.hidden = false;
+
+    if (el.cartItemCount) {
+      el.cartItemCount.textContent = '0 items in your cart';
+    }
+
+    if (el.summaryItemCount) {
+      el.summaryItemCount.textContent = '0';
+    }
+
+    if (el.cartSubtotal) {
+      el.cartSubtotal.textContent = peso.format(0);
+    }
+
+    if (el.cartTotal) {
+      el.cartTotal.textContent = peso.format(0);
+    }
+
+    if (el.proceedCheckoutBtn) {
+      el.proceedCheckoutBtn.disabled = true;
+    }
+
+    return;
+  }
+
+  if (el.cartEmpty) el.cartEmpty.hidden = true;
+  if (el.cartLayout) el.cartLayout.hidden = false;
+
+  if (el.cartItemsList) {
+    el.cartItemsList.innerHTML =
+      createSelectAllMarkup() +
+      items.map(createCartItemMarkup).join('');
+  }
 
   updateSummary();
 }
 
-/** Fetch the buyer's cart with current inventory and price data for display. */
+/* ============================================================
+   LOAD CART
+   ============================================================ */
+
 async function loadCart() {
-  el.cartLoading.hidden = false;
-  el.cartLayout.hidden = true;
-  el.cartEmpty.hidden = true;
+  if (!requirePermission('cart.view')) {
+    denyCartPage();
+    return;
+  }
+
+  if (el.cartLoading) el.cartLoading.hidden = false;
+  if (el.cartLayout) el.cartLayout.hidden = true;
+  if (el.cartEmpty) el.cartEmpty.hidden = true;
+
   hideError();
 
   try {
@@ -526,6 +663,11 @@ async function loadCart() {
 
     if (cartError) throw cartError;
 
+    if (!canViewCart()) {
+      denyCartPage();
+      return;
+    }
+
     if (!cartRows?.length) {
       state.cartItems = [];
       pruneDeselectedIds();
@@ -534,7 +676,9 @@ async function loadCart() {
       return;
     }
 
-    const produceIds = [...new Set(cartRows.map((row) => row.produce_id))];
+    const produceIds = [
+      ...new Set(cartRows.map((row) => row.produce_id))
+    ];
 
     const [inventoryResult, pricesResult] = await Promise.all([
       supabase
@@ -554,6 +698,11 @@ async function loadCart() {
         .from(TABLE_PRICES)
         .select('farm_id, crop_name, unit, unit_price'),
     ]);
+
+    if (!canViewCart()) {
+      denyCartPage();
+      return;
+    }
 
     if (inventoryResult.error) throw inventoryResult.error;
     if (pricesResult.error) throw pricesResult.error;
@@ -606,16 +755,23 @@ async function loadCart() {
       })
     );
 
+    if (!canViewCart()) {
+      state.cartItems = [];
+      denyCartPage();
+      return;
+    }
+
     pruneDeselectedIds();
     renderCart();
+
     await loadCartCount();
 
   } catch (error) {
     console.error('Cart loading failed:', error);
 
-    el.cartLoading.hidden = true;
-    el.cartLayout.hidden = true;
-    el.cartEmpty.hidden = true;
+    if (el.cartLoading) el.cartLoading.hidden = true;
+    if (el.cartLayout) el.cartLayout.hidden = true;
+    if (el.cartEmpty) el.cartEmpty.hidden = true;
 
     showError(
       error?.message || 'Unable to load your shopping cart.'
@@ -623,8 +779,18 @@ async function loadCart() {
   }
 }
 
-/** Validate and persist a cart quantity against current inventory and unit rules. */
+/* ============================================================
+   UPDATE CART ITEM
+   ============================================================ */
+
 async function updateCartItem(button) {
+  if (!requirePermission('cart.edit')) return;
+
+  if (!canViewCart()) {
+    denyCartPage();
+    return;
+  }
+
   const card = button.closest('.cart-item');
   const cartItemId = card?.dataset.cartItemId;
   const input = card?.querySelector('[data-quantity-input]');
@@ -657,15 +823,19 @@ async function updateCartItem(button) {
       `Only ${product.available_quantity} ${product.unit} currently available.`,
       'error'
     );
+
     input?.focus();
     return;
   }
 
   const originalText = button.textContent;
+
   button.disabled = true;
   button.textContent = 'Updating...';
 
   try {
+    if (!requirePermission('cart.edit')) return;
+
     const { error } = await supabase
       .from(TABLE_CART)
       .update({
@@ -688,13 +858,26 @@ async function updateCartItem(button) {
       'error'
     );
 
-    button.disabled = false;
-    button.textContent = originalText;
+  } finally {
+    if (button.isConnected) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
   }
 }
 
-/** Delete the selected cart row and refresh the cart count and summary. */
+/* ============================================================
+   REMOVE CART ITEM
+   ============================================================ */
+
 async function removeCartItem(button) {
+  if (!requirePermission('cart.delete')) return;
+
+  if (!canViewCart()) {
+    denyCartPage();
+    return;
+  }
+
   const card = button.closest('.cart-item');
   const cartItemId = card?.dataset.cartItemId;
 
@@ -710,6 +893,8 @@ async function removeCartItem(button) {
   button.textContent = 'Removing...';
 
   try {
+    if (!requirePermission('cart.delete')) return;
+
     const { error } = await supabase
       .from(TABLE_CART)
       .delete()
@@ -722,6 +907,7 @@ async function removeCartItem(button) {
     saveDeselectedIds();
 
     showToast('Item removed from your cart.', 'success');
+
     await loadCart();
 
   } catch (error) {
@@ -737,10 +923,13 @@ async function removeCartItem(button) {
   }
 }
 
-/* ============ CHECKBOX HANDLERS ============ */
+/* ============================================================
+   CHECKBOX HANDLERS
+   ============================================================ */
 
-/** Persist a checkbox selection change and update totals without rerendering. */
 function handleSelectionChange(input) {
+  if (!canViewCart()) return;
+
   if (input.matches('[data-select-all]')) {
     for (const item of state.cartItems) {
       if (isUnavailable(item)) continue;
@@ -765,13 +954,21 @@ function handleSelectionChange(input) {
   }
 
   saveDeselectedIds();
-
-  // No full re-render, so typed quantities are not lost.
   updateSummary();
 }
 
-/** Pass selected cart item IDs to the checkout page through session storage. */
+/* ============================================================
+   CHECKOUT
+   ============================================================ */
+
 function proceedToCheckout() {
+  if (!requirePermission('orders.create')) return;
+
+  if (!canViewCart()) {
+    denyCartPage();
+    return;
+  }
+
   if (!state.cartItems.length) {
     showToast('Your cart is empty.', 'error');
     return;
@@ -796,39 +993,40 @@ function proceedToCheckout() {
     return;
   }
 
-  // Only the checked items are passed to place-order.
   try {
     sessionStorage.setItem(
       CHECKOUT_KEY,
-      JSON.stringify(selectedItems.map((item) => item.cart_item_id))
+      JSON.stringify(
+        selectedItems.map((item) => item.cart_item_id)
+      )
     );
   } catch (error) {
     console.error('Unable to save checkout selection:', error);
-    showToast('Unable to continue to checkout. Please try again.', 'error');
+
+    showToast(
+      'Unable to continue to checkout. Please try again.',
+      'error'
+    );
+
     return;
   }
 
   window.location.href = 'place-order.html';
 }
 
-async function logout() {
-  const { error } = await supabase.auth.signOut();
-
-  if (error) {
-    showToast(error.message || 'Unable to log out.', 'error');
-    return;
-  }
-
-  window.location.replace('../../login.html');
-}
+/* ============================================================
+   EVENTS
+   ============================================================ */
 
 function bindEvents() {
-  el.logoutBtn?.addEventListener('click', logout);
+  // Logout is already handled by buyers/main.js.
 
-  el.proceedCheckoutBtn?.addEventListener(
-    'click',
-    proceedToCheckout
-  );
+  if (el.proceedCheckoutBtn) {
+    el.proceedCheckoutBtn.addEventListener(
+      'click',
+      proceedToCheckout
+    );
+  }
 
   el.cartItemsList?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-action]');
@@ -836,10 +1034,12 @@ function bindEvents() {
     if (!button || button.disabled) return;
 
     if (button.dataset.action === 'update') {
+      if (!requirePermission('cart.edit')) return;
       updateCartItem(button);
     }
 
     if (button.dataset.action === 'remove') {
+      if (!requirePermission('cart.delete')) return;
       removeCartItem(button);
     }
   });
@@ -855,15 +1055,36 @@ function bindEvents() {
   });
 }
 
-/** Authenticate the buyer and initialize cart loading and event handlers. */
+/* ============================================================
+   INITIALIZATION
+   ============================================================ */
+
 async function init() {
-  setToday();
-  bindEvents();
+  if (pageInitialized) return;
+
+  pageInitialized = true;
 
   try {
-    const user = await loadBuyerHeader();
+    // Wait for authentication and permissions.
+    const auth = await buyerReady;
 
-    if (!user) return;
+    if (!auth) return;
+
+    // Page-level permission.
+    if (!hasPermission('cart.view')) {
+      denyCartPage();
+      return;
+    }
+
+    state.buyerId = auth.user.id;
+
+    setToday();
+    bindEvents();
+
+    // Hide checkout if orders.create is disabled.
+    if (el.proceedCheckoutBtn) {
+      el.proceedCheckoutBtn.hidden = !canCreateOrders();
+    }
 
     await Promise.all([
       loadCart(),
@@ -872,7 +1093,10 @@ async function init() {
 
   } catch (error) {
     console.error('Shopping cart initialization failed:', error);
-    showError(error?.message || 'Unable to initialize your shopping cart.');
+
+    showError(
+      error?.message || 'Unable to initialize your shopping cart.'
+    );
   }
 }
 

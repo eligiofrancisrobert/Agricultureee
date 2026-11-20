@@ -1,4 +1,3 @@
-
 import { supabase } from '../connection.js';
 import { h, pageHead, select, toast } from './ui.js';
 
@@ -85,40 +84,38 @@ const ROLE_PERMISSIONS = {
 
     accountant: new Set([
         ...PROFILE,
-        'invoices.view', 'invoices.create', 'invoices.edit',
-        'payments.view', 'payments.create', 'payments.approve',
+        'produce_records.view',
+        'sales_records.view',
         'payment_history.view',
-        'sales_records.view', 'sales_records.create',
-        'purchase_orders.view', 'purchase_orders.approve',
-        'reports.view', 'reports.export',
+        'reports.view',
+        'settings.view',
     ]),
 
     farmer: new Set([
-        ...PROFILE,
-        'assigned_farms.view',
-        'crops.view',
-        'plant_now.view', 'plant_now.create',
-        'plantings.view', 'plantings.create', 'plantings.edit',
-        'harvest_records.view', 'harvest_records.create',
+        'dashboard.view',
+        'activities.view',
+        'activities.create',
+        'activities.edit',
+        'harvest_records.view',
+        'harvest_records.create',
         'harvest_records.edit',
-        'produce_records.view', 'produce_records.create',
-        'produce_records.edit',
+        'plantings.view',
+        'plantings.edit',
         'recommendations.view',
-        'activities.view', 'activities.create',
-        'sales_records.view',
     ]),
 
     buyer: new Set([
-        ...PROFILE,
-        'browse_produce.view',
-        'products.view',
-        'shopping_cart.view', 'shopping_cart.create',
-        'shopping_cart.edit', 'shopping_cart.delete',
-        'my_orders.view', 'order_history.view',
-        'payments.view', 'payments.create',
-        'payment_history.view',
-        'invoices.view',
-        'deliveries.view',
+        'produce.view',
+        'cart.view',
+        'cart.create',
+        'cart.edit',
+        'cart.delete',
+        'orders.create',
+        'orders.view',
+        'orders.cancel',
+        'order_history.view',
+        'profile.edit',
+        'profile.password',
     ]),
 
     supplier: new Set([
@@ -262,8 +259,6 @@ function getPermissionSource(permissionKey) {
 function setPermissionState(permissionKey, allowed) {
     const roleDefault = getRoleDefault(permissionKey);
 
-    // If the selected value matches the role default,
-    // remove the individual override instead.
     if (allowed === roleDefault) {
         draftOverrides.set(permissionKey, null);
     } else {
@@ -615,7 +610,6 @@ async function changeAccount(userId) {
     await loadSelectedPermissions();
 }
 
-
 async function loadAccounts() {
     const requestId = ++accountRequestId;
     const role = getSelectedRole();
@@ -788,7 +782,6 @@ async function savePermissions() {
             .filter(([, value]) => value === null)
             .map(([permissionKey]) => permissionKey);
 
-        // Save only individual overrides.
         if (rowsToUpsert.length > 0) {
             const { error } = await supabase
                 .from('user_permissions')
@@ -799,8 +792,6 @@ async function savePermissions() {
             if (error) throw error;
         }
 
-        // Remove individual overrides when the selected value
-        // matches the role default.
         if (keysToDelete.length > 0) {
             const { error } = await supabase
                 .from('user_permissions')

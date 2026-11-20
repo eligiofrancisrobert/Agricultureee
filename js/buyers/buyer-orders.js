@@ -1,5 +1,9 @@
-
 import { supabase } from '../connection.js';
+import {
+  buyerReady,
+  hasPermission,
+  requirePermission
+} from './main.js';
 
 const TABLE_SALES = 'warehouse_sales';
 const TABLE_ITEMS = 'warehouse_sale_items';
@@ -20,63 +24,6 @@ let realtimeChannel = null;
 let realtimeReloadTimer = null;
 let realtimeReloadQueued = false;
 let countdownTimer = null;
-
-function subscribeToBuyerOrderChanges() {
-  if (!state.buyerId) return;
-
-  if (realtimeChannel) {
-    supabase.removeChannel(realtimeChannel);
-    realtimeChannel = null;
-  }
-
-  realtimeChannel = supabase
-    .channel(`buyer-orders-${state.buyerId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: TABLE_SALES,
-        filter: `buyer_id=eq.${state.buyerId}`,
-      },
-      () => {
-        scheduleBuyerRealtimeReload();
-      }
-    )
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.info('[Buyer Orders] Realtime connected.');
-      }
-
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        console.error('[Buyer Orders] Realtime connection:', status);
-      }
-    });
-}
-
-function scheduleBuyerRealtimeReload() {
-  window.clearTimeout(realtimeReloadTimer);
-
-  realtimeReloadTimer = window.setTimeout(() => {
-    if (state.loading) {
-      realtimeReloadQueued = true;
-      return;
-    }
-
-    loadOrders({ silent: true });
-  }, 300);
-}
-
-function cleanupBuyerRealtime() {
-  window.clearTimeout(realtimeReloadTimer);
-  realtimeReloadTimer = null;
-  realtimeReloadQueued = false;
-
-  if (realtimeChannel) {
-    supabase.removeChannel(realtimeChannel);
-    realtimeChannel = null;
-  }
-}
 
 const el = {
   todayLabel: document.getElementById('todayLabel'),
@@ -120,6 +67,104 @@ const peso = new Intl.NumberFormat('en-PH', {
   minimumFractionDigits: 2,
 });
 
+/* =========================================================
+   PERMISSION CONTROL
+========================================================= */
+
+function hideOrdersPage() {
+  const main = document.querySelector('main');
+
+  if (main) {
+    main.hidden = true;
+  }
+
+  const pageContent = document.querySelector(
+    '.main-content, .dashboard-content, .page-content'
+  );
+
+  if (pageContent) {
+    pageContent.hidden = true;
+  }
+
+  if (el.modal) el.modal.hidden = true;
+
+  const trackingModal = document.getElementById('trackingModal');
+
+  if (trackingModal) {
+    trackingModal.hidden = true;
+  }
+
+  cleanupBuyerRealtime();
+
+  window.clearInterval(countdownTimer);
+  countdownTimer = null;
+}
+
+/* =========================================================
+   REALTIME
+========================================================= */
+
+function subscribeToBuyerOrderChanges() {
+  if (!state.buyerId || !hasPermission('orders.view')) return;
+
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+
+  realtimeChannel = supabase
+    .channel(`buyer-orders-${state.buyerId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: TABLE_SALES,
+        filter: `buyer_id=eq.${state.buyerId}`,
+      },
+      () => scheduleBuyerRealtimeReload()
+    )
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.info('[Buyer Orders] Realtime connected.');
+      }
+
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.error('[Buyer Orders] Realtime connection:', status);
+      }
+    });
+}
+
+function scheduleBuyerRealtimeReload() {
+  if (!hasPermission('orders.view')) return;
+
+  window.clearTimeout(realtimeReloadTimer);
+
+  realtimeReloadTimer = window.setTimeout(() => {
+    if (state.loading) {
+      realtimeReloadQueued = true;
+      return;
+    }
+
+    loadOrders({ silent: true });
+  }, 300);
+}
+
+function cleanupBuyerRealtime() {
+  window.clearTimeout(realtimeReloadTimer);
+  realtimeReloadTimer = null;
+  realtimeReloadQueued = false;
+
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+}
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
 function escapeHTML(value) {
   return String(value ?? '').replace(/[&<>"']/g, (character) => ({
     '&': '&amp;',
@@ -153,9 +198,9 @@ function formatDate(value, includeTime = false) {
     year: 'numeric',
     ...(includeTime
       ? {
-        hour: 'numeric',
-        minute: '2-digit',
-      }
+          hour: 'numeric',
+          minute: '2-digit',
+        }
       : {}),
   }).format(date);
 }
@@ -171,7 +216,7 @@ function formatStatus(value) {
     shipped: 'Shipped',
     delivered: 'Delivered',
     completed: 'Completed',
-    cancelled: 'Cancelled'
+    cancelled: 'Cancelled',
   };
 
   return labels[status] || (value || 'Unknown');
@@ -212,7 +257,9 @@ function getStatusClass(value) {
     'cancelled',
   ];
 
-  return allowed.includes(status) ? `status-${status}` : 'status-pending';
+  return allowed.includes(status)
+    ? `status-${status}`
+    : 'status-pending';
 }
 
 function getPaymentClass(value) {
@@ -226,6 +273,8 @@ function getPaymentClass(value) {
 }
 
 function showToast(message) {
+  if (!el.toastStack) return;
+
   const toast = document.createElement('div');
 
   toast.className = 'order-toast';
@@ -233,33 +282,38 @@ function showToast(message) {
 
   el.toastStack.appendChild(toast);
 
-  window.setTimeout(() => {
-    toast.remove();
-  }, 3000);
+  window.setTimeout(() => toast.remove(), 3000);
 }
 
 function showError(message) {
+  if (!el.error) return;
+
   el.error.textContent = message;
   el.error.hidden = false;
 }
 
 function hideError() {
+  if (!el.error) return;
+
   el.error.hidden = true;
   el.error.textContent = '';
 }
 
 function setLoading(loading) {
   state.loading = loading;
-  el.loading.hidden = !loading;
-  el.refreshBtn.disabled = loading;
+
+  if (el.loading) el.loading.hidden = !loading;
+  if (el.refreshBtn) el.refreshBtn.disabled = loading;
 
   if (loading) {
-    el.ordersList.hidden = true;
-    el.empty.hidden = true;
+    if (el.ordersList) el.ordersList.hidden = true;
+    if (el.empty) el.empty.hidden = true;
   }
 }
 
 function setToday() {
+  if (!el.todayLabel) return;
+
   el.todayLabel.textContent = new Intl.DateTimeFormat('en-PH', {
     weekday: 'short',
     month: 'short',
@@ -268,40 +322,12 @@ function setToday() {
   }).format(new Date());
 }
 
-async function loadBuyer() {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+/* =========================================================
+   LOAD ORDERS
+========================================================= */
 
-  if (error) throw error;
-
-  if (!user) {
-    window.location.replace('../../login.html');
-    return null;
-  }
-
-  state.buyerId = user.id;
-
-  const metadata = user.user_metadata || {};
-
-  const displayName =
-    metadata.full_name ||
-    metadata.fullName ||
-    metadata.name ||
-    user.email ||
-    'Buyer';
-
-  el.userName.textContent = displayName;
-  el.userInitial.textContent =
-    displayName.trim().charAt(0).toUpperCase() || 'B';
-
-  return user;
-}
-
-/** Fetch the buyer's sales and items, optionally suppressing refresh loading UI. */
 async function loadOrders({ silent = false } = {}) {
-  if (!state.buyerId) return;
+  if (!state.buyerId || !hasPermission('orders.view')) return;
 
   if (state.loading) {
     realtimeReloadQueued = true;
@@ -345,13 +371,11 @@ async function loadOrders({ silent = false } = {}) {
 
     if (salesError) throw salesError;
 
-    const orders = sales || [];
-
-    state.orders = orders;
+    state.orders = sales || [];
     state.itemsBySale.clear();
 
-    if (orders.length > 0) {
-      const saleIds = orders.map(order => order.sale_id);
+    if (state.orders.length > 0) {
+      const saleIds = state.orders.map(order => order.sale_id);
 
       const { data: items, error: itemsError } = await supabase
         .from(TABLE_ITEMS)
@@ -384,7 +408,6 @@ async function loadOrders({ silent = false } = {}) {
     updateSummary();
     applyFilters();
 
-    // Refresh the currently open Order Details modal.
     if (selectedOrderId) {
       const updatedOrder = state.orders.find(
         order => String(order.sale_id) === String(selectedOrderId)
@@ -397,7 +420,6 @@ async function loadOrders({ silent = false } = {}) {
       }
     }
 
-    // Refresh the currently open Tracking modal.
     if (selectedTrackingId) {
       const updatedTrackingOrder = state.orders.find(
         order => String(order.sale_id) === String(selectedTrackingId)
@@ -440,21 +462,25 @@ async function loadOrders({ silent = false } = {}) {
   }
 }
 
+/* =========================================================
+   SUMMARY AND ORDER CARDS
+========================================================= */
+
 function updateSummary() {
   const orders = state.orders;
 
   el.totalOrders.textContent = orders.length;
 
   el.pendingOrders.textContent = orders.filter(
-    (order) => normalize(order.sale_status) === 'pending'
+    order => normalize(order.sale_status) === 'pending'
   ).length;
 
   el.processingOrders.textContent = orders.filter(
-    (order) => normalize(order.sale_status) === 'processing'
+    order => normalize(order.sale_status) === 'processing'
   ).length;
 
   el.completedOrders.textContent = orders.filter(
-    (order) => normalize(order.sale_status) === 'completed'
+    order => normalize(order.sale_status) === 'completed'
   ).length;
 }
 
@@ -464,7 +490,7 @@ function getOrderItems(order) {
 
 function getProductSearchText(order) {
   return getOrderItems(order)
-    .map((item) => item.crop_name || '')
+    .map(item => item.crop_name || '')
     .join(' ')
     .toLowerCase();
 }
@@ -523,34 +549,46 @@ function createOrderCard(order) {
       </div>
 
       ${isShipped ? `
-  <div class="order-payment-reminder ${paymentStatus === 'paid' ? 'is-paid' :
-        paymentStatus === 'refunded' ? 'is-refunded' : ''
-      }">
-    <span class="payment-reminder-icon">
-      ${paymentStatus === 'paid' ? '✓' :
-        paymentStatus === 'refunded' ? '↩' : '₱'
-      }
-    </span>
+        <div class="order-payment-reminder ${
+          paymentStatus === 'paid'
+            ? 'is-paid'
+            : paymentStatus === 'refunded'
+              ? 'is-refunded'
+              : ''
+        }">
+          <span class="payment-reminder-icon">
+            ${
+              paymentStatus === 'paid'
+                ? '✓'
+                : paymentStatus === 'refunded'
+                  ? '↩'
+                  : '₱'
+            }
+          </span>
 
-    <div>
-      <strong>
-        ${paymentStatus === 'paid' ? 'Payment received' :
-        paymentStatus === 'refunded' ? 'Payment refunded' :
-          'Payment reminder'
-      }
-      </strong>
+          <div>
+            <strong>
+              ${
+                paymentStatus === 'paid'
+                  ? 'Payment received'
+                  : paymentStatus === 'refunded'
+                    ? 'Payment refunded'
+                    : 'Payment reminder'
+              }
+            </strong>
 
-      <span>
-        ${paymentStatus === 'paid'
-        ? 'Your payment has been recorded.'
-        : paymentStatus === 'refunded'
-          ? 'This order is marked as refunded.'
-          : `Please prepare ${formatMoney(order.total_amount)} for ${escapeHTML(formatPaymentType(order.payment_type))}.`
-      }
-      </span>
-    </div>
-  </div>
-` : ''}
+            <span>
+              ${
+                paymentStatus === 'paid'
+                  ? 'Your payment has been recorded.'
+                  : paymentStatus === 'refunded'
+                    ? 'This order is marked as refunded.'
+                    : `Please prepare ${formatMoney(order.total_amount)} for ${escapeHTML(formatPaymentType(order.payment_type))}.`
+              }
+            </span>
+          </div>
+        </div>
+      ` : ''}
 
       <div class="order-card-bottom">
         <span class="payment-method">
@@ -601,9 +639,7 @@ function renderOrders(orders) {
     return;
   }
 
-  el.ordersList.innerHTML = orders
-    .map(createOrderCard)
-    .join('');
+  el.ordersList.innerHTML = orders.map(createOrderCard).join('');
 
   el.ordersList.hidden = false;
   el.empty.hidden = true;
@@ -613,7 +649,7 @@ function applyFilters() {
   const searchTerm = normalize(el.search.value);
   const statusFilter = normalize(el.statusFilter.value);
 
-  const filtered = state.orders.filter((order) => {
+  const filtered = state.orders.filter(order => {
     const matchesStatus =
       statusFilter === 'all' ||
       normalize(order.sale_status) === statusFilter;
@@ -634,6 +670,10 @@ function applyFilters() {
   renderOrders(filtered);
 }
 
+/* =========================================================
+   ORDER DETAILS
+========================================================= */
+
 function createDetailField(label, value) {
   return `
     <div class="detail-field">
@@ -650,7 +690,10 @@ function canBuyerCancelOrder(order) {
 }
 
 function createCancellationSection(order) {
-  if (!canBuyerCancelOrder(order)) {
+  if (
+    !hasPermission('orders.cancel') ||
+    !canBuyerCancelOrder(order)
+  ) {
     return '';
   }
 
@@ -675,6 +718,10 @@ function createCancellationSection(order) {
     </section>
   `;
 }
+
+/* =========================================================
+   TRACKING MODAL
+========================================================= */
 
 function ensureTrackingModal() {
   let modal = document.getElementById('trackingModal');
@@ -712,9 +759,6 @@ function ensureTrackingModal() {
   });
 
   modal.querySelector('#closeTrackingBtn')
-    .addEventListener('click', closeTrackingModal);
-
-  modal.querySelector('#trackingDoneBtn')
     .addEventListener('click', closeTrackingModal);
 
   return modal;
@@ -790,7 +834,6 @@ function renderTrackingModal(order) {
   state.selectedTrackingSaleId = order.sale_id;
 
   const expectedAt = order.expected_delivery_at;
-
   const paymentStatus = normalize(order.payment_status);
 
   let paymentReminder = '';
@@ -944,9 +987,13 @@ function closeTrackingModal() {
   }
 }
 
+/* =========================================================
+   ORDER DETAILS MODAL
+========================================================= */
+
 function openOrderDetails(saleId) {
   const order = state.orders.find(
-    (item) => String(item.sale_id) === String(saleId)
+    item => String(item.sale_id) === String(saleId)
   );
 
   if (!order) {
@@ -963,12 +1010,12 @@ function openOrderDetails(saleId) {
     `Placed on ${formatDate(order.created_at, true)}`;
 
   const itemRows = items.length
-    ? items.map((item) => {
-      const quantity = Number(item.quantity) || 0;
-      const unitPrice = Number(item.unit_price) || 0;
-      const lineTotal = Number(item.line_total) || quantity * unitPrice;
+    ? items.map(item => {
+        const quantity = Number(item.quantity) || 0;
+        const unitPrice = Number(item.unit_price) || 0;
+        const lineTotal = Number(item.line_total) || quantity * unitPrice;
 
-      return `
+        return `
           <tr>
             <td>${escapeHTML(item.crop_name || 'Unnamed produce')}</td>
             <td>${escapeHTML(quantity.toLocaleString('en-PH'))} ${escapeHTML(item.unit || '')}</td>
@@ -976,7 +1023,7 @@ function openOrderDetails(saleId) {
             <td>${formatMoney(lineTotal)}</td>
           </tr>
         `;
-    }).join('')
+      }).join('')
     : `
       <tr>
         <td colspan="4">No order items found.</td>
@@ -1011,9 +1058,7 @@ function openOrderDetails(saleId) {
             </tr>
           </thead>
 
-          <tbody>
-            ${itemRows}
-          </tbody>
+          <tbody>${itemRows}</tbody>
         </table>
       </div>
     </section>
@@ -1087,12 +1132,16 @@ function openOrderDetails(saleId) {
   el.closeModalBtn.focus();
 }
 
-/** Recheck the latest order status and request cancellation when still allowed. */
+/* =========================================================
+   CANCEL ORDER
+========================================================= */
+
 async function cancelBuyerOrder(saleId) {
+  if (!requirePermission('orders.cancel')) return;
   if (state.cancelling) return;
 
   const order = state.orders.find(
-    (item) => String(item.sale_id) === String(saleId)
+    item => String(item.sale_id) === String(saleId)
   );
 
   if (!order) {
@@ -1150,8 +1199,6 @@ async function cancelBuyerOrder(saleId) {
       error?.message || 'Unable to cancel this order. Please try again.'
     );
 
-    // Reload the latest status in case the Warehouse Officer
-    // changed the order while the Buyer was viewing it.
     await loadOrders();
 
     if (state.selectedOrder) {
@@ -1172,29 +1219,24 @@ function closeOrderDetails() {
   }
 }
 
-async function logout() {
-  const { error } = await supabase.auth.signOut();
-
-  if (error) {
-    showToast(error.message || 'Unable to log out.');
-    return;
-  }
-
-  window.location.replace('../../login.html');
-}
+/* =========================================================
+   EVENTS
+========================================================= */
 
 function bindEvents() {
-  el.search.addEventListener('input', applyFilters);
-  el.statusFilter.addEventListener('change', applyFilters);
+  el.search?.addEventListener('input', applyFilters);
+  el.statusFilter?.addEventListener('change', applyFilters);
 
-  el.refreshBtn.addEventListener('click', async () => {
+  el.refreshBtn?.addEventListener('click', async () => {
+    if (!hasPermission('orders.view')) return;
+
     await loadOrders();
     showToast('Order list refreshed.');
   });
 
-  el.logoutBtn.addEventListener('click', logout);
+  // Logout is already handled by buyers/main.js.
 
-  el.ordersList.addEventListener('click', async event => {
+  el.ordersList?.addEventListener('click', event => {
     const trackButton = event.target.closest('.track-order-btn');
 
     if (trackButton) {
@@ -1209,8 +1251,7 @@ function bindEvents() {
     }
   });
 
-  // Event delegation for the dynamically rendered Cancel Order button.
-  el.modalBody.addEventListener('click', async (event) => {
+  el.modalBody?.addEventListener('click', async event => {
     const button = event.target.closest('#cancelOrderBtn');
 
     if (!button) return;
@@ -1218,16 +1259,16 @@ function bindEvents() {
     await cancelBuyerOrder(button.dataset.saleId);
   });
 
-  el.closeModalBtn.addEventListener('click', closeOrderDetails);
-  el.modalDoneBtn.addEventListener('click', closeOrderDetails);
+  el.closeModalBtn?.addEventListener('click', closeOrderDetails);
+  el.modalDoneBtn?.addEventListener('click', closeOrderDetails);
 
-  el.modal.addEventListener('click', (event) => {
+  el.modal?.addEventListener('click', event => {
     if (event.target === el.modal && !state.cancelling) {
       closeOrderDetails();
     }
   });
 
-  document.addEventListener('keydown', (event) => {
+  document.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
 
     const trackingModal = document.getElementById('trackingModal');
@@ -1242,13 +1283,15 @@ function bindEvents() {
     }
   });
 
-  el.mobileMenuBtn.addEventListener('click', () => {
-    el.sidebar.classList.toggle('open');
+  el.mobileMenuBtn?.addEventListener('click', () => {
+    el.sidebar?.classList.toggle('open');
   });
 
-  document.addEventListener('click', (event) => {
+  document.addEventListener('click', event => {
     if (
       window.innerWidth <= 760 &&
+      el.sidebar &&
+      el.mobileMenuBtn &&
       !el.sidebar.contains(event.target) &&
       !el.mobileMenuBtn.contains(event.target)
     ) {
@@ -1257,18 +1300,32 @@ function bindEvents() {
   });
 }
 
-/** Authenticate the buyer and initialize the order list and tracking controls. */
+/* =========================================================
+   INITIALIZATION
+========================================================= */
+
 async function init() {
-  setToday();
-  bindEvents();
-  window.addEventListener('beforeunload', cleanupBuyerRealtime);
-
   try {
-    const user = await loadBuyer();
+    // Wait for shared Buyer authentication and permission loading.
+    const auth = await buyerReady;
 
-    if (!user) return;
+    if (!auth) return;
+
+    // Page-level permission: hide page and stop all data loading.
+    if (!hasPermission('orders.view')) {
+      hideOrdersPage();
+      return;
+    }
+
+    state.buyerId = auth.user.id;
+
+    setToday();
+    bindEvents();
+
+    window.addEventListener('beforeunload', cleanupBuyerRealtime);
 
     subscribeToBuyerOrderChanges();
+
     await loadOrders();
 
   } catch (error) {

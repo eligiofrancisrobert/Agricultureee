@@ -1,7 +1,7 @@
+
 import { supabase } from "../connection.js";
 
 // ---------- THEME ----------
-// Same key as js/feature/theme.js ("theme"), shared by every farmer page.
 
 const THEME_KEY = "theme";
 
@@ -30,8 +30,6 @@ function applyTheme(theme) {
 
     if (toggle) {
         toggle.addEventListener("click", event => {
-            // Stop any other theme handler on this button so the theme
-            // is never toggled twice by one click.
             event.stopImmediatePropagation();
 
             const next =
@@ -49,13 +47,14 @@ function applyTheme(theme) {
         });
     }
 
-    // Keep other open pages in sync.
     window.addEventListener("storage", event => {
         if (event.key === THEME_KEY && event.newValue) {
             applyTheme(event.newValue);
         }
     });
 })();
+
+// ---------- ELEMENTS ----------
 
 const activityList = document.getElementById("activityList");
 const farmerName = document.getElementById("farmerName");
@@ -68,10 +67,167 @@ let currentUser = null;
 let activitiesRealtimeChannel = null;
 let activitiesReloadTimer = null;
 
-// Statuses where the farmer can still accept / decline.
-const DECIDABLE_STATUSES = ["pending"];
+let farmerPermissions = {
+    view: false,
+    create: false,
+    edit: false
+};
+
+const permissionCache = new Map();
+
 const EVIDENCE_MAX_SIZE = 10 * 1024 * 1024;
 const EVIDENCE_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+
+// ---------- FARMER NAVIGATION PERMISSIONS ----------
+
+const FARMER_NAVIGATION_PERMISSIONS = {
+    "farmer-dashboard.html": "dashboard.view",
+    "activities.html": "activities.view",
+    "plantings.html": "plantings.view",
+    "recommendations.html": "recommendations.view",
+    "harvest-records.html": "harvest_records.view"
+};
+
+// ---------- PERMISSIONS ----------
+
+async function hasPermission(permissionKey) {
+    if (permissionCache.has(permissionKey)) {
+        return permissionCache.get(permissionKey);
+    }
+
+    try {
+        const { data, error } = await supabase.rpc(
+            "has_tanikala_permission",
+            {
+                p_permission_key: permissionKey
+            }
+        );
+
+        if (error) throw error;
+
+        const allowed = data === true;
+        permissionCache.set(permissionKey, allowed);
+
+        return allowed;
+
+    } catch (error) {
+        console.error(
+            `Permission check failed (${permissionKey}):`,
+            error
+        );
+
+        permissionCache.set(permissionKey, false);
+        return false;
+    }
+}
+
+async function loadFarmerPermissions() {
+    const [view, create, edit] = await Promise.all([
+        hasPermission("activities.view"),
+        hasPermission("activities.create"),
+        hasPermission("activities.edit")
+    ]);
+
+    farmerPermissions = { view, create, edit };
+
+    return farmerPermissions;
+}
+
+/**
+ * Checks all Farmer navigation permissions.
+ * Disabled pages are hidden from the sidebar,
+ * regardless of which Farmer page is currently open.
+ */
+async function applyNavigationPermissions() {
+    const entries = Object.entries(
+        FARMER_NAVIGATION_PERMISSIONS
+    );
+
+    const results = await Promise.all(
+        entries.map(async ([page, permissionKey]) => ({
+            page,
+            allowed: await hasPermission(permissionKey)
+        }))
+    );
+
+    const permissionMap = new Map(
+        results.map(result => [
+            result.page,
+            result.allowed
+        ])
+    );
+
+    document.querySelectorAll(
+        ".navigation a.nav-link[href], " +
+        ".quick-access a.access-card[href]"
+    ).forEach(link => {
+        const href = link.getAttribute("href");
+
+        if (!href) return;
+
+        let page;
+
+        try {
+            page = new URL(href, window.location.href)
+                .pathname
+                .split("/")
+                .pop()
+                .toLowerCase();
+        } catch {
+            return;
+        }
+
+        if (!Object.hasOwn(FARMER_NAVIGATION_PERMISSIONS, page)) {
+            return;
+        }
+
+        const allowed = permissionMap.get(page) === true;
+
+        link.hidden = !allowed;
+        link.style.display = allowed ? "" : "none";
+
+        if (allowed) {
+            link.removeAttribute("aria-hidden");
+            link.removeAttribute("tabindex");
+        } else {
+            link.setAttribute("aria-hidden", "true");
+            link.setAttribute("tabindex", "-1");
+        }
+    });
+
+    return permissionMap;
+}
+
+function finishPermissionLoading() {
+    document.body.classList.remove("permissions-loading");
+}
+
+function showAccessDenied() {
+    cleanupActivitiesRealtime();
+
+    document.body.innerHTML = `
+        <main class="main-content" style="padding:40px">
+            <section class="information-section">
+                <div>
+                    <h2>Access Restricted</h2>
+                    <p>
+                        You do not have permission to access My Activities.
+                        Please contact your Administrator.
+                    </p>
+                    <button type="button" id="deniedLogoutButton">
+                        Log out
+                    </button>
+                </div>
+            </section>
+        </main>
+    `;
+
+    document.getElementById("deniedLogoutButton")
+        ?.addEventListener("click", async () => {
+            await supabase.auth.signOut();
+            window.location.replace("../../login.html");
+        });
+}
 
 // ---------- HELPERS ----------
 
@@ -109,6 +265,8 @@ function formatDate(dateValue) {
 }
 
 function displayMessage(message, className = "empty-state") {
+    if (!activityList) return;
+
     activityList.replaceChildren(
         createElement("div", className, message)
     );
@@ -125,13 +283,14 @@ function getFarmerDisplayName(user, profile) {
     );
 }
 
-// One label-on-top / value-below block.
 function createDetail(label, value) {
     const wrapper = createElement("div", "detail");
+
     wrapper.append(
         createElement("span", "detail-label", label),
         createElement("span", "detail-value", value || "Not specified")
     );
+
     return wrapper;
 }
 
@@ -226,6 +385,11 @@ async function loadPlantings(plantingIds) {
 // ---------- ACCEPT / DECLINE ----------
 
 async function updateActivityStatus(activity, newStatus, card, buttons) {
+    if (!farmerPermissions.edit) {
+        alert("You do not have permission to edit activities.");
+        return;
+    }
+
     buttons.forEach(button => button.disabled = true);
 
     const response = newStatus === "accepted" ? "accepted" : "declined";
@@ -241,10 +405,13 @@ async function updateActivityStatus(activity, newStatus, card, buttons) {
         buttons.forEach(button => button.disabled = false);
 
         const message = card.querySelector(".activity-card__message");
+
         if (message) {
-            message.textContent = error.message || "Unable to respond to this activity.";
+            message.textContent =
+                error.message || "Unable to respond to this activity.";
             message.hidden = false;
         }
+
         return;
     }
 
@@ -252,6 +419,11 @@ async function updateActivityStatus(activity, newStatus, card, buttons) {
 }
 
 async function startActivity(activity, button) {
+    if (!farmerPermissions.edit) {
+        alert("You do not have permission to edit activities.");
+        return;
+    }
+
     button.disabled = true;
 
     const { error } = await supabase.rpc("start_farm_action", {
@@ -268,17 +440,26 @@ async function startActivity(activity, button) {
     await loadActivities();
 }
 
+// ---------- COMPLETION MODAL ----------
+
 function getLocalDateValue() {
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
+
     return new Date(now.getTime() - offset).toISOString().slice(0, 10);
 }
 
 function openCompletionModal(activity) {
+    if (!farmerPermissions.create) {
+        alert("You do not have permission to submit activity completions.");
+        return;
+    }
+
     const overlay = createElement("div", "activity-modal-overlay");
     const modal = createElement("form", "activity-completion-modal");
 
     const heading = createElement("h2", "", "Submit Activity Completion");
+
     const description = createElement(
         "p",
         "",
@@ -287,6 +468,7 @@ function openCompletionModal(activity) {
 
     const notesLabel = createElement("label", "", "Completion Notes");
     const notes = createElement("textarea");
+
     notes.required = true;
     notes.rows = 4;
     notes.placeholder = "Describe the work you completed...";
@@ -294,14 +476,21 @@ function openCompletionModal(activity) {
 
     const dateLabel = createElement("label", "", "Actual Completion Date");
     const date = createElement("input");
+
     date.type = "date";
     date.required = true;
     date.value = getLocalDateValue();
     date.max = getLocalDateValue();
     dateLabel.append(date);
 
-    const evidenceLabel = createElement("label", "", "Evidence (JPG, PNG, or PDF; maximum 10MB each)");
+    const evidenceLabel = createElement(
+        "label",
+        "",
+        "Evidence (JPG, PNG, or PDF; maximum 10MB each)"
+    );
+
     const evidence = createElement("input");
+
     evidence.type = "file";
     evidence.accept = ".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf";
     evidence.multiple = true;
@@ -337,6 +526,12 @@ function openCompletionModal(activity) {
     modal.addEventListener("submit", async event => {
         event.preventDefault();
 
+        if (!farmerPermissions.create) {
+            message.textContent = "You no longer have permission to submit.";
+            message.hidden = false;
+            return;
+        }
+
         const files = [...evidence.files];
 
         const invalidFile = files.find(file =>
@@ -347,6 +542,7 @@ function openCompletionModal(activity) {
         if (invalidFile) {
             message.textContent =
                 `${invalidFile.name}: only JPG, PNG, and PDF files up to 10MB are allowed.`;
+
             message.hidden = false;
             return;
         }
@@ -356,8 +552,6 @@ function openCompletionModal(activity) {
         message.hidden = true;
 
         try {
-            // Create the completion only once.
-            // If evidence upload fails, the next attempt reuses this completion.
             if (!completionId) {
                 const { data, error } = await supabase.rpc(
                     "submit_farm_action_completion",
@@ -374,11 +568,13 @@ function openCompletionModal(activity) {
             }
 
             for (const file of files) {
-                const fileKey = `${file.name}:${file.size}:${file.lastModified}`;
+                const fileKey =
+                    `${file.name}:${file.size}:${file.lastModified}`;
 
                 if (uploadedFileKeys.has(fileKey)) continue;
 
                 const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+
                 const filePath =
                     `${currentUser.id}/${completionId}/${crypto.randomUUID()}-${safeName}`;
 
@@ -419,10 +615,9 @@ function openCompletionModal(activity) {
         } catch (error) {
             console.error("Completion submission error:", error);
 
-            message.textContent =
-                completionId
-                    ? "Completion was created, but evidence upload was incomplete. Select the remaining files and retry."
-                    : error.message || "Unable to submit your completion.";
+            message.textContent = completionId
+                ? "Completion was created, but evidence upload was incomplete. Select the remaining files and retry."
+                : error.message || "Unable to submit your completion.";
 
             message.hidden = false;
             submitButton.disabled = false;
@@ -438,10 +633,10 @@ function openCompletionModal(activity) {
 
 function createActivityCard(activity, planting, farm) {
     const card = createElement("article", "activity-card");
+
     card._planting = planting;
     card._farm = farm;
 
-    // --- Header: title + category, status badge ---
     const header = createElement("div", "activity-card-header");
     const titleSection = createElement("div");
 
@@ -467,14 +662,12 @@ function createActivityCard(activity, planting, farm) {
 
     card.append(header);
 
-    // --- Description ---
     if (activity.description) {
         card.append(
             createElement("p", "activity-description", activity.description)
         );
     }
 
-    // --- Key details (2 x 2) ---
     const details = createElement("div", "activity-details");
 
     details.append(
@@ -486,7 +679,6 @@ function createActivityCard(activity, planting, farm) {
 
     card.append(details);
 
-    // --- Planting info: collapsed so the card stays compact ---
     if (planting) {
         const toggle = createElement("details", "planting-information");
 
@@ -521,7 +713,6 @@ function createActivityCard(activity, planting, farm) {
         card.append(toggle);
     }
 
-    // --- Footer: actions and messages ---
     const message = createElement("p", "activity-card__message");
     message.hidden = true;
     card.append(message);
@@ -529,7 +720,7 @@ function createActivityCard(activity, planting, farm) {
     const status = String(activity.status || "pending").toLowerCase();
     const actions = createElement("div", "activity-actions");
 
-    if (status === "pending") {
+    if (status === "pending" && farmerPermissions.edit) {
         const declineButton = createElement("button", "btn-reject", "Decline");
         declineButton.type = "button";
 
@@ -555,7 +746,7 @@ function createActivityCard(activity, planting, farm) {
         actions.append(declineButton, acceptButton);
     }
 
-    if (status === "accepted") {
+    if (status === "accepted" && farmerPermissions.edit) {
         const startButton = createElement(
             "button",
             "btn-approve",
@@ -563,6 +754,7 @@ function createActivityCard(activity, planting, farm) {
         );
 
         startButton.type = "button";
+
         startButton.addEventListener("click", () => {
             startActivity(activity, startButton);
         });
@@ -570,7 +762,10 @@ function createActivityCard(activity, planting, farm) {
         actions.append(startButton);
     }
 
-    if (status === "in_progress" || status === "revision_requested") {
+    if (
+        (status === "in_progress" || status === "revision_requested") &&
+        farmerPermissions.create
+    ) {
         const submitButton = createElement(
             "button",
             "btn-approve",
@@ -580,6 +775,7 @@ function createActivityCard(activity, planting, farm) {
         );
 
         submitButton.type = "button";
+
         submitButton.addEventListener("click", () => {
             openCompletionModal(activity);
         });
@@ -626,8 +822,9 @@ function createActivityCard(activity, planting, farm) {
 
 // ---------- LOAD ASSIGNED ACTIVITIES ----------
 
-/** Fetch activities available to the farmer and render their current statuses. */
 async function loadActivities() {
+    if (!farmerPermissions.view || !currentUser) return;
+
     displayMessage("Loading your assigned activities...", "loading-state");
 
     const { data: activities, error } = await supabase
@@ -652,10 +849,12 @@ async function loadActivities() {
 
     if (error) {
         console.error("Activities loading error:", error);
+
         displayMessage(
             "Unable to load your assigned activities. Please refresh the page or try again later.",
             "error-state"
         );
+
         return;
     }
 
@@ -683,7 +882,9 @@ async function loadActivities() {
             ? farmsMap.get(activity.farm_id)
             : null;
 
-        activityList.append(createActivityCard(activity, planting, farm));
+        activityList.append(
+            createActivityCard(activity, planting, farm)
+        );
     });
 }
 
@@ -697,8 +898,9 @@ function scheduleActivitiesReload() {
     }, 300);
 }
 
-/** Subscribe to accessible activity changes and reload the activity list. */
 function subscribeToActivityChanges() {
+    if (!farmerPermissions.view || !currentUser) return;
+
     if (activitiesRealtimeChannel) {
         supabase.removeChannel(activitiesRealtimeChannel);
     }
@@ -706,7 +908,6 @@ function subscribeToActivityChanges() {
     activitiesRealtimeChannel = supabase
         .channel(`farmer-activities-${currentUser.id}`)
 
-        // Assigned Farm Action changes.
         .on(
             "postgres_changes",
             {
@@ -715,13 +916,9 @@ function subscribeToActivityChanges() {
                 table: "farm_actions",
                 filter: `farmer_id=eq.${currentUser.id}`
             },
-            () => {
-                scheduleActivitiesReload();
-            }
+            scheduleActivitiesReload
         )
 
-        // Changes to planting details linked to accessible activities.
-        // RLS determines which planting records this Farmer can receive.
         .on(
             "postgres_changes",
             {
@@ -729,12 +926,10 @@ function subscribeToActivityChanges() {
                 schema: "public",
                 table: "farm_plantings"
             },
-            () => {
-                scheduleActivitiesReload();
-            }
+            scheduleActivitiesReload
         )
 
-        .subscribe((status) => {
+        .subscribe(status => {
             if (status === "SUBSCRIBED") {
                 console.log("My Activities Realtime connected.");
             } else if (status === "CHANNEL_ERROR") {
@@ -766,7 +961,9 @@ function initializeLogout() {
 
         if (error) {
             console.error("Logout error:", error);
+
             if (logoutLabel) logoutLabel.textContent = "Log out";
+
             logoutButton.disabled = false;
             return;
         }
@@ -777,8 +974,9 @@ function initializeLogout() {
 
 // ---------- INITIALIZATION ----------
 
-/** Initialize the activity page after validating the farmer session. */
 async function initializeFarmerActivities() {
+    document.body.classList.add("permissions-loading");
+
     try {
         initializeLogout();
 
@@ -791,7 +989,10 @@ async function initializeFarmerActivities() {
             });
         }
 
-        const { data: { user }, error } = await supabase.auth.getUser();
+        const {
+            data: { user },
+            error
+        } = await supabase.auth.getUser();
 
         if (error || !user) {
             window.location.replace("../../login.html");
@@ -804,17 +1005,34 @@ async function initializeFarmerActivities() {
 
         if (!profile) return;
 
+        // Check all sidebar permissions first.
+        await applyNavigationPermissions();
+
+        // Check this page's own permissions.
+        const permissions = await loadFarmerPermissions();
+
+        if (!permissions.view) {
+            showAccessDenied();
+            return;
+        }
+
         await loadActivities();
 
         subscribeToActivityChanges();
+
     } catch (error) {
         console.error("Farmer Activities Initialization Error:", error);
+
         displayMessage(
             error.message || "Something went wrong while loading the page.",
             "error-state"
         );
+
+    } finally {
+        document.body.classList.remove("permissions-loading");
     }
 }
 
 initializeFarmerActivities();
+
 window.addEventListener("beforeunload", cleanupActivitiesRealtime);

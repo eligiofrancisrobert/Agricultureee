@@ -1,357 +1,559 @@
 import { supabase } from '../connection.js';
 
+import {
+    buyerReady,
+    hasPermission,
+    requirePermission
+} from './main.js';
+
 const TABLE_CART = 'buyer_cart_items';
 
 const state = {
-  user: null,
+    user: null
 };
 
 const el = {
-  todayLabel: document.getElementById('todayLabel'),
-  userName: document.getElementById('userName'),
-  userInitial: document.getElementById('userInitial'),
-  logoutBtn: document.getElementById('logoutBtn'),
-  cartCount: document.getElementById('cartCount'),
-  toastStack: document.getElementById('toastStack'),
+    todayLabel: document.getElementById('todayLabel'),
+    userName: document.getElementById('userName'),
+    userInitial: document.getElementById('userInitial'),
+    logoutBtn: document.getElementById('logoutBtn'),
+    cartCount: document.getElementById('cartCount'),
+    toastStack: document.getElementById('toastStack'),
 
-  loading: document.getElementById('profileLoading'),
-  error: document.getElementById('profileError'),
-  layout: document.getElementById('profileLayout'),
+    loading: document.getElementById('profileLoading'),
+    error: document.getElementById('profileError'),
+    layout: document.getElementById('profileLayout'),
 
-  avatar: document.getElementById('profileAvatar'),
-  name: document.getElementById('profileName'),
-  emailText: document.getElementById('profileEmailText'),
-  typeBadge: document.getElementById('profileTypeBadge'),
-  since: document.getElementById('profileSince'),
+    avatar: document.getElementById('profileAvatar'),
+    name: document.getElementById('profileName'),
+    emailText: document.getElementById('profileEmailText'),
+    typeBadge: document.getElementById('profileTypeBadge'),
+    since: document.getElementById('profileSince'),
 
-  detailsForm: document.getElementById('detailsForm'),
-  fullName: document.getElementById('fullName'),
-  email: document.getElementById('email'),
-  phone: document.getElementById('phone'),
-  buyerType: document.getElementById('buyerType'),
-  businessField: document.getElementById('businessField'),
-  businessName: document.getElementById('businessName'),
-  deliveryAddress: document.getElementById('deliveryAddress'),
-  saveDetailsBtn: document.getElementById('saveDetailsBtn'),
+    detailsForm: document.getElementById('detailsForm'),
+    fullName: document.getElementById('fullName'),
+    email: document.getElementById('email'),
+    phone: document.getElementById('phone'),
+    buyerType: document.getElementById('buyerType'),
+    businessField: document.getElementById('businessField'),
+    businessName: document.getElementById('businessName'),
+    deliveryAddress: document.getElementById('deliveryAddress'),
+    saveDetailsBtn: document.getElementById('saveDetailsBtn'),
 
-  passwordForm: document.getElementById('passwordForm'),
-  newPassword: document.getElementById('newPassword'),
-  confirmPassword: document.getElementById('confirmPassword'),
-  savePasswordBtn: document.getElementById('savePasswordBtn'),
+    passwordForm: document.getElementById('passwordForm'),
+    newPassword: document.getElementById('newPassword'),
+    confirmPassword: document.getElementById('confirmPassword'),
+    savePasswordBtn: document.getElementById('savePasswordBtn')
 };
 
-/* ============ HELPERS ============ */
+/* =========================================================
+   HELPERS
+========================================================= */
 
 function showToast(message, type = 'success') {
-  if (!el.toastStack) return;
+    if (!el.toastStack) return;
 
-  const toast = document.createElement('div');
-  toast.className = `produce-toast ${type}`;
-  toast.textContent = message;
+    const toast = document.createElement('div');
+    toast.className = `produce-toast ${type}`;
+    toast.textContent = message;
 
-  el.toastStack.appendChild(toast);
+    el.toastStack.appendChild(toast);
 
-  requestAnimationFrame(() => toast.classList.add('show'));
+    requestAnimationFrame(() => toast.classList.add('show'));
 
-  window.setTimeout(() => {
-    toast.classList.remove('show');
-    window.setTimeout(() => toast.remove(), 250);
-  }, 3000);
+    window.setTimeout(() => {
+        toast.classList.remove('show');
+        window.setTimeout(() => toast.remove(), 250);
+    }, 3000);
 }
 
 function setToday() {
-  if (!el.todayLabel) return;
+    if (!el.todayLabel) return;
 
-  el.todayLabel.textContent = new Intl.DateTimeFormat('en-PH', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date());
+    el.todayLabel.textContent = new Intl.DateTimeFormat('en-PH', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    }).format(new Date());
 }
 
 function showError(message) {
-  el.loading.hidden = true;
-  el.layout.hidden = true;
-  el.error.textContent = message;
-  el.error.hidden = false;
+    if (el.loading) el.loading.hidden = true;
+    if (el.layout) el.layout.hidden = true;
+
+    if (el.error) {
+        el.error.textContent = message;
+        el.error.hidden = false;
+    }
 }
 
 function setInvalid(input, invalid) {
-  if (invalid) {
-    input.setAttribute('aria-invalid', 'true');
-  } else {
-    input.removeAttribute('aria-invalid');
-  }
+    if (!input) return;
+
+    if (invalid) {
+        input.setAttribute('aria-invalid', 'true');
+    } else {
+        input.removeAttribute('aria-invalid');
+    }
 }
 
 function getDisplayName(user) {
-  const metadata = user.user_metadata || {};
+    const metadata = user.user_metadata || {};
 
-  return (
-    metadata.full_name ||
-    metadata.fullName ||
-    metadata.name ||
-    user.email ||
-    'Buyer'
-  );
+    return (
+        metadata.full_name ||
+        metadata.fullName ||
+        metadata.name ||
+        user.email ||
+        'Buyer'
+    );
 }
 
 function getInitial(name) {
-  return name.trim().charAt(0).toUpperCase() || 'B';
+    return name.trim().charAt(0).toUpperCase() || 'B';
 }
 
 function typeLabel(type) {
-  return type === 'business' ? 'Business' : 'Individual';
+    return type === 'business' ? 'Business' : 'Individual';
 }
 
-/* ============ LOAD ============ */
+function hideProfilePage() {
+    if (el.loading) el.loading.hidden = true;
+    if (el.layout) el.layout.hidden = true;
+    if (el.error) el.error.hidden = true;
+
+    const main = document.querySelector('main');
+
+    if (main) {
+        main.hidden = true;
+    }
+
+    let denied = document.getElementById('profileAccessDenied');
+
+    if (!denied) {
+        denied = document.createElement('section');
+        denied.id = 'profileAccessDenied';
+        denied.className = 'access-denied';
+
+        denied.innerHTML = `
+            <div class="access-denied-content">
+                <h2>Access Restricted</h2>
+                <p>You do not have permission to view your profile.</p>
+            </div>
+        `;
+
+        (main?.parentElement || document.body).appendChild(denied);
+    }
+
+    denied.hidden = false;
+}
+
+/* =========================================================
+   CART COUNT
+========================================================= */
 
 async function loadCartCount() {
-  if (!state.user || !el.cartCount) return;
+    if (
+        !state.user ||
+        !el.cartCount ||
+        !hasPermission('cart.view')
+    ) {
+        if (el.cartCount) {
+            el.cartCount.hidden = true;
+        }
 
-  const { count, error } = await supabase
-    .from(TABLE_CART)
-    .select('cart_item_id', { count: 'exact', head: true })
-    .eq('buyer_id', state.user.id);
+        return;
+    }
 
-  if (error) {
-    console.warn('Unable to load cart count:', error.message);
-    return;
-  }
+    const { count, error } = await supabase
+        .from(TABLE_CART)
+        .select('cart_item_id', {
+            count: 'exact',
+            head: true
+        })
+        .eq('buyer_id', state.user.id);
 
-  const total = Number(count || 0);
+    if (error) {
+        console.warn('Unable to load cart count:', error.message);
+        return;
+    }
 
-  el.cartCount.textContent = total > 99 ? '99+' : String(total);
-  el.cartCount.hidden = total === 0;
+    const total = Number(count || 0);
+
+    el.cartCount.textContent = total > 99 ? '99+' : String(total);
+    el.cartCount.hidden = total === 0;
 }
 
+/* =========================================================
+   PROFILE IDENTITY
+========================================================= */
+
 function renderIdentity() {
-  const user = state.user;
-  const metadata = user.user_metadata || {};
-  const displayName = getDisplayName(user);
-  const type = metadata.buyer_type === 'business' ? 'business' : 'individual';
+    const user = state.user;
 
-  // Shell header
-  if (el.userName) el.userName.textContent = displayName;
-  if (el.userInitial) el.userInitial.textContent = getInitial(displayName);
+    if (!user) return;
 
-  // Identity card
-  el.avatar.textContent = getInitial(displayName);
-  el.name.textContent =
-    type === 'business' && metadata.business_name
-      ? metadata.business_name
-      : displayName;
-  el.emailText.textContent = user.email || '—';
-  el.typeBadge.textContent = typeLabel(type);
+    const metadata = user.user_metadata || {};
+    const displayName = getDisplayName(user);
+    const type = metadata.buyer_type === 'business'
+        ? 'business'
+        : 'individual';
 
-  el.since.textContent = user.created_at
-    ? `Member since ${new Intl.DateTimeFormat('en-PH', {
-        month: 'long',
-        year: 'numeric',
-      }).format(new Date(user.created_at))}`
-    : '';
+    if (el.userName) {
+        el.userName.textContent = displayName;
+    }
+
+    if (el.userInitial) {
+        el.userInitial.textContent = getInitial(displayName);
+    }
+
+    if (el.avatar) {
+        el.avatar.textContent = getInitial(displayName);
+    }
+
+    if (el.name) {
+        el.name.textContent =
+            type === 'business' && metadata.business_name
+                ? metadata.business_name
+                : displayName;
+    }
+
+    if (el.emailText) {
+        el.emailText.textContent = user.email || '—';
+    }
+
+    if (el.typeBadge) {
+        el.typeBadge.textContent = typeLabel(type);
+    }
+
+    if (el.since) {
+        el.since.textContent = user.created_at
+            ? `Member since ${new Intl.DateTimeFormat('en-PH', {
+                month: 'long',
+                year: 'numeric'
+            }).format(new Date(user.created_at))}`
+            : '';
+    }
 }
 
 function fillForm() {
-  const user = state.user;
-  const metadata = user.user_metadata || {};
+    const user = state.user;
 
-  el.fullName.value = metadata.full_name || metadata.fullName || metadata.name || '';
-  el.email.value = user.email || '';
-  el.phone.value = metadata.phone || '';
-  el.buyerType.value = metadata.buyer_type === 'business' ? 'business' : 'individual';
-  el.businessName.value = metadata.business_name || '';
-  el.deliveryAddress.value = metadata.delivery_address || '';
+    if (!user) return;
 
-  toggleBusinessField();
+    const metadata = user.user_metadata || {};
+
+    if (el.fullName) {
+        el.fullName.value =
+            metadata.full_name ||
+            metadata.fullName ||
+            metadata.name ||
+            '';
+    }
+
+    if (el.email) {
+        el.email.value = user.email || '';
+    }
+
+    if (el.phone) {
+        el.phone.value = metadata.phone || '';
+    }
+
+    if (el.buyerType) {
+        el.buyerType.value =
+            metadata.buyer_type === 'business'
+                ? 'business'
+                : 'individual';
+    }
+
+    if (el.businessName) {
+        el.businessName.value = metadata.business_name || '';
+    }
+
+    if (el.deliveryAddress) {
+        el.deliveryAddress.value = metadata.delivery_address || '';
+    }
+
+    toggleBusinessField();
 }
 
 function toggleBusinessField() {
-  const isBusiness = el.buyerType.value === 'business';
+    if (!el.buyerType || !el.businessField) return;
 
-  el.businessField.hidden = !isBusiness;
+    const isBusiness = el.buyerType.value === 'business';
 
-  if (!isBusiness) setInvalid(el.businessName, false);
+    el.businessField.hidden = !isBusiness;
+
+    if (!isBusiness) {
+        setInvalid(el.businessName, false);
+    }
 }
 
-/** Load the authenticated buyer profile and populate the identity and form. */
-async function init() {
-  setToday();
-  bindEvents();
+/* =========================================================
+   PROFILE DETAILS
+========================================================= */
 
-  try {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
+async function saveDetails(event) {
+    event.preventDefault();
 
-    if (error) throw error;
+    if (!requirePermission('profile.edit')) return;
 
-    if (!user) {
-      window.location.replace('../../login.html');
-      return;
+    const fullName = el.fullName.value.trim();
+    const phone = el.phone.value.trim();
+
+    const buyerType = el.buyerType.value === 'business'
+        ? 'business'
+        : 'individual';
+
+    const businessName = el.businessName.value.trim();
+    const deliveryAddress = el.deliveryAddress.value.trim();
+
+    [
+        el.fullName,
+        el.phone,
+        el.businessName
+    ].forEach(input => setInvalid(input, false));
+
+    if (!fullName) {
+        setInvalid(el.fullName, true);
+        showToast('Please enter your full name.', 'error');
+        el.fullName.focus();
+        return;
     }
 
-    state.user = user;
+    if (phone && !/^[0-9+()\-\s]{7,20}$/.test(phone)) {
+        setInvalid(el.phone, true);
+        showToast('Please enter a valid phone number.', 'error');
+        el.phone.focus();
+        return;
+    }
 
-    renderIdentity();
-    fillForm();
+    if (buyerType === 'business' && !businessName) {
+        setInvalid(el.businessName, true);
+        showToast('Please enter your business name.', 'error');
+        el.businessName.focus();
+        return;
+    }
 
-    el.loading.hidden = true;
-    el.layout.hidden = false;
+    const originalText = el.saveDetailsBtn.textContent;
 
-    await loadCartCount();
+    el.saveDetailsBtn.disabled = true;
+    el.saveDetailsBtn.textContent = 'Saving...';
 
-  } catch (error) {
-    console.error('Profile loading failed:', error);
-    showError(error?.message || 'Unable to load your profile.');
-  }
+    try {
+        const { data, error } = await supabase.auth.updateUser({
+            data: {
+                full_name: fullName,
+                phone,
+                buyer_type: buyerType,
+                business_name: buyerType === 'business'
+                    ? businessName
+                    : '',
+                delivery_address: deliveryAddress
+            }
+        });
+
+        if (error) throw error;
+
+        state.user = data.user || state.user;
+
+        renderIdentity();
+        fillForm();
+
+        showToast('Profile saved.', 'success');
+
+    } catch (error) {
+        console.error('Profile update failed:', error);
+
+        showToast(
+            error?.message || 'Unable to save your profile.',
+            'error'
+        );
+
+    } finally {
+        el.saveDetailsBtn.disabled = false;
+        el.saveDetailsBtn.textContent = originalText;
+    }
 }
 
-/* ============ SAVE DETAILS ============ */
+/* =========================================================
+   CHANGE PASSWORD
+========================================================= */
 
-/** Validate and save buyer profile fields as Supabase Auth user metadata. */
-async function saveDetails(event) {
-  event.preventDefault();
-
-  const fullName = el.fullName.value.trim();
-  const phone = el.phone.value.trim();
-  const buyerType = el.buyerType.value === 'business' ? 'business' : 'individual';
-  const businessName = el.businessName.value.trim();
-  const deliveryAddress = el.deliveryAddress.value.trim();
-
-  [el.fullName, el.phone, el.businessName].forEach((input) =>
-    setInvalid(input, false)
-  );
-
-  if (!fullName) {
-    setInvalid(el.fullName, true);
-    showToast('Please enter your full name.', 'error');
-    el.fullName.focus();
-    return;
-  }
-
-  if (phone && !/^[0-9+()\-\s]{7,20}$/.test(phone)) {
-    setInvalid(el.phone, true);
-    showToast('Please enter a valid phone number.', 'error');
-    el.phone.focus();
-    return;
-  }
-
-  if (buyerType === 'business' && !businessName) {
-    setInvalid(el.businessName, true);
-    showToast('Please enter your business name.', 'error');
-    el.businessName.focus();
-    return;
-  }
-
-  const originalText = el.saveDetailsBtn.textContent;
-  el.saveDetailsBtn.disabled = true;
-  el.saveDetailsBtn.textContent = 'Saving...';
-
-  try {
-    const { data, error } = await supabase.auth.updateUser({
-      data: {
-        full_name: fullName,
-        phone,
-        buyer_type: buyerType,
-        business_name: buyerType === 'business' ? businessName : '',
-        delivery_address: deliveryAddress,
-      },
-    });
-
-    if (error) throw error;
-
-    state.user = data.user || state.user;
-
-    renderIdentity();
-    fillForm();
-
-    showToast('Profile saved.', 'success');
-
-  } catch (error) {
-    console.error('Profile update failed:', error);
-    showToast(error?.message || 'Unable to save your profile.', 'error');
-
-  } finally {
-    el.saveDetailsBtn.disabled = false;
-    el.saveDetailsBtn.textContent = originalText;
-  }
-}
-
-/* ============ CHANGE PASSWORD ============ */
-
-/** Validate the confirmation and update the signed-in buyer's password. */
 async function changePassword(event) {
-  event.preventDefault();
+    event.preventDefault();
 
-  const password = el.newPassword.value;
-  const confirmation = el.confirmPassword.value;
+    if (!requirePermission('profile.password.change')) return;
 
-  [el.newPassword, el.confirmPassword].forEach((input) =>
-    setInvalid(input, false)
-  );
+    const password = el.newPassword.value;
+    const confirmation = el.confirmPassword.value;
 
-  if (password.length < 8) {
-    setInvalid(el.newPassword, true);
-    showToast('Password must be at least 8 characters.', 'error');
-    el.newPassword.focus();
-    return;
-  }
+    [
+        el.newPassword,
+        el.confirmPassword
+    ].forEach(input => setInvalid(input, false));
 
-  if (password !== confirmation) {
-    setInvalid(el.confirmPassword, true);
-    showToast('Passwords do not match.', 'error');
-    el.confirmPassword.focus();
-    return;
-  }
+    if (password.length < 8) {
+        setInvalid(el.newPassword, true);
 
-  const originalText = el.savePasswordBtn.textContent;
-  el.savePasswordBtn.disabled = true;
-  el.savePasswordBtn.textContent = 'Updating...';
+        showToast(
+            'Password must be at least 8 characters.',
+            'error'
+        );
 
-  try {
-    const { error } = await supabase.auth.updateUser({ password });
+        el.newPassword.focus();
+        return;
+    }
 
-    if (error) throw error;
+    if (password !== confirmation) {
+        setInvalid(el.confirmPassword, true);
 
-    el.passwordForm.reset();
-    showToast('Password updated.', 'success');
+        showToast('Passwords do not match.', 'error');
 
-  } catch (error) {
-    console.error('Password update failed:', error);
-    showToast(error?.message || 'Unable to update your password.', 'error');
+        el.confirmPassword.focus();
+        return;
+    }
 
-  } finally {
-    el.savePasswordBtn.disabled = false;
-    el.savePasswordBtn.textContent = originalText;
-  }
+    const originalText = el.savePasswordBtn.textContent;
+
+    el.savePasswordBtn.disabled = true;
+    el.savePasswordBtn.textContent = 'Updating...';
+
+    try {
+        const { error } = await supabase.auth.updateUser({
+            password
+        });
+
+        if (error) throw error;
+
+        el.passwordForm.reset();
+
+        showToast('Password updated.', 'success');
+
+    } catch (error) {
+        console.error('Password update failed:', error);
+
+        showToast(
+            error?.message || 'Unable to update your password.',
+            'error'
+        );
+
+    } finally {
+        el.savePasswordBtn.disabled = false;
+        el.savePasswordBtn.textContent = originalText;
+    }
 }
 
-/* ============ EVENTS ============ */
+/* =========================================================
+   PERMISSION VISIBILITY
+========================================================= */
 
-async function logout() {
-  const { error } = await supabase.auth.signOut();
+function applyProfilePermissions() {
+    const canEdit = hasPermission('profile.edit');
+    const canChangePassword = hasPermission(
+        'profile.password.change'
+    );
 
-  if (error) {
-    showToast(error.message || 'Unable to log out.', 'error');
-    return;
-  }
+    if (el.detailsForm) {
+        el.detailsForm.hidden = !canEdit;
+    }
 
-  window.location.replace('../../login.html');
+    if (el.passwordForm) {
+        el.passwordForm.hidden = !canChangePassword;
+    }
+
+    if (el.cartCount && !hasPermission('cart.view')) {
+        el.cartCount.hidden = true;
+    }
 }
+
+/* =========================================================
+   EVENTS
+========================================================= */
 
 function bindEvents() {
-  el.logoutBtn?.addEventListener('click', logout);
-  el.buyerType?.addEventListener('change', toggleBusinessField);
-  el.detailsForm?.addEventListener('submit', saveDetails);
-  el.passwordForm?.addEventListener('submit', changePassword);
-
-  [el.fullName, el.phone, el.businessName, el.newPassword, el.confirmPassword]
-    .forEach((input) =>
-      input?.addEventListener('input', () => setInvalid(input, false))
+    el.buyerType?.addEventListener(
+        'change',
+        toggleBusinessField
     );
+
+    if (
+        el.detailsForm &&
+        hasPermission('profile.edit')
+    ) {
+        el.detailsForm.addEventListener(
+            'submit',
+            saveDetails
+        );
+    }
+
+    if (
+        el.passwordForm &&
+        hasPermission('profile.password.change')
+    ) {
+        el.passwordForm.addEventListener(
+            'submit',
+            changePassword
+        );
+    }
+
+    [
+        el.fullName,
+        el.phone,
+        el.businessName,
+        el.newPassword,
+        el.confirmPassword
+    ].forEach(input => {
+        input?.addEventListener('input', () => {
+            setInvalid(input, false);
+        });
+    });
+}
+
+/* =========================================================
+   INITIALIZATION
+========================================================= */
+
+async function init() {
+    const auth = await buyerReady;
+
+    if (!auth) return;
+
+    if (!hasPermission('profile.view')) {
+        hideProfilePage();
+        return;
+    }
+
+    try {
+        state.user = auth.user;
+
+        setToday();
+        applyProfilePermissions();
+        bindEvents();
+
+        renderIdentity();
+        fillForm();
+
+        if (el.loading) {
+            el.loading.hidden = true;
+        }
+
+        if (el.layout) {
+            el.layout.hidden = false;
+        }
+
+        if (hasPermission('cart.view')) {
+            await loadCartCount();
+        }
+
+    } catch (error) {
+        console.error('Profile loading failed:', error);
+
+        showError(
+            error?.message || 'Unable to load your profile.'
+        );
+    }
 }
 
 init();

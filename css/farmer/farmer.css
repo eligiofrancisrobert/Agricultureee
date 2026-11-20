@@ -18,6 +18,14 @@ body {
     color: var(--primary-text);
 }
 
+body.permissions-loading .app-layout {
+    visibility: hidden !important;
+}
+
+body.permissions-loading .sidebar {
+    visibility: hidden !important;
+}
+
 .app-layout {
     min-height: 100vh;
     display: flex;

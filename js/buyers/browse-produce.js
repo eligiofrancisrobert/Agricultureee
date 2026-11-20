@@ -1,6 +1,13 @@
 
 import { supabase } from '../connection.js';
 
+import {
+  buyerReady,
+  hasPermission,
+  requirePermission,
+  showToast as buyerToast,
+} from './main.js';
+
 const TABLE_INVENTORY = 'warehouse_produce_inventory';
 const TABLE_PRICES = 'farm_produce_prices';
 const TABLE_CART = 'buyer_cart_items';
@@ -51,7 +58,82 @@ let realtimeRefreshTimeout = null;
 let isRefreshingProducts = false;
 let pendingRefresh = false;
 
+let pageInitialized = false;
+
 const photoCache = new Map();
+
+/* ============================================================
+   PERMISSION HELPERS
+   ============================================================ */
+
+function canViewProduce() {
+  return hasPermission('produce.view');
+}
+
+function canAddToCart() {
+  return hasPermission('cart.create');
+}
+
+function denyProducePage() {
+  unsubscribeFromBuyerRealtime();
+
+  state.products = [];
+  state.filteredProducts = [];
+
+  const main = document.querySelector('main');
+
+  if (main) {
+    main.hidden = true;
+  }
+
+  const existing = document.getElementById('buyerPermissionDenied');
+
+  if (existing) return;
+
+  const message = document.createElement('section');
+
+  message.id = 'buyerPermissionDenied';
+  message.style.cssText = `
+    max-width: 600px;
+    margin: 80px auto;
+    padding: 40px 24px;
+    text-align: center;
+  `;
+
+  message.innerHTML = `
+    <h2>Access Denied</h2>
+    <p>You do not have permission to view available produce.</p>
+    <a href="dashboard.html">Return to Dashboard</a>
+  `;
+
+  document.body.appendChild(message);
+}
+
+function showToast(message, type = 'success') {
+  if (el.toastStack) {
+    const toast = document.createElement('div');
+
+    toast.className = `produce-toast ${type}`;
+    toast.textContent = message;
+
+    el.toastStack.appendChild(toast);
+
+    requestAnimationFrame(() => toast.classList.add('show'));
+
+    window.setTimeout(() => {
+      toast.classList.remove('show');
+      window.setTimeout(() => toast.remove(), 250);
+    }, 3000);
+
+    return;
+  }
+
+  buyerToast(message, type === 'error' ? 'error' : 'success');
+}
+
+/* ============================================================
+   GENERAL HELPERS
+   ============================================================ */
 
 function setToday() {
   if (!el.todayLabel) return;
@@ -76,23 +158,6 @@ function hideError() {
 
   el.error.hidden = true;
   el.error.textContent = '';
-}
-
-function showToast(message, type = 'success') {
-  if (!el.toastStack) return;
-
-  const toast = document.createElement('div');
-  toast.className = `produce-toast ${type}`;
-  toast.textContent = message;
-
-  el.toastStack.appendChild(toast);
-
-  requestAnimationFrame(() => toast.classList.add('show'));
-
-  window.setTimeout(() => {
-    toast.classList.remove('show');
-    window.setTimeout(() => toast.remove(), 250);
-  }, 3000);
 }
 
 function escapeHTML(value) {
@@ -157,16 +222,18 @@ function setLoading(isLoading) {
   el.loading.hidden = !isLoading;
 
   if (isLoading) {
-    el.grid.hidden = true;
-    el.empty.hidden = true;
+    if (el.grid) el.grid.hidden = true;
+    if (el.empty) el.empty.hidden = true;
   }
 }
 
-/**
- * Load product photos in batches.
- * This runs separately from product rendering.
- */
+/* ============================================================
+   PRODUCT PHOTOS
+   ============================================================ */
+
 async function loadProductPhotos(products) {
+  if (!canViewProduce()) return;
+
   const photoProducts = new Map();
 
   for (const product of products) {
@@ -198,6 +265,8 @@ async function loadProductPhotos(products) {
   await Promise.all(
     batches.map(async (batch) => {
       try {
+        if (!canViewProduce()) return;
+
         const { data, error } = await supabase.storage
           .from(STORAGE_BUCKET)
           .createSignedUrls(batch, SIGNED_URL_EXPIRY);
@@ -208,6 +277,8 @@ async function loadProductPhotos(products) {
         }
 
         for (let i = 0; i < batch.length; i++) {
+          if (!canViewProduce()) return;
+
           const requestedPath = batch[i];
           const result = data?.[i];
 
@@ -235,10 +306,9 @@ async function loadProductPhotos(products) {
   );
 }
 
-/**
- * Update a product image without rebuilding the entire product grid.
- */
 function updateProductPhoto(produceId, photoPath, photoUrl) {
+  if (!canViewProduce()) return;
+
   const currentProduct = state.products.find(
     (product) => product.produce_id === produceId
   );
@@ -285,44 +355,18 @@ function updateProductPhoto(produceId, photoPath, photoUrl) {
   }
 }
 
-async function loadBuyerHeader() {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error) throw error;
-
-  if (!user) {
-    window.location.replace('../../login.html');
-    return null;
-  }
-
-  state.buyerId = user.id;
-
-  const metadata = user.user_metadata || {};
-
-  const displayName =
-    metadata.full_name ||
-    metadata.fullName ||
-    metadata.name ||
-    user.email ||
-    'Buyer';
-
-  if (el.userName) {
-    el.userName.textContent = displayName;
-  }
-
-  if (el.userInitial) {
-    el.userInitial.textContent =
-      displayName.trim().charAt(0).toUpperCase() || 'B';
-  }
-
-  return user;
-}
+/* ============================================================
+   CART COUNT
+   ============================================================ */
 
 async function loadCartCount() {
-  if (!state.buyerId) return;
+  if (!state.buyerId || !canAddToCart()) {
+    if (el.cartCount) {
+      el.cartCount.hidden = true;
+    }
+
+    return;
+  }
 
   const { count, error } = await supabase
     .from(TABLE_CART)
@@ -345,11 +389,16 @@ async function loadCartCount() {
   }
 }
 
-/**
- * Fetch inventory and prices together.
- * Render products immediately, then load their photos separately.
- */
+/* ============================================================
+   LOAD PRODUCTS
+   ============================================================ */
+
 async function loadProducts({ initial = false } = {}) {
+  if (!canViewProduce()) {
+    denyProducePage();
+    return;
+  }
+
   if (initial) {
     setLoading(true);
   }
@@ -379,6 +428,11 @@ async function loadProducts({ initial = false } = {}) {
         .select('farm_id, crop_name, unit, unit_price'),
     ]);
 
+    if (!canViewProduce()) {
+      denyProducePage();
+      return;
+    }
+
     if (inventoryResult.error) throw inventoryResult.error;
     if (pricesResult.error) throw pricesResult.error;
 
@@ -395,7 +449,6 @@ async function loadProducts({ initial = false } = {}) {
 
     const inventory = inventoryResult.data || [];
 
-    // No Storage requests are awaited here.
     const products = inventory.map((item) => {
       const key = priceKey(item);
       const unitPrice = priceMap.get(key);
@@ -425,10 +478,9 @@ async function loadProducts({ initial = false } = {}) {
         })),
     });
 
-    // Render immediately.
     applyFilters();
 
-    // Load missing photos in the background.
+    // Photos load separately in the background.
     loadProductPhotos(products);
 
   } catch (error) {
@@ -440,9 +492,12 @@ async function loadProducts({ initial = false } = {}) {
     );
 
     if (initial) {
-      el.resultCount.textContent = 'Could not load products';
-      el.grid.hidden = true;
-      el.empty.hidden = true;
+      if (el.resultCount) {
+        el.resultCount.textContent = 'Could not load products';
+      }
+
+      if (el.grid) el.grid.hidden = true;
+      if (el.empty) el.empty.hidden = true;
     }
 
     throw error;
@@ -454,13 +509,24 @@ async function loadProducts({ initial = false } = {}) {
   }
 }
 
-/**
- * Debounce realtime events and prevent overlapping requests.
- */
+/* ============================================================
+   REALTIME
+   ============================================================ */
+
 function scheduleProductsRefresh() {
+  if (!canViewProduce()) {
+    denyProducePage();
+    return;
+  }
+
   window.clearTimeout(realtimeRefreshTimeout);
 
   realtimeRefreshTimeout = window.setTimeout(async () => {
+    if (!canViewProduce()) {
+      denyProducePage();
+      return;
+    }
+
     if (isRefreshingProducts) {
       pendingRefresh = true;
       return;
@@ -472,26 +538,30 @@ function scheduleProductsRefresh() {
       do {
         pendingRefresh = false;
 
+        if (!canViewProduce()) {
+          denyProducePage();
+          break;
+        }
+
         await loadProducts();
 
-      } while (pendingRefresh);
+      } while (pendingRefresh && canViewProduce());
 
     } catch (error) {
       console.error('Realtime product refresh failed:', error);
     } finally {
       isRefreshingProducts = false;
 
-      if (pendingRefresh) {
+      if (pendingRefresh && canViewProduce()) {
         scheduleProductsRefresh();
       }
     }
   }, 800);
 }
 
-/**
- * Subscribe to warehouse produce inventory changes.
- */
 function subscribeToInventoryRealtime() {
+  if (!canViewProduce()) return;
+
   inventoryChannel = supabase
     .channel('buyer-produce-inventory-realtime')
     .on(
@@ -502,6 +572,8 @@ function subscribeToInventoryRealtime() {
         table: TABLE_INVENTORY,
       },
       (payload) => {
+        if (!canViewProduce()) return;
+
         console.log('Inventory realtime update:', payload);
         scheduleProductsRefresh();
       }
@@ -515,10 +587,9 @@ function subscribeToInventoryRealtime() {
     });
 }
 
-/**
- * Subscribe to Accountant selling price changes.
- */
 function subscribeToPricesRealtime() {
+  if (!canViewProduce()) return;
+
   pricesChannel = supabase
     .channel('buyer-produce-prices-realtime')
     .on(
@@ -529,6 +600,8 @@ function subscribeToPricesRealtime() {
         table: TABLE_PRICES,
       },
       (payload) => {
+        if (!canViewProduce()) return;
+
         console.log('PRICE REALTIME EVENT:', payload);
         scheduleProductsRefresh();
       }
@@ -543,6 +616,8 @@ function subscribeToPricesRealtime() {
 }
 
 function subscribeToBuyerRealtime() {
+  if (!canViewProduce()) return;
+
   subscribeToInventoryRealtime();
   subscribeToPricesRealtime();
 }
@@ -561,9 +636,10 @@ function unsubscribeFromBuyerRealtime() {
   window.clearTimeout(realtimeRefreshTimeout);
 }
 
-/**
- * Render product photo or placeholder.
- */
+/* ============================================================
+   PRODUCT DISPLAY
+   ============================================================ */
+
 function createImageMarkup(product) {
   const placeholder = `
     <div
@@ -604,9 +680,6 @@ function createImageMarkup(product) {
   `;
 }
 
-/**
- * Create an individual product card.
- */
 function createProductCard(product) {
   const name = escapeHTML(product.crop_name || 'Unnamed produce');
   const unit = escapeHTML(product.unit || 'unit');
@@ -635,6 +708,42 @@ function createProductCard(product) {
       <span class="produce-card-price-unit">/ ${unit}</span>
     `;
 
+  // Only render cart controls when cart.create is allowed.
+  const cartControlsMarkup = canAddToCart()
+    ? `
+      <div class="add-cart-controls">
+        <label class="quantity-label">
+          Quantity
+          <input
+            type="number"
+            class="product-quantity"
+            min="${quantityMin}"
+            max="${maxQuantity}"
+            step="${quantityStep}"
+            value="1"
+            inputmode="${isDecimalUnit ? 'decimal' : 'numeric'}"
+            aria-label="Quantity for ${name}"
+            ${maxQuantity < Number(quantityMin) ? 'disabled' : ''}
+          >
+        </label>
+
+        <button
+          type="button"
+          class="add-to-cart-btn"
+          data-produce-id="${escapeHTML(product.produce_id)}"
+          ${!hasPrice || quantity <= 0 ? 'disabled' : ''}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.9a2 2 0 0 0 2-1.6L22 7H6" />
+            <path d="M10 20h.01M18 20h.01" />
+            <path d="M12 8v6M9 11h6" />
+          </svg>
+          Add to Cart
+        </button>
+      </div>
+    `
+    : '';
+
   return `
     <article class="produce-card" data-produce-id="${escapeHTML(product.produce_id)}">
 
@@ -659,76 +768,68 @@ function createProductCard(product) {
           <strong>${quantity.toLocaleString('en-PH')} ${unit}</strong>
         </div>
 
-        <div class="add-cart-controls">
-          <label class="quantity-label">
-            Quantity
-            <input
-              type="number"
-              class="product-quantity"
-              min="${quantityMin}"
-              max="${maxQuantity}"
-              step="${quantityStep}"
-              value="1"
-              inputmode="${isDecimalUnit ? 'decimal' : 'numeric'}"
-              aria-label="Quantity for ${name}"
-              ${maxQuantity < Number(quantityMin) ? 'disabled' : ''}
-            >
-          </label>
-
-          <button
-            type="button"
-            class="add-to-cart-btn"
-            data-produce-id="${escapeHTML(product.produce_id)}"
-            ${!hasPrice || quantity <= 0 ? 'disabled' : ''}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M3 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.9a2 2 0 0 0 2-1.6L22 7H6" />
-              <path d="M10 20h.01M18 20h.01" />
-              <path d="M12 8v6M9 11h6" />
-            </svg>
-            Add to Cart
-          </button>
-        </div>
+        ${cartControlsMarkup}
 
       </div>
     </article>
   `;
 }
 
-/**
- * Render filtered products.
- */
 function renderProducts(products) {
+  if (!canViewProduce()) {
+    denyProducePage();
+    return;
+  }
+
+  if (!el.grid) return;
+
   el.grid.innerHTML = '';
 
   if (!products.length) {
     el.grid.hidden = true;
-    el.empty.hidden = false;
 
-    el.emptyTitle.textContent = state.products.length
-      ? 'No matching produce'
-      : 'No produce available';
+    if (el.empty) {
+      el.empty.hidden = false;
 
-    el.emptyMessage.textContent = state.products.length
-      ? 'Try another search term.'
-      : 'There are currently no available products to display.';
+      if (el.emptyTitle) {
+        el.emptyTitle.textContent = state.products.length
+          ? 'No matching produce'
+          : 'No produce available';
+      }
 
-    el.resultCount.textContent = '0 products';
+      if (el.emptyMessage) {
+        el.emptyMessage.textContent = state.products.length
+          ? 'Try another search term.'
+          : 'There are currently no available products to display.';
+      }
+    }
+
+    if (el.resultCount) {
+      el.resultCount.textContent = '0 products';
+    }
+
     return;
   }
 
   el.grid.innerHTML = products.map(createProductCard).join('');
   el.grid.hidden = false;
-  el.empty.hidden = true;
 
-  el.resultCount.textContent =
-    `${products.length} ${products.length === 1 ? 'product' : 'products'} available`;
+  if (el.empty) {
+    el.empty.hidden = true;
+  }
+
+  if (el.resultCount) {
+    el.resultCount.textContent =
+      `${products.length} ${products.length === 1 ? 'product' : 'products'} available`;
+  }
 }
 
-/**
- * Apply current search and sorting filters.
- */
 function applyFilters() {
+  if (!canViewProduce()) {
+    denyProducePage();
+    return;
+  }
+
   const searchTerm = (el.search?.value || '').trim().toLowerCase();
   const sortValue = el.sort?.value || 'newest';
 
@@ -774,10 +875,20 @@ function applyFilters() {
   renderProducts(products);
 }
 
-/**
- * Add selected produce to buyer cart.
- */
+/* ============================================================
+   ADD TO CART
+   ============================================================ */
+
 async function addToCart(button) {
+  if (!requirePermission('cart.create')) {
+    return;
+  }
+
+  if (!canViewProduce()) {
+    denyProducePage();
+    return;
+  }
+
   if (!state.buyerId) {
     showToast('Please log in to add items to your cart.', 'error');
     return;
@@ -821,6 +932,8 @@ async function addToCart(button) {
   button.textContent = 'Adding...';
 
   try {
+    if (!requirePermission('cart.create')) return;
+
     const { data: latestProduct, error: stockError } = await supabase
       .from(TABLE_INVENTORY)
       .select('produce_id, available_quantity, produce_status')
@@ -856,6 +969,8 @@ async function addToCart(button) {
         `Insufficient stock. You already have ${existingQuantity} in your cart. Available stock is ${availableStock}.`
       );
     }
+
+    if (!requirePermission('cart.create')) return;
 
     let saveResult;
 
@@ -903,48 +1018,71 @@ async function addToCart(button) {
   }
 }
 
-async function logout() {
-  const { error } = await supabase.auth.signOut();
-
-  if (error) {
-    showToast(error.message || 'Unable to log out.', 'error');
-    return;
-  }
-
-  unsubscribeFromBuyerRealtime();
-  window.location.replace('../../login.html');
-}
+/* ============================================================
+   EVENTS
+   ============================================================ */
 
 function bindEvents() {
   el.search?.addEventListener('input', applyFilters);
   el.sort?.addEventListener('change', applyFilters);
-  el.logoutBtn?.addEventListener('click', logout);
 
+  // Logout is already handled by buyers/main.js.
   el.grid?.addEventListener('click', (event) => {
     const button = event.target.closest('.add-to-cart-btn');
 
     if (!button || button.disabled) return;
 
+    if (!requirePermission('cart.create')) {
+      return;
+    }
+
     addToCart(button);
   });
 }
 
-/**
- * Authenticate buyer and initialize the page.
- */
+/* ============================================================
+   INITIALIZATION
+   ============================================================ */
+
 async function init() {
-  setToday();
-  bindEvents();
+  if (pageInitialized) return;
+
+  pageInitialized = true;
 
   try {
-    const user = await loadBuyerHeader();
+    // Wait for authentication and permission loading.
+    const auth = await buyerReady;
 
-    if (!user) return;
+    if (!auth) return;
 
-    await Promise.all([
+    // Page-level permission.
+    if (!hasPermission('produce.view')) {
+      denyProducePage();
+      return;
+    }
+
+    state.buyerId = auth.user.id;
+
+    setToday();
+    bindEvents();
+
+    const tasks = [
       loadProducts({ initial: true }),
-      loadCartCount(),
-    ]);
+    ];
+
+    // Cart count is only needed when the Buyer can add to cart.
+    if (canAddToCart()) {
+      tasks.push(loadCartCount());
+    } else if (el.cartCount) {
+      el.cartCount.hidden = true;
+    }
+
+    await Promise.all(tasks);
+
+    if (!canViewProduce()) {
+      denyProducePage();
+      return;
+    }
 
     subscribeToBuyerRealtime();
 

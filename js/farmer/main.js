@@ -1,7 +1,7 @@
+
 import { supabase } from "../connection.js";
 
 // ---------- THEME ----------
-// Same key as js/feature/theme.js ("theme"), shared by every farmer page.
 
 const THEME_KEY = "theme";
 
@@ -28,28 +28,23 @@ function applyTheme(theme) {
 
     const toggle = document.getElementById("themeToggle");
 
-    if (toggle) {
-        toggle.addEventListener("click", event => {
-            // Stop any other theme handler on this button so the theme
-            // is never toggled twice by one click.
-            event.stopImmediatePropagation();
+    toggle?.addEventListener("click", event => {
+        event.stopImmediatePropagation();
 
-            const next =
-                document.documentElement.getAttribute("data-theme") === "dark"
-                    ? "light"
-                    : "dark";
+        const next =
+            document.documentElement.getAttribute("data-theme") === "dark"
+                ? "light"
+                : "dark";
 
-            applyTheme(next);
+        applyTheme(next);
 
-            try {
-                localStorage.setItem(THEME_KEY, next);
-            } catch {
-                // Ignore blocked storage.
-            }
-        });
-    }
+        try {
+            localStorage.setItem(THEME_KEY, next);
+        } catch {
+            // Ignore blocked storage.
+        }
+    });
 
-    // Keep other open pages in sync.
     window.addEventListener("storage", event => {
         if (event.key === THEME_KEY && event.newValue) {
             applyTheme(event.newValue);
@@ -57,27 +52,164 @@ function applyTheme(theme) {
     });
 })();
 
+// ---------- ELEMENTS ----------
+
 const farmerName = document.getElementById("farmerName");
 const welcomeName = document.getElementById("welcomeName");
 const farmerAvatar = document.getElementById("farmerAvatar");
 const logoutButton = document.getElementById("logoutButton");
 const todayLabel = document.getElementById("todayLabel");
+const mainContent = document.querySelector(".main-content");
 
-const logoutDefaultHTML = logoutButton.innerHTML;
+const logoutDefaultHTML = logoutButton?.innerHTML || "";
 
 let currentUser = null;
 
-/* ============ DATE (theme is handled by js/feature/theme.js) ============ */
+// ---------- FARMER PERMISSIONS ----------
 
-todayLabel.textContent = new Date().toLocaleDateString("en-PH", {
-    weekday: "short",
-    month: "short",
-    day: "numeric"
-});
+const FARMER_PAGE_PERMISSIONS = {
+    "farmer-dashboard.html": "dashboard.view",
+    "activities.html": "activities.view",
+    "plantings.html": "plantings.view",
+    "recommendations.html": "recommendations.view",
+    "harvest-records.html": "harvest_records.view"
+};
 
-/* ============ DASHBOARD ============ */
-/** Verify the signed-in farmer profile and populate the dashboard identity. */
-async function initializeFarmerDashboard() {
+const permissionCache = new Map();
+
+function getCurrentPage() {
+    return window.location.pathname
+        .split("/")
+        .pop()
+        .toLowerCase();
+}
+
+function getPermissionForPage(page) {
+    return FARMER_PAGE_PERMISSIONS[page] || null;
+}
+
+/**
+ * Checks the effective permission from Supabase.
+ * Errors are denied by default.
+ */
+export async function hasFarmerPermission(permissionKey) {
+    if (!permissionKey) return false;
+
+    if (permissionCache.has(permissionKey)) {
+        return permissionCache.get(permissionKey);
+    }
+
+    try {
+        const { data, error } = await supabase.rpc(
+            "has_tanikala_permission",
+            {
+                p_permission_key: permissionKey
+            }
+        );
+
+        if (error) {
+            console.error(
+                `Permission check failed (${permissionKey}):`,
+                error
+            );
+
+            permissionCache.set(permissionKey, false);
+            return false;
+        }
+
+        const allowed = data === true;
+
+        permissionCache.set(permissionKey, allowed);
+
+        return allowed;
+
+    } catch (error) {
+        console.error(
+            `Permission check error (${permissionKey}):`,
+            error
+        );
+
+        permissionCache.set(permissionKey, false);
+        return false;
+    }
+}
+
+/**
+ * Checks all Farmer page permissions and hides
+ * unauthorized sidebar and Quick Access links.
+ */
+async function applyFarmerNavigationPermissions() {
+    const entries = Object.entries(FARMER_PAGE_PERMISSIONS);
+
+    const results = await Promise.all(
+        entries.map(async ([page, permission]) => ({
+            page,
+            allowed: await hasFarmerPermission(permission)
+        }))
+    );
+
+    const permissionMap = new Map(
+        results.map(item => [item.page, item.allowed])
+    );
+
+    document.querySelectorAll(
+        ".navigation a.nav-link[href], " +
+        ".quick-access a.access-card[href]"
+    ).forEach(link => {
+        const href = link.getAttribute("href");
+
+        if (!href) return;
+
+        const page = href.split("?")[0].split("#")[0].split("/").pop();
+
+        const permission = FARMER_PAGE_PERMISSIONS[page];
+
+        // Do not modify unrelated links.
+        if (!permission) return;
+
+        const allowed = permissionMap.get(page) === true;
+
+        link.hidden = !allowed;
+        link.style.display = allowed ? "" : "none";
+
+        if (allowed) {
+            link.removeAttribute("aria-hidden");
+            link.removeAttribute("tabindex");
+        } else {
+            link.setAttribute("aria-hidden", "true");
+            link.setAttribute("tabindex", "-1");
+        }
+    });
+
+    return permissionMap;
+}
+
+// ---------- ACCESS CONTROL ----------
+
+function showAccessDenied() {
+    if (!mainContent) return;
+
+    mainContent.innerHTML = `
+        <section class="information-section">
+            <div>
+                <h2>Access Restricted</h2>
+                <p>
+                    You do not have permission to access this page.
+                    Please contact your Administrator.
+                </p>
+            </div>
+        </section>
+    `;
+}
+
+/**
+ * Reusable initialization for every Farmer page.
+ * Checks authentication, account status, navigation,
+ * and permission to access the current page.
+ */
+export async function initializeFarmerPermissions() {
+    document.body.classList.add("permissions-loading");
+
     try {
         const {
             data: { user },
@@ -86,7 +218,7 @@ async function initializeFarmerDashboard() {
 
         if (authError || !user) {
             window.location.replace("../../login.html");
-            return;
+            return false;
         }
 
         currentUser = user;
@@ -106,9 +238,10 @@ async function initializeFarmerDashboard() {
         ) {
             await supabase.auth.signOut();
             window.location.replace("../../login.html");
-            return;
+            return false;
         }
 
+        // Farmer profile information.
         const fullName =
             user.user_metadata?.full_name ||
             user.user_metadata?.fullName ||
@@ -117,26 +250,73 @@ async function initializeFarmerDashboard() {
 
         const firstName = fullName.trim().split(/\s+/)[0];
 
-        farmerName.textContent = fullName;
-        welcomeName.textContent = firstName;
+        if (farmerName) farmerName.textContent = fullName;
+        if (welcomeName) welcomeName.textContent = firstName;
 
-        farmerAvatar.textContent = firstName.charAt(0).toUpperCase();
+        if (farmerAvatar) {
+            farmerAvatar.textContent = firstName.charAt(0).toUpperCase();
+        }
+
+        // Update date when the element exists.
+        if (todayLabel) {
+            todayLabel.textContent = new Date().toLocaleDateString(
+                "en-PH",
+                {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric"
+                }
+            );
+        }
+
+        // Check every Farmer page permission.
+        const permissionMap =
+            await applyFarmerNavigationPermissions();
+
+        // Check permission for the currently opened page.
+        const currentPage = getCurrentPage();
+        const currentPermission = getPermissionForPage(currentPage);
+
+        if (currentPermission) {
+            const allowed =
+                permissionMap.get(currentPage) === true;
+
+            if (!allowed) {
+                showAccessDenied();
+                return false;
+            }
+        }
+
+        return true;
 
     } catch (error) {
-        console.error("Farmer dashboard initialization failed:", error);
+        console.error(
+            "Farmer permission initialization failed:",
+            error
+        );
 
-        document.querySelector(".main-content").innerHTML = `
-            <div class="error-message">
-                <h2>Unable to load your dashboard</h2>
-                <p>Please refresh the page or log in again.</p>
-            </div>
-        `;
+        if (mainContent) {
+            mainContent.innerHTML = `
+                <div class="error-message">
+                    <h2>Unable to load this page</h2>
+                    <p>
+                        Please refresh the page or log in again.
+                    </p>
+                </div>
+            `;
+        }
+
+        return false;
+
+    } finally {
+        document.body.classList.remove("permissions-loading");
     }
 }
 
-/** Sign out the current farmer and redirect to the login page. */
+// ---------- LOGOUT ----------
+
 async function logout() {
-    if (!currentUser || logoutButton.disabled) return;
+    if (!currentUser || !logoutButton || logoutButton.disabled) return;
 
     logoutButton.disabled = true;
     logoutButton.textContent = "Logging out...";
@@ -158,7 +338,9 @@ async function logout() {
     }
 }
 
-logoutButton.addEventListener("click", logout);
+logoutButton?.addEventListener("click", logout);
+
+// ---------- COMING SOON ----------
 
 document.querySelectorAll("[data-coming-soon]").forEach(link => {
     link.addEventListener("click", event => {
@@ -167,4 +349,6 @@ document.querySelectorAll("[data-coming-soon]").forEach(link => {
     });
 });
 
-initializeFarmerDashboard();
+// ---------- INITIALIZE ----------
+
+initializeFarmerPermissions();
