@@ -1,4 +1,3 @@
-
 import { supabase } from '../connection.js';
 
 const root = document.getElementById('view');
@@ -13,6 +12,12 @@ let statusFilter = 'active';
 let currentPage = 1;
 let editingCrop = null;
 let busy = false;
+
+let cropPermissions = {
+    create: false,
+    edit: false,
+    delete: false,
+};
 
 const $ = (selector) => root?.querySelector(selector);
 
@@ -50,7 +55,6 @@ function notify(message, type = 'error') {
         return;
     }
 
-    // Fallback if the page is not currently mounted.
     console[type === 'error' ? 'error' : 'log'](message);
 }
 
@@ -63,6 +67,10 @@ function setBusy(value) {
         button.disabled = value;
     });
 }
+
+// ============================================================
+// AUTHENTICATION
+// ============================================================
 
 async function getManagerAccount() {
     const {
@@ -91,6 +99,48 @@ async function getManagerAccount() {
     return data.staff_id;
 }
 
+// ============================================================
+// PERMISSIONS
+// ============================================================
+
+async function checkPermission(permissionKey) {
+    const { data, error } = await supabase.rpc(
+        'has_tanikala_permission',
+        {
+            p_permission_key: permissionKey
+        }
+    );
+
+    if (error) {
+        console.error(
+            `Permission check failed: ${permissionKey}`,
+            error
+        );
+
+        return false;
+    }
+
+    return data === true;
+}
+
+async function loadCropPermissions() {
+    const [create, edit, remove] = await Promise.all([
+        checkPermission('crops.create'),
+        checkPermission('crops.edit'),
+        checkPermission('crops.delete')
+    ]);
+
+    cropPermissions = {
+        create,
+        edit,
+        delete: remove
+    };
+}
+
+// ============================================================
+// FILTERING
+// ============================================================
+
 function getVisibleCrops() {
     const term = searchTerm.trim().toLowerCase();
 
@@ -109,15 +159,19 @@ function getVisibleCrops() {
             case 'active':
                 matchesStatus = !deleted && crop.is_active;
                 break;
+
             case 'inactive':
                 matchesStatus = !deleted && !crop.is_active;
                 break;
+
             case 'deleted':
                 matchesStatus = deleted;
                 break;
+
             case 'all':
                 matchesStatus = true;
                 break;
+
             default:
                 matchesStatus = !deleted && crop.is_active;
         }
@@ -125,6 +179,10 @@ function getVisibleCrops() {
         return matchesSearch && matchesStatus;
     });
 }
+
+// ============================================================
+// STATISTICS
+// ============================================================
 
 function renderStats() {
     const stats = $('#cropStats');
@@ -160,6 +218,10 @@ function renderStats() {
     `;
 }
 
+// ============================================================
+// STATUS AND ACTIONS
+// ============================================================
+
 function statusMarkup(crop) {
     if (crop.crops_date_deleted) {
         return '<span class="crop-badge crop-badge-deleted">Deleted</span>';
@@ -176,6 +238,8 @@ function actionMarkup(crop) {
     const id = escapeHTML(crop.crops_id);
 
     if (crop.crops_date_deleted) {
+        if (!cropPermissions.delete) return '';
+
         return `
             <button type="button" class="crop-btn"
                 data-action="restore" data-id="${id}">
@@ -185,22 +249,30 @@ function actionMarkup(crop) {
     }
 
     return `
-        <button type="button" class="crop-btn"
-            data-action="edit" data-id="${id}">
-            Edit
-        </button>
+        ${cropPermissions.edit ? `
+            <button type="button" class="crop-btn"
+                data-action="edit" data-id="${id}">
+                Edit
+            </button>
 
-        <button type="button" class="crop-btn"
-            data-action="toggle" data-id="${id}">
-            ${crop.is_active ? 'Deactivate' : 'Reactivate'}
-        </button>
+            <button type="button" class="crop-btn"
+                data-action="toggle" data-id="${id}">
+                ${crop.is_active ? 'Deactivate' : 'Reactivate'}
+            </button>
+        ` : ''}
 
-        <button type="button" class="crop-btn crop-btn-danger"
-            data-action="delete" data-id="${id}">
-            Delete
-        </button>
+        ${cropPermissions.delete ? `
+            <button type="button" class="crop-btn crop-btn-danger"
+                data-action="delete" data-id="${id}">
+                Delete
+            </button>
+        ` : ''}
     `;
 }
+
+// ============================================================
+// TABLE
+// ============================================================
 
 function renderTable() {
     const tbody = $('#cropTableBody');
@@ -236,6 +308,7 @@ function renderTable() {
                     <div class="crop-name">
                         ${escapeHTML(crop.crops_name)}
                     </div>
+
                     <div class="crop-desc">
                         ${escapeHTML(crop.crops_description || 'No description')}
                     </div>
@@ -259,27 +332,31 @@ function renderTable() {
 
         <div class="crop-actions">
             <button type="button" class="crop-btn"
-                data-action="previous" ${currentPage <= 1 ? 'disabled' : ''}>
+                data-action="previous"
+                ${currentPage <= 1 ? 'disabled' : ''}>
                 Previous
             </button>
 
             <button type="button" class="crop-btn"
-                data-action="next" ${currentPage >= totalPages ? 'disabled' : ''}>
+                data-action="next"
+                ${currentPage >= totalPages ? 'disabled' : ''}>
                 Next
             </button>
         </div>
     `;
 }
 
+// ============================================================
+// LOAD CROPS
+// ============================================================
 
-/** Fetch this manager's crop catalog and refresh the statistics and table. */
 async function loadCrops() {
     if (!managerId) {
         throw new Error('Farm Manager account could not be identified.');
     }
 
     const { data, error } = await supabase
-        .from('crops_catalog')
+        .from(TABLE)
         .select(`
             crops_id,
             crops_name,
@@ -298,16 +375,35 @@ async function loadCrops() {
         throw error;
     }
 
-    // Store only this manager's crops in the page state.
     crops = data ?? [];
 
-    // Refresh the statistics and table.
     renderStats();
     renderTable();
 }
 
+// ============================================================
+// ADD / EDIT MODAL
+// ============================================================
 
-function openModal(crop = null) {
+async function openModal(crop = null) {
+    const requiredPermission = crop ? 'edit' : 'create';
+
+    const allowed = await checkPermission(
+        `crops.${requiredPermission}`
+    );
+
+    cropPermissions[requiredPermission] = allowed;
+
+    if (!allowed) {
+        notify(
+            `You do not have permission to ${crop ? 'edit' : 'create'} crops.`,
+            'error'
+        );
+
+        renderTable();
+        return;
+    }
+
     editingCrop = crop;
 
     const modal = $('#cropModal');
@@ -335,6 +431,7 @@ function openModal(crop = null) {
                 <form id="cropForm">
                     <div class="crop-field">
                         <label for="cropName">Crop Name *</label>
+
                         <input
                             id="cropName"
                             name="crops_name"
@@ -347,6 +444,7 @@ function openModal(crop = null) {
 
                     <div class="crop-field">
                         <label for="cropDescription">Description</label>
+
                         <textarea
                             id="cropDescription"
                             name="crops_description"
@@ -388,11 +486,37 @@ function closeModal() {
     editingCrop = null;
 }
 
-/** Validate and persist the crop form, then refresh the catalog display. */
+// ============================================================
+// SAVE CROP
+// ============================================================
+
 async function saveCrop(form) {
     if (busy) return;
 
+    const requiredPermission = editingCrop ? 'edit' : 'create';
+
+    const allowed = await checkPermission(
+        `crops.${requiredPermission}`
+    );
+
+    cropPermissions[requiredPermission] = allowed;
+
+    if (!allowed) {
+        const errorBox = $('#cropFormError');
+
+        if (errorBox) {
+            errorBox.textContent =
+                `You do not have permission to ${editingCrop ? 'edit' : 'create'} crops.`;
+
+            errorBox.hidden = false;
+        }
+
+        renderTable();
+        return;
+    }
+
     const name = form.elements.crops_name.value.trim();
+
     const description =
         form.elements.crops_description.value.trim() || null;
 
@@ -442,6 +566,7 @@ async function saveCrop(form) {
 
         closeModal();
         await loadCrops();
+
     } catch (error) {
         console.error('Failed to save crop:', error);
 
@@ -453,13 +578,34 @@ async function saveCrop(form) {
 
             errorBox.hidden = false;
         }
+
     } finally {
         setBusy(false);
     }
 }
 
-async function updateCrop(id, changes, successMessage) {
+// ============================================================
+// UPDATE CROP
+// ============================================================
+
+async function updateCrop(id, changes, successMessage, permissionAction) {
     if (busy) return;
+
+    const allowed = await checkPermission(
+        `crops.${permissionAction}`
+    );
+
+    cropPermissions[permissionAction] = allowed;
+
+    if (!allowed) {
+        notify(
+            `You do not have permission to ${permissionAction} crops.`,
+            'error'
+        );
+
+        renderTable();
+        return;
+    }
 
     setBusy(true);
 
@@ -473,13 +619,19 @@ async function updateCrop(id, changes, successMessage) {
 
         notify(successMessage, 'success');
         await loadCrops();
+
     } catch (error) {
         console.error('Failed to update crop:', error);
         notify(error.message || 'Unable to update crop.');
+
     } finally {
         setBusy(false);
     }
 }
+
+// ============================================================
+// ROW ACTIONS
+// ============================================================
 
 async function handleRowAction(action, id) {
     if (action === 'previous') {
@@ -499,11 +651,14 @@ async function handleRowAction(action, id) {
         return;
     }
 
-    const crop = crops.find((item) => String(item.crops_id) === String(id));
+    const crop = crops.find(
+        (item) => String(item.crops_id) === String(id)
+    );
+
     if (!crop) return;
 
     if (action === 'edit') {
-        openModal(crop);
+        await openModal(crop);
         return;
     }
 
@@ -521,7 +676,8 @@ async function handleRowAction(action, id) {
         await updateCrop(
             crop.crops_id,
             { is_active: activate },
-            activate ? 'Crop reactivated.' : 'Crop deactivated.'
+            activate ? 'Crop reactivated.' : 'Crop deactivated.',
+            'edit'
         );
 
         return;
@@ -540,7 +696,8 @@ async function handleRowAction(action, id) {
                 crops_date_deleted: new Date().toISOString(),
                 is_active: false
             },
-            'Crop moved to deleted records.'
+            'Crop moved to deleted records.',
+            'delete'
         );
 
         return;
@@ -559,14 +716,19 @@ async function handleRowAction(action, id) {
                 crops_date_deleted: null,
                 is_active: true
             },
-            'Crop restored and activated.'
+            'Crop restored and activated.',
+            'delete'
         );
     }
 }
 
+// ============================================================
+// EVENT LISTENERS
+// ============================================================
+
 function bindEvents() {
-    // Avoid adding duplicate listeners if the route is initialized again.
     if (root.dataset.cropsBound === 'true') return;
+
     root.dataset.cropsBound = 'true';
 
     root.addEventListener('click', async (event) => {
@@ -598,7 +760,7 @@ function bindEvents() {
         }
 
         if (event.target.closest('#addCropButton')) {
-            openModal();
+            await openModal();
         }
     });
 
@@ -632,6 +794,10 @@ function bindEvents() {
     });
 }
 
+// ============================================================
+// PAGE RENDER
+// ============================================================
+
 function renderPage() {
     root.innerHTML = `
         <section class="fm-crops">
@@ -643,11 +809,13 @@ function renderPage() {
                     </p>
                 </div>
 
-                <button type="button"
-                    id="addCropButton"
-                    class="crop-btn crop-btn-primary">
-                    + Add Crop
-                </button>
+                ${cropPermissions.create ? `
+                    <button type="button"
+                        id="addCropButton"
+                        class="crop-btn crop-btn-primary">
+                        + Add Crop
+                    </button>
+                ` : ''}
             </header>
 
             <div id="cropMessage" class="crop-message" hidden></div>
@@ -708,21 +876,27 @@ function renderPage() {
     `;
 }
 
-/** Initialize the crop catalog view, including its filters and editor actions. */
+// ============================================================
+// INITIALIZE
+// ============================================================
+
 export async function render(container, ctx) {
     if (!container) {
         console.error('Farm Manager page root #view was not found.');
         return;
     }
 
-    // The main router passes the page container.
-    // Keep the shared root reference synchronized.
-    renderPage();
     bindEvents();
 
     try {
         managerId = await getManagerAccount();
+
+        await loadCropPermissions();
+
+        renderPage();
+
         await loadCrops();
+
     } catch (error) {
         console.error('Crop catalog initialization failed:', error);
         notify(error.message || 'Unable to initialize the crop catalog.');

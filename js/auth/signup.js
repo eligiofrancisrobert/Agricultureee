@@ -681,14 +681,58 @@ updateConditionalRequiredFields();
 if (!form) {
     console.error('Signup form with ID "signupForm" was not found.');
 } else {
+    form.setAttribute("novalidate", "");
+
     form.addEventListener("submit", async event => {
         event.preventDefault();
         clearMessage();
 
         updateConditionalRequiredFields();
 
+        const passwordInput = document.getElementById("password");
+        const confirmPasswordInput = document.getElementById("confirmPassword");
+
+        const password = passwordInput?.value ?? "";
+        const confirmPassword = confirmPasswordInput?.value ?? "";
+
+        // PASSWORD POLICY VALIDATION
+        const strongPassword =
+            password.length >= 12 &&
+            password.length <= 128 &&
+            /[a-z]/.test(password) &&
+            /[A-Z]/.test(password) &&
+            /\d/.test(password) &&
+            /[^A-Za-z0-9]/.test(password);
+
+        if (!strongPassword) {
+            showMessage(
+                "Password must be at least 12 characters and include " +
+                "a lowercase letter, an uppercase letter, a number, " +
+                "and a symbol.",
+                true
+            );
+
+            passwordInput?.focus();
+            return;
+        }
+
+        // CONFIRM PASSWORD VALIDATION
+        if (password !== confirmPassword) {
+            showMessage("Passwords do not match.", true);
+            confirmPasswordInput?.focus();
+            return;
+        }
+
+        // HTML5 VALIDATION
         if (!form.checkValidity()) {
-            form.reportValidity();
+            const invalidField = form.querySelector(":invalid");
+
+            showMessage(
+                invalidField?.validationMessage ||
+                "Please complete all required fields.",
+                true
+            );
+
             return;
         }
 
@@ -705,32 +749,7 @@ if (!form) {
         ].filter(Boolean).join(" ");
 
         const email = value("email").toLowerCase();
-        const password = document.getElementById("password")?.value ?? "";
-        const confirmPassword =
-            document.getElementById("confirmPassword")?.value ?? "";
         const role = value("role");
-
-        const strongPassword =
-            password.length >= 12 &&
-            /[a-z]/.test(password) &&
-            /[A-Z]/.test(password) &&
-            /\d/.test(password) &&
-            /[^A-Za-z0-9]/.test(password);
-
-        if (!strongPassword) {
-            showMessage(
-                "Password must be at least 12 characters and include " +
-                "a lowercase letter, an uppercase letter, a number, " +
-                "and a symbol.",
-                true
-            );
-            return;
-        }
-
-        if (password !== confirmPassword) {
-            showMessage("Passwords do not match.", true);
-            return;
-        }
 
         if (!["farmer", "buyer", "supplier"].includes(role)) {
             showMessage("Please select a valid account type.", true);

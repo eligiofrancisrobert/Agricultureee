@@ -24,8 +24,18 @@ const STATUS_LABELS = {
     cancelled: 'Cancelled'
 };
 
-// Static, trusted SVG markup (no user data), drawn in currentColor
-// so icons follow the light/dark theme.
+const PERMISSIONS = {
+    VIEW: 'farm_actions.view',
+    CREATE: 'farm_actions.create',
+    APPROVE: 'farm_actions.approve'
+};
+
+let farmActionPermissions = {
+    view: false,
+    create: false,
+    approve: false
+};
+
 const ICONS = {
     list: '<path d="M9 4h6v3H9z"/><path d="M9 5.5H7a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5a2 2 0 0 0-2-2h-2"/><path d="M9 12h6M9 16h4"/>',
     activity: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
@@ -43,6 +53,60 @@ let farmActionsReloadTimer = null;
 let submissionsByAction = new Map();
 let farmActionsPollingTimer = null;
 
+/* ============================================================
+   PERMISSION HELPERS
+   ============================================================ */
+
+async function checkFarmActionPermission(permissionKey) {
+    try {
+        const { data, error } = await supabase.rpc(
+            'has_tanikala_permission',
+            {
+                p_permission_key: permissionKey
+            }
+        );
+
+        if (error) {
+            console.error(
+                `Farm Actions permission check failed (${permissionKey}):`,
+                error
+            );
+
+            return false;
+        }
+
+        return data === true;
+
+    } catch (error) {
+        console.error(
+            `Farm Actions permission check error (${permissionKey}):`,
+            error
+        );
+
+        return false;
+    }
+}
+
+async function loadFarmActionPermissions() {
+    const [view, create, approve] = await Promise.all([
+        checkFarmActionPermission(PERMISSIONS.VIEW),
+        checkFarmActionPermission(PERMISSIONS.CREATE),
+        checkFarmActionPermission(PERMISSIONS.APPROVE)
+    ]);
+
+    farmActionPermissions = {
+        view,
+        create,
+        approve
+    };
+
+    return farmActionPermissions;
+}
+
+/* ============================================================
+   GENERAL HELPERS
+   ============================================================ */
+
 function icon(name, className) {
     const span = h('span', {
         class: className,
@@ -57,7 +121,6 @@ function icon(name, className) {
     return span;
 }
 
-// Safe CSS class suffix from a status code.
 function statusKey(status) {
     return (
         String(status ?? '')
@@ -72,7 +135,6 @@ function statusClass(status) {
     return `fa-status fa-status-${key}`;
 }
 
-// "land_preparation" -> "Land Preparation"
 function humanize(value) {
     return String(value ?? '')
         .replace(/[_-]+/g, ' ')
@@ -132,6 +194,10 @@ function countByStatus(status) {
     return actions.filter(action => action.status === status).length;
 }
 
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+
 function statCard(label, value, iconName, tone) {
     return h('article', { class: `fa-stat-card fa-tone-${tone}` },
         h('div', { class: 'fa-stat-info' },
@@ -160,13 +226,19 @@ function createHeader(onCreate) {
         )
     );
 
-    const button = h('button', {
-        type: 'button',
-        class: 'fa-create-btn',
-        onclick: onCreate
-    }, '+ Create Action Request');
+    const children = [heading];
 
-    return h('div', { class: 'fa-page-header' }, heading, button);
+    if (farmActionPermissions.create) {
+        children.push(
+            h('button', {
+                type: 'button',
+                class: 'fa-create-btn',
+                onclick: onCreate
+            }, '+ Create Action Request')
+        );
+    }
+
+    return h('div', { class: 'fa-page-header' }, ...children);
 }
 
 function createFilters(onRender) {
@@ -210,6 +282,10 @@ function getFilteredActions() {
         : actions.filter(action => action.status === activeFilter);
 }
 
+/* ============================================================
+   ACTION LIST
+   ============================================================ */
+
 function createActionList(filtered, onRefresh) {
     if (!filtered.length) {
         const filtering = activeFilter !== 'all';
@@ -232,7 +308,7 @@ function createActionList(filtered, onRefresh) {
             .filter(Boolean)
             .join(' · ');
 
-        const card = h('article', { class: 'fa-action-card' },
+        const cardChildren = [
             h('div', { class: 'fa-action-top' },
                 h('h3', {}, action.action_title || 'Untitled action'),
                 h('span', { class: statusClass(action.status) },
@@ -246,29 +322,34 @@ function createActionList(filtered, onRefresh) {
             h('div', { class: 'fa-action-meta' },
                 h('span', {}, `Category: ${humanize(action.action_category) || '—'}`),
                 h('span', {}, `Due: ${dateLabel(action.due_date)}`)
-            ),
+            )
+        ];
 
-            ...(action.status === 'submitted'
-                ? [
-                    h('div', { class: 'fa-action-review' },
-                        h('span', { class: 'fa-review-indicator' },
-                            'Farmer submission received'
-                        ),
-                        h('button', {
-                            type: 'button',
-                            class: 'fa-review-btn',
-                            onclick: () => openSubmissionReview(
-                                action,
-                                submissionsByAction.get(action.action_id),
-                                onRefresh
-                            )
-                        }, 'View Submission & Review')
-                    )
-                ]
-                : [])
+        if (
+            action.status === 'submitted' &&
+            farmActionPermissions.approve
+        ) {
+            cardChildren.push(
+                h('div', { class: 'fa-action-review' },
+                    h('span', { class: 'fa-review-indicator' },
+                        'Farmer submission received'
+                    ),
+                    h('button', {
+                        type: 'button',
+                        class: 'fa-review-btn',
+                        onclick: () => openSubmissionReview(
+                            action,
+                            submissionsByAction.get(action.action_id),
+                            onRefresh
+                        )
+                    }, 'View Submission & Review')
+                )
+            );
+        }
+
+        list.append(
+            h('article', { class: 'fa-action-card' }, ...cardChildren)
         );
-
-        list.append(card);
     });
 
     return list;
@@ -303,8 +384,21 @@ function renderPage(onCreate) {
     );
 }
 
+/* ============================================================
+   CREATE ACTION REQUEST
+   ============================================================ */
 
 async function openCreateActionModal(onCreated) {
+    // Always recheck permission before opening the modal.
+    const canCreate = await checkFarmActionPermission(PERMISSIONS.CREATE);
+
+    farmActionPermissions.create = canCreate;
+
+    if (!canCreate) {
+        toast('You do not have permission to create farm action requests.');
+        return;
+    }
+
     let farmers = [];
     let farms = [];
     let managerUserId = null;
@@ -320,7 +414,6 @@ async function openCreateActionModal(onCreated) {
 
         managerUserId = user.id;
 
-        // Get the Farm Manager's staff record.
         const { data: staff, error: staffError } = await supabase
             .from('staff_accounts')
             .select('staff_id')
@@ -330,7 +423,6 @@ async function openCreateActionModal(onCreated) {
         if (staffError) throw staffError;
         if (!staff) throw new Error('Farm Manager account not found.');
 
-        // Get assigned municipality.
         const { data: manager, error: managerError } = await supabase
             .from('farm_manager_details')
             .select('assigned_farm_location')
@@ -346,13 +438,11 @@ async function openCreateActionModal(onCreated) {
             throw new Error('No municipality assigned to your account.');
         }
 
-        // Load farmers, including tenants and farm workers.
         const { data: farmerData, error: farmerError } =
             await supabase.rpc('manager_list_residential_farmers');
 
         if (farmerError) throw farmerError;
 
-        // Deduplicate using the actual profile ID.
         const uniqueFarmers = new Map();
 
         for (const farmer of farmerData ?? []) {
@@ -369,7 +459,6 @@ async function openCreateActionModal(onCreated) {
 
         farmers = [...uniqueFarmers.values()];
 
-        // Load farms independently of the selected farmer.
         const { data: farmData, error: farmError } = await supabase
             .from('farmer_farms')
             .select('id, farmer_id, farm_name, farm_location')
@@ -432,7 +521,6 @@ async function openCreateActionModal(onCreated) {
         return;
     }
 
-    // Farmer dropdown uses the actual profile ID.
     const farmerSelect = h(
         'select',
         { required: true },
@@ -446,7 +534,6 @@ async function openCreateActionModal(onCreated) {
         )
     );
 
-    // Farm dropdown is independent of farm ownership.
     const farmSelect = h(
         'select',
         { required: true },
@@ -551,12 +638,25 @@ async function openCreateActionModal(onCreated) {
 
         if (!form.reportValidity()) return;
 
+        // Recheck permission immediately before insertion.
+        const canCreate = await checkFarmActionPermission(PERMISSIONS.CREATE);
+
+        if (!canCreate) {
+            farmActionPermissions.create = false;
+            toast('You no longer have permission to create farm action requests.');
+            dialog.close();
+
+            if (viewRoot) {
+                renderPage(() => openCreateActionModal(onCreated));
+            }
+
+            return;
+        }
+
         const selectedFarmer = farmers.find(
             farmer => farmer.farmer_id === farmerSelect.value
         );
 
-        // Validate farm by its ID only.
-        // Do not require the selected farmer to own the farm.
         const selectedFarm = farms.find(
             farm => farm.id === farmSelect.value
         );
@@ -632,6 +732,10 @@ async function openCreateActionModal(onCreated) {
     dialog.showModal();
 }
 
+/* ============================================================
+   LOOKUPS
+   ============================================================ */
+
 async function loadLookups() {
     const [farmResult, farmerResult] = await Promise.all([
         supabase
@@ -666,6 +770,9 @@ async function loadLookups() {
     };
 }
 
+/* ============================================================
+   SUBMISSION DETAILS
+   ============================================================ */
 
 async function loadSubmissionDetails(actionList) {
     submissionsByAction = new Map();
@@ -753,8 +860,26 @@ async function loadSubmissionDetails(actionList) {
     }
 }
 
-/** Review a farmer submission and invoke onReviewed after a successful decision. */
+/* ============================================================
+   REVIEW FARMER SUBMISSION
+   ============================================================ */
+
 async function openSubmissionReview(action, completion, onReviewed) {
+    // Recheck permission before showing review controls.
+    const canApprove = await checkFarmActionPermission(PERMISSIONS.APPROVE);
+
+    farmActionPermissions.approve = canApprove;
+
+    if (!canApprove) {
+        toast('You do not have permission to review farm action submissions.');
+
+        if (viewRoot) {
+            renderPage(() => openCreateActionModal(onReviewed));
+        }
+
+        return;
+    }
+
     if (!completion) {
         toast('No completion submission was found for this action.');
         return;
@@ -826,6 +951,21 @@ async function openSubmissionReview(action, completion, onReviewed) {
     }
 
     const submitReview = async decision => {
+        // Recheck permission immediately before the review RPC.
+        const canApprove = await checkFarmActionPermission(PERMISSIONS.APPROVE);
+
+        if (!canApprove) {
+            farmActionPermissions.approve = false;
+            toast('You no longer have permission to review submissions.');
+            dialog.close();
+
+            if (viewRoot) {
+                renderPage(() => openCreateActionModal(onReviewed));
+            }
+
+            return;
+        }
+
         const notes = notesInput.value.trim();
 
         if (decision === 'revision_requested' && !notes) {
@@ -958,6 +1098,10 @@ async function openSubmissionReview(action, completion, onReviewed) {
     dialog.showModal();
 }
 
+/* ============================================================
+   LOAD FARM ACTIONS
+   ============================================================ */
+
 async function loadActions() {
     const {
         data: { user },
@@ -1000,7 +1144,9 @@ async function loadActions() {
     await loadSubmissionDetails(actions);
 }
 
-// ---------- FARM ACTIONS REALTIME ----------
+/* ============================================================
+   REALTIME
+   ============================================================ */
 
 function cleanupRealtime() {
     clearTimeout(farmActionsReloadTimer);
@@ -1011,8 +1157,6 @@ function cleanupRealtime() {
         farmActionsChannel = null;
     }
 }
-
-
 
 function subscribeToFarmActions(managerId, onUpdate) {
     cleanupRealtime();
@@ -1077,32 +1221,78 @@ function subscribeToFarmActions(managerId, onUpdate) {
     }, 2000);
 }
 
+/* ============================================================
+   CLEANUP
+   ============================================================ */
 
 export function cleanup() {
     cleanupRealtime();
+
     viewRoot = null;
+    actions = [];
+    submissionsByAction = new Map();
+
+    farmActionPermissions = {
+        view: false,
+        create: false,
+        approve: false
+    };
 }
 
-/** Render assigned-farm actions and subscribe to their live record changes. */
+/* ============================================================
+   RENDER
+   ============================================================ */
+
 export async function render(root, ctx) {
+    cleanup();
+
     viewRoot = root;
-    actions = [];
     activeFilter = 'all';
+
+    root.replaceChildren(
+        h('p', { class: 'muted' }, 'Checking Farm Actions permissions...')
+    );
+
+    // Load all three permissions before rendering the page.
+    await loadFarmActionPermissions();
+
+    if (viewRoot !== root) return;
+
+    // Block the entire page if View permission is disabled.
+    if (!farmActionPermissions.view) {
+        root.replaceChildren(
+            h('section', { class: 'fa-empty' },
+                icon('list', 'fa-empty-icon'),
+                h('h3', {}, 'Access Restricted'),
+                h('p', {}, 'You do not have permission to view Farm Actions.')
+            )
+        );
+
+        return;
+    }
 
     const renderCurrentPage = () => {
         renderPage(() => openCreateActionModal(load));
     };
 
     const load = async () => {
+        if (viewRoot !== root) return;
+
         root.replaceChildren(
             h('p', { class: 'muted' }, 'Loading Farm Actions...')
         );
 
         try {
             await loadActions();
-            renderCurrentPage();
+
+            if (viewRoot === root) {
+                renderCurrentPage();
+            }
+
         } catch (error) {
             console.error('Failed to load Farm Actions:', error);
+
+            if (viewRoot !== root) return;
 
             root.replaceChildren(
                 h('p', { class: 'msg error' }, errorMessage(error)),
@@ -1115,7 +1305,6 @@ export async function render(root, ctx) {
         }
     };
 
-    // Refresh data without displaying the loading screen.
     const refresh = async () => {
         try {
             await loadActions();
@@ -1123,6 +1312,7 @@ export async function render(root, ctx) {
             if (viewRoot === root) {
                 renderCurrentPage();
             }
+
         } catch (error) {
             console.error('Realtime Farm Actions refresh failed:', error);
         }
@@ -1130,12 +1320,14 @@ export async function render(root, ctx) {
 
     await load();
 
+    if (viewRoot !== root) return;
+
     const {
         data: { user },
         error
     } = await supabase.auth.getUser();
 
-    if (!error && user) {
+    if (!error && user && viewRoot === root) {
         subscribeToFarmActions(user.id, refresh);
     }
 }

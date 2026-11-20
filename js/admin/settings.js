@@ -35,6 +35,8 @@ const ROLE_PERMISSIONS = {
         'farm_actions.view', 'farm_actions.create',
         'farm_actions.approve', 'farm_actions.edit',
         'plantings.view', 'plantings.create',
+        'plant_now.view', 'plant_now.create',
+        'plantings.view', 'plantings.create',
         'crops.view', 'crops.create', 'crops.edit', 'crops.delete',
         'harvests.view',
         'reports.view', 'reports.export',

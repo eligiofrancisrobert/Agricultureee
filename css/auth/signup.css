@@ -534,6 +534,66 @@ body {
     color: var(--error);
 }
 
+.field-error {
+    display: block !important;
+    color: #dc3545 !important;
+    font-size: 12px;
+    margin-top: 6px;
+    line-height: 1.5;
+}
+
+.field-error[hidden] {
+    display: none !important;
+}
+
+/* ============ PASSWORD INPUT & TOGGLE ============ */
+
+.input-wrap--password {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-wrap--password input {
+    width: 100%;
+    padding-right: 72px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+
+    padding: 5px 8px;
+    border: none;
+    border-radius: 6px;
+
+    background: transparent;
+    color: var(--primary-color);
+
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+
+    cursor: pointer;
+    user-select: none;
+}
+
+.password-toggle:hover {
+    color: var(--primary-hover);
+}
+
+.password-toggle:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.password-toggle:active {
+    transform: translateY(-50%);
+}
+
 /* ============ RESPONSIVE ============ */
 @media (max-width: 900px) {
 
