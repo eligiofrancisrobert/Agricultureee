@@ -132,6 +132,15 @@ export async function initNotifications(supabase) {
     let isDestroyed = false;
     let fallbackTimer = null;
 
+    // Isolate notification clicks from parent/document click handlers.
+    // This prevents notification interactions from reaching unrelated
+    // controls elsewhere in the page.
+    const notificationClickIsolation = (event) => {
+        event.stopPropagation();
+    };
+
+    wrapper.addEventListener('click', notificationClickIsolation);
+
     function updateUnreadCount() {
         const unread = notifications.filter(
             notification => !notification.is_read
@@ -435,17 +444,19 @@ export async function initNotifications(supabase) {
             clearInterval(fallbackTimer);
             fallbackTimer = null;
         }
+
+        wrapper.removeEventListener(
+            'click',
+            notificationClickIsolation
+        );
     };
 
-    // Load existing notifications first.
     await loadNotifications();
 
     if (isDestroyed) return;
 
     console.log('Notifications: connecting to Supabase Realtime...');
 
-    // Listen to all notification changes.
-    // Recipient filtering is performed locally.
     const channel = currentSupabase
         .channel(`notifications-${currentUserId}-${Date.now()}`)
         .on(
@@ -487,7 +498,6 @@ export async function initNotifications(supabase) {
                     renderNotifications();
                 }
 
-                // Reconcile local state with the database.
                 loadNotifications();
             }
         )
@@ -518,7 +528,6 @@ export async function initNotifications(supabase) {
 
     activeChannel = channel;
 
-    // Fallback synchronization in case a Realtime event is missed.
     fallbackTimer = setInterval(() => {
         if (
             !isDestroyed &&
