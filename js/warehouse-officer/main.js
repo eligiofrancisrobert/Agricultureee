@@ -56,12 +56,23 @@ const route = () => {
 // ============================================================
 
 async function requireWarehouseOfficer() {
+    console.log('[WO DIAGNOSTIC] Checking authenticated user...');
+
     const {
         data: { user },
         error
     } = await supabase.auth.getUser();
 
-    if (error || !user) return null;
+    if (error || !user) {
+        console.error('[WO DIAGNOSTIC] AUTH USER CHECK FAILED:', {
+            error,
+            hasUser: !!user
+        });
+
+        return null;
+    }
+
+    console.log('[WO DIAGNOSTIC] Authenticated user found.');
 
     const { data: staff, error: staffError } = await supabase
         .from('staff_accounts')
@@ -70,7 +81,11 @@ async function requireWarehouseOfficer() {
         .maybeSingle();
 
     if (staffError || !staff) {
-        console.error('Warehouse Officer account lookup failed:', staffError);
+        console.error('[WO DIAGNOSTIC] STAFF ACCOUNT CHECK FAILED:', {
+            staffError,
+            hasStaff: !!staff
+        });
+
         return null;
     }
 
@@ -78,8 +93,17 @@ async function requireWarehouseOfficer() {
         Number(staff.role_id) !== WAREHOUSE_OFFICER_ROLE_ID ||
         Number(staff.status_id) !== ACTIVE_STATUS_ID
     ) {
+        console.error('[WO DIAGNOSTIC] STAFF VALIDATION FAILED:', {
+            role_id: staff.role_id,
+            expected_role_id: WAREHOUSE_OFFICER_ROLE_ID,
+            status_id: staff.status_id,
+            expected_status_id: ACTIVE_STATUS_ID
+        });
+
         return null;
     }
+
+    console.log('[WO DIAGNOSTIC] Warehouse Officer validation passed.');
 
     return staff;
 }
@@ -214,7 +238,6 @@ async function show() {
             );
         }
 
-        // Check permission again after loading the module.
         if (!authorized || !canAccessRoute(key)) {
             showAccessDenied();
             return;
@@ -243,10 +266,13 @@ async function show() {
 // ============================================================
 
 async function setupNotifications() {
+    console.log('[WO DIAGNOSTIC] Setting up notifications...');
+
     cleanupNotifications();
 
     try {
         await initNotifications(supabase);
+        console.log('[WO DIAGNOSTIC] Notifications initialized.');
     } catch (error) {
         console.error(
             'Failed to initialize Warehouse Officer notifications:',
@@ -260,7 +286,12 @@ async function setupNotifications() {
 // ============================================================
 
 async function boot() {
-    if (checking) return;
+    if (checking) {
+        console.warn('[WO DIAGNOSTIC] Boot skipped: already checking.');
+        return;
+    }
+
+    console.log('[WO DIAGNOSTIC] BOOT STARTED.');
 
     checking = true;
     authorized = false;
@@ -274,7 +305,15 @@ async function boot() {
         const staff = await requireWarehouseOfficer();
 
         if (!staff) {
-            await supabase.auth.signOut().catch(() => { });
+            console.error(
+                '[WO DIAGNOSTIC] FORCED LOGOUT: Warehouse Officer validation returned null.'
+            );
+
+            const { error: signOutError } = await supabase.auth.signOut();
+
+            console.error('[WO DIAGNOSTIC] Forced signOut result:', {
+                signOutError
+            });
 
             location.replace('../../login.html');
             return;
@@ -282,7 +321,6 @@ async function boot() {
 
         ctx.staff = staff;
 
-        // Load the selected user's permissions.
         await loadPermissions();
 
         const avatar = document.getElementById('woAvatar');
@@ -319,6 +357,7 @@ async function boot() {
         toast('Unable to initialize your account. Please refresh.');
     } finally {
         checking = false;
+        console.log('[WO DIAGNOSTIC] BOOT FINISHED.');
     }
 }
 
@@ -374,12 +413,20 @@ function setupChrome() {
 
     window.addEventListener('pageshow', (event) => {
         if (event.persisted) {
+            console.warn(
+                '[WO DIAGNOSTIC] Persisted pageshow event triggered boot.'
+            );
+
             boot();
         }
     });
 
     if (logoutButton) {
         logoutButton.addEventListener('click', async () => {
+            console.error(
+                '[WO DIAGNOSTIC] MANUAL LOGOUT BUTTON CLICK HANDLER TRIGGERED.'
+            );
+
             if (logoutButton.disabled) return;
 
             logoutButton.disabled = true;
