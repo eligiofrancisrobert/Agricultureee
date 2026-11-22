@@ -240,9 +240,291 @@ export async function render(root, ctx = {}) {
     let isSaving = false;
     let previewUrl = null;
     let previousBodyOverflow = '';
+    let alertModal = null;
 
-    // Stores which crop histories are currently expanded.
     const expandedHistoryIds = new Set();
+
+    // ============================================================
+    // THEME-AWARE ALERT MODAL
+    // ============================================================
+
+    function injectAlertStyles() {
+        if (document.getElementById('crop-monitoring-alert-styles')) return;
+
+        const style = document.createElement('style');
+        style.id = 'crop-monitoring-alert-styles';
+
+        style.textContent = `
+            .crop-alert-overlay {
+                position: fixed;
+                inset: 0;
+                z-index: 100000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+                background: rgba(0, 0, 0, 0.48);
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
+                animation: cropAlertFadeIn 0.18s ease;
+            }
+
+            .crop-alert-dialog {
+                --crop-alert-bg: var(--card-bg, var(--surface, #ffffff));
+                --crop-alert-text: var(--text-primary, var(--text-color, #242424));
+                --crop-alert-muted: var(--text-secondary, #777777);
+                --crop-alert-border: var(--border-color, #e7e3dc);
+                --crop-alert-primary: var(--primary-color, #C65D3A);
+
+                width: 100%;
+                max-width: 420px;
+                padding: 30px;
+                border: 1px solid var(--crop-alert-border);
+                border-radius: 18px;
+                background: var(--crop-alert-bg);
+                color: var(--crop-alert-text);
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+                text-align: center;
+                animation: cropAlertSlideIn 0.22s ease;
+            }
+
+            .crop-alert-icon {
+                width: 58px;
+                height: 58px;
+                margin: 0 auto 17px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                font-size: 27px;
+                font-weight: 700;
+            }
+
+            .crop-alert-dialog[data-type="success"] .crop-alert-icon {
+                color: #27864d;
+                background: rgba(39, 134, 77, 0.13);
+            }
+
+            .crop-alert-dialog[data-type="error"] .crop-alert-icon {
+                color: #d04444;
+                background: rgba(208, 68, 68, 0.13);
+            }
+
+            .crop-alert-dialog[data-type="warning"] .crop-alert-icon {
+                color: #bd8525;
+                background: rgba(189, 133, 37, 0.14);
+            }
+
+            .crop-alert-dialog[data-type="info"] .crop-alert-icon {
+                color: var(--crop-alert-primary);
+                background: color-mix(
+                    in srgb,
+                    var(--crop-alert-primary) 14%,
+                    transparent
+                );
+            }
+
+            .crop-alert-title {
+                margin: 0 0 9px;
+                color: var(--crop-alert-text);
+                font-size: 19px;
+                font-weight: 700;
+            }
+
+            .crop-alert-message {
+                margin: 0;
+                color: var(--crop-alert-muted);
+                font-size: 14px;
+                line-height: 1.65;
+                white-space: pre-line;
+                overflow-wrap: anywhere;
+            }
+
+            .crop-alert-actions {
+                display: flex;
+                justify-content: center;
+                margin-top: 25px;
+            }
+
+            .crop-alert-ok {
+                min-width: 115px;
+                padding: 11px 25px;
+                border: none;
+                border-radius: 9px;
+                background: var(--crop-alert-primary);
+                color: #ffffff;
+                font: inherit;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: opacity 0.2s ease, transform 0.2s ease;
+            }
+
+            .crop-alert-ok:hover {
+                opacity: 0.9;
+                transform: translateY(-1px);
+            }
+
+            .crop-alert-ok:focus-visible {
+                outline: 3px solid var(--crop-alert-primary);
+                outline-offset: 3px;
+            }
+
+            /* Dark theme support */
+            html[data-theme="dark"] .crop-alert-dialog,
+            body[data-theme="dark"] .crop-alert-dialog,
+            html.dark .crop-alert-dialog,
+            body.dark .crop-alert-dialog,
+            html.dark-mode .crop-alert-dialog,
+            body.dark-mode .crop-alert-dialog,
+            html[data-mode="dark"] .crop-alert-dialog,
+            body[data-mode="dark"] .crop-alert-dialog {
+                --crop-alert-bg: var(--card-bg, var(--surface, #242424));
+                --crop-alert-text: var(--text-primary, var(--text-color, #f5f5f5));
+                --crop-alert-muted: var(--text-secondary, #b8b8b8);
+                --crop-alert-border: var(--border-color, #414141);
+                --crop-alert-primary: var(--primary-color, #E07852);
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                .crop-alert-overlay,
+                .crop-alert-dialog {
+                    animation: none;
+                }
+            }
+
+            @keyframes cropAlertFadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+
+            @keyframes cropAlertSlideIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(12px) scale(0.98);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                }
+            }
+
+            @media (max-width: 480px) {
+                .crop-alert-dialog {
+                    padding: 25px 20px;
+                }
+            }
+        `;
+
+        document.head.appendChild(style);
+    }
+
+    function showAlertModal(message, type = 'info', title = '') {
+        injectAlertStyles();
+
+        if (alertModal) {
+            alertModal.remove();
+            alertModal = null;
+        }
+
+        const alertSettings = {
+            success: {
+                icon: '✓',
+                title: title || 'Success'
+            },
+            error: {
+                icon: '!',
+                title: title || 'Something went wrong'
+            },
+            warning: {
+                icon: '!',
+                title: title || 'Attention'
+            },
+            info: {
+                icon: 'i',
+                title: title || 'Notice'
+            }
+        };
+
+        const settings = alertSettings[type] || alertSettings.info;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'crop-alert-overlay';
+
+        const dialog = document.createElement('div');
+        dialog.className = 'crop-alert-dialog';
+        dialog.dataset.type = type;
+        dialog.setAttribute('role', 'alertdialog');
+        dialog.setAttribute('aria-modal', 'true');
+        dialog.setAttribute('aria-labelledby', 'cropAlertTitle');
+        dialog.setAttribute('aria-describedby', 'cropAlertMessage');
+
+        const icon = document.createElement('div');
+        icon.className = 'crop-alert-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = settings.icon;
+
+        const heading = document.createElement('h3');
+        heading.className = 'crop-alert-title';
+        heading.id = 'cropAlertTitle';
+        heading.textContent = settings.title;
+
+        const description = document.createElement('p');
+        description.className = 'crop-alert-message';
+        description.id = 'cropAlertMessage';
+        description.textContent = String(message ?? '');
+
+        const actions = document.createElement('div');
+        actions.className = 'crop-alert-actions';
+
+        const okButton = document.createElement('button');
+        okButton.type = 'button';
+        okButton.className = 'crop-alert-ok';
+        okButton.textContent = 'OK';
+
+        actions.appendChild(okButton);
+        dialog.append(icon, heading, description, actions);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        alertModal = overlay;
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        function closeAlert() {
+            if (!overlay.isConnected) return;
+
+            overlay.remove();
+
+            if (alertModal === overlay) {
+                alertModal = null;
+            }
+
+            document.body.style.overflow = previousOverflow;
+        }
+
+        okButton.addEventListener('click', closeAlert);
+
+        overlay.addEventListener('click', event => {
+            if (event.target === overlay) {
+                closeAlert();
+            }
+        });
+
+        function handleAlertEscape(event) {
+            if (event.key === 'Escape' && alertModal === overlay) {
+                closeAlert();
+                document.removeEventListener('keydown', handleAlertEscape);
+            }
+        }
+
+        document.addEventListener('keydown', handleAlertEscape);
+
+        okButton.focus();
+
+        return closeAlert;
+    }
 
     function escapeHTML(value) {
         return String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -581,7 +863,10 @@ export async function render(root, ctx = {}) {
         const crop = crops.find(item => item.id === plantingId);
 
         if (!crop) {
-            alert('Selected crop could not be found.');
+            showAlertModal(
+                'Selected crop could not be found.',
+                'error'
+            );
             return;
         }
 
@@ -829,14 +1114,20 @@ export async function render(root, ctx = {}) {
         const crop = crops.find(item => item.id === plantingId);
 
         if (!crop) {
-            alert('Selected crop could not be found.');
+            showAlertModal(
+                'Selected crop could not be found.',
+                'error'
+            );
             return;
         }
 
         const staffId = ctx.staff?.staff_id;
 
         if (!staffId) {
-            alert('Unable to identify the Agricultural Technician staff account.');
+            showAlertModal(
+                'Unable to identify the Agricultural Technician staff account.',
+                'error'
+            );
             return;
         }
 
@@ -845,7 +1136,10 @@ export async function render(root, ctx = {}) {
         const latestStage = getLatestStage(plantingId);
 
         if (!growthStage) {
-            alert('Please select a growth stage.');
+            showAlertModal(
+                'Please select a growth stage.',
+                'warning'
+            );
             return;
         }
 
@@ -853,8 +1147,9 @@ export async function render(root, ctx = {}) {
             latestStage &&
             getStageOrder(growthStage) < getStageOrder(latestStage)
         ) {
-            alert(
-                `Growth stage cannot move backward. Latest recorded stage: ${getStageLabel(latestStage)}.`
+            showAlertModal(
+                `Growth stage cannot move backward. Latest recorded stage: ${getStageLabel(latestStage)}.`,
+                'warning'
             );
             return;
         }
@@ -863,12 +1158,18 @@ export async function render(root, ctx = {}) {
 
         if (photoFile && photoFile.size > 0) {
             if (!ALLOWED_PHOTO_TYPES.includes(photoFile.type)) {
-                alert('Only JPG, PNG, and WebP images are allowed.');
+                showAlertModal(
+                    'Only JPG, PNG, and WebP images are allowed.',
+                    'warning'
+                );
                 return;
             }
 
             if (photoFile.size > MAX_PHOTO_SIZE) {
-                alert('Photo must not exceed 3 MB.');
+                showAlertModal(
+                    'Photo must not exceed 3 MB.',
+                    'warning'
+                );
                 return;
             }
         }
@@ -882,17 +1183,26 @@ export async function render(root, ctx = {}) {
         const recommendedAction = String(formData.get('recommended_action') || '').trim();
 
         if (pestObserved && !pestDetails) {
-            alert('Please provide the pest details.');
+            showAlertModal(
+                'Please provide the pest details.',
+                'warning'
+            );
             return;
         }
 
         if (diseaseObserved && !diseaseDetails) {
-            alert('Please provide the disease details.');
+            showAlertModal(
+                'Please provide the disease details.',
+                'warning'
+            );
             return;
         }
 
         if (actionRequired && !recommendedAction) {
-            alert('Please provide the recommended action.');
+            showAlertModal(
+                'Please provide the recommended action.',
+                'warning'
+            );
             return;
         }
 
@@ -943,14 +1253,12 @@ export async function render(root, ctx = {}) {
 
             if (error) throw error;
 
-            // The database trigger updates farm_plantings.crop_status to ready.
             if (growthStage === 'ready_for_harvest') {
                 crop.crop_status = 'ready';
             }
 
             await loadMonitoringRecords(crops.map(item => item.id));
 
-            // Keep the history of the crop being updated visible after submission.
             expandedHistoryIds.add(plantingId);
 
             isSaving = false;
@@ -961,7 +1269,10 @@ export async function render(root, ctx = {}) {
             closeModal();
             displayCrops();
 
-            alert('Crop monitoring record submitted successfully.');
+            showAlertModal(
+                'Crop monitoring record submitted successfully.',
+                'success'
+            );
 
         } catch (error) {
             console.error('[Crop Monitoring] Save error:', error);
@@ -979,7 +1290,10 @@ export async function render(root, ctx = {}) {
                 }
             }
 
-            alert(`Unable to save monitoring record: ${error.message}`);
+            showAlertModal(
+                `Unable to save monitoring record: ${error.message}`,
+                'error'
+            );
 
         } finally {
             isSaving = false;
@@ -1014,14 +1328,22 @@ export async function render(root, ctx = {}) {
         if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
             input.value = '';
             photoPreview.hidden = true;
-            alert('Only JPG, PNG, and WebP images are allowed.');
+
+            showAlertModal(
+                'Only JPG, PNG, and WebP images are allowed.',
+                'warning'
+            );
             return;
         }
 
         if (file.size > MAX_PHOTO_SIZE) {
             input.value = '';
             photoPreview.hidden = true;
-            alert('Photo must not exceed 3 MB.');
+
+            showAlertModal(
+                'Photo must not exceed 3 MB.',
+                'warning'
+            );
             return;
         }
 
@@ -1075,7 +1397,11 @@ export async function render(root, ctx = {}) {
     }
 
     function handleEscape(event) {
-        if (event.key === 'Escape' && !modal.hidden) {
+        if (event.key !== 'Escape') return;
+
+        if (alertModal) return;
+
+        if (!modal.hidden) {
             closeModal();
         }
     }
@@ -1102,6 +1428,11 @@ export async function render(root, ctx = {}) {
         if (previewUrl) {
             URL.revokeObjectURL(previewUrl);
             previewUrl = null;
+        }
+
+        if (alertModal) {
+            alertModal.remove();
+            alertModal = null;
         }
 
         cleanupHandler = null;

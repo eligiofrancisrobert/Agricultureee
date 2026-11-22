@@ -647,60 +647,6 @@ function securityPanel() {
     );
 }
 
-function sessionsPanel() {
-    const message = h('p', { class: 'farmer-settings-msg error' });
-    message.hidden = true;
-
-    const button = h(
-        'button',
-        { class: 'farmer-button farmer-button-secondary', type: 'button' },
-        'Sign out other devices'
-    );
-
-    button.addEventListener('click', async () => {
-        if (
-            !window.confirm(
-                'Sign out of all other devices? You will stay signed in here.'
-            )
-        ) {
-            return;
-        }
-
-        message.hidden = true;
-        button.disabled = true;
-        button.textContent = 'Signing out...';
-
-        try {
-            // "others" keeps the current session active.
-            const { error } = await supabase.auth.signOut({ scope: 'others' });
-
-            if (error) throw error;
-
-            toast('Signed out of all other devices.');
-        } catch (err) {
-            console.error('Sign out of other devices failed:', err);
-            message.textContent =
-                err?.message || 'Could not sign out other devices. Please try again.';
-            message.hidden = false;
-        } finally {
-            button.disabled = false;
-            button.textContent = 'Sign out other devices';
-        }
-    });
-
-    return h(
-        'section',
-        { class: 'farmer-settings-panel' },
-        panelHeader('Sessions', 'Sign out anywhere else your account is signed in'),
-        h(
-            'div',
-            { class: 'farmer-settings-form' },
-            message,
-            h('div', { class: 'farmer-settings-actions' }, button)
-        )
-    );
-}
-
 /* ---------- Page ---------- */
 /** Render profile, appearance, security, and session settings panels. */
 async function renderSettings() {
@@ -727,7 +673,6 @@ async function renderSettings() {
                         { class: 'farmer-settings-stack' },
                         appearancePanel(),
                         securityPanel(),
-                        sessionsPanel()
                     )
                 )
             );
@@ -773,16 +718,6 @@ function initializeLogout() {
         }
 
         window.location.replace('../../login.html');
-    });
-}
-
-/* ---------- Coming soon ---------- */
-function initializeComingSoonLinks() {
-    document.querySelectorAll('[data-coming-soon]').forEach(link => {
-        link.addEventListener('click', event => {
-            event.preventDefault();
-            alert('This feature is not yet available.');
-        });
     });
 }
 

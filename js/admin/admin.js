@@ -15,6 +15,165 @@ function showMessage(text) {
     if (message) message.textContent = text;
 }
 
+/* ============================================================
+   ADMIN ALERT MODAL
+   ============================================================ */
+
+function showAlertModal(text, title = "Notice") {
+    document.getElementById("adminAlertModal")?.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "adminAlertModal";
+    overlay.className = "admin-alert-overlay";
+
+    const modal = document.createElement("div");
+    modal.className = "admin-alert-modal";
+    modal.setAttribute("role", "alertdialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "adminAlertTitle");
+    modal.setAttribute("aria-describedby", "adminAlertMessage");
+
+    const icon = document.createElement("div");
+    icon.className = "admin-alert-icon";
+    icon.textContent = "!";
+
+    const heading = document.createElement("h2");
+    heading.id = "adminAlertTitle";
+    heading.textContent = title;
+
+    const description = document.createElement("p");
+    description.id = "adminAlertMessage";
+    description.textContent = text;
+
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "admin-alert-button";
+    closeButton.textContent = "Okay";
+
+    function closeModal() {
+        overlay.remove();
+        document.removeEventListener("keydown", handleEscape);
+    }
+
+    function handleEscape(event) {
+        if (event.key === "Escape") closeModal();
+    }
+
+    closeButton.addEventListener("click", closeModal);
+
+    overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) closeModal();
+    });
+
+    modal.append(icon, heading, description, closeButton);
+    overlay.appendChild(modal);
+
+    const style = document.createElement("style");
+    style.id = "adminAlertModalStyles";
+
+    if (!document.getElementById(style.id)) {
+        style.textContent = `
+            .admin-alert-overlay {
+                position: fixed;
+                inset: 0;
+                z-index: 99999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+                background: rgba(0, 0, 0, 0.55);
+                backdrop-filter: blur(3px);
+                animation: adminAlertFadeIn 0.2s ease;
+            }
+
+            .admin-alert-modal {
+                width: 100%;
+                max-width: 400px;
+                padding: 30px 26px 24px;
+                border-radius: 16px;
+                background: #ffffff;
+                color: #181614;
+                text-align: center;
+                box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
+                animation: adminAlertSlideIn 0.25s ease;
+            }
+
+            .admin-alert-icon {
+                width: 54px;
+                height: 54px;
+                margin: 0 auto 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                background: #fff0e8;
+                color: #c65d3a;
+                font-size: 30px;
+                font-weight: 700;
+            }
+
+            .admin-alert-modal h2 {
+                margin: 0 0 10px;
+                font-size: 21px;
+                font-weight: 700;
+            }
+
+            .admin-alert-modal p {
+                margin: 0 0 24px;
+                color: #686868;
+                font-size: 14px;
+                line-height: 1.6;
+                overflow-wrap: anywhere;
+            }
+
+            .admin-alert-button {
+                width: 100%;
+                min-height: 44px;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 9px;
+                background: #c65d3a;
+                color: #ffffff;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: background 0.2s ease;
+            }
+
+            .admin-alert-button:hover {
+                background: #a94b2d;
+            }
+
+            .admin-alert-button:focus-visible {
+                outline: 3px solid rgba(198, 93, 58, 0.35);
+                outline-offset: 3px;
+            }
+
+            @keyframes adminAlertFadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+
+            @keyframes adminAlertSlideIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(12px) scale(0.97);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                }
+            }
+        `;
+
+        document.head.appendChild(style);
+    }
+
+    document.body.appendChild(overlay);
+    document.addEventListener("keydown", handleEscape);
+    closeButton.focus();
+}
+
 function formatRole(role) {
     const normalized = String(role ?? "").toLowerCase();
 
@@ -46,8 +205,6 @@ function createCell(value) {
     cell.textContent = value ?? "—";
     return cell;
 }
-
-
 
 /** Show a profile and load its farmer, buyer, or supplier details from Supabase. */
 async function showApplicationDetails(app) {
@@ -97,7 +254,6 @@ async function showApplicationDetails(app) {
 
     document.querySelector(".applications-section")?.appendChild(panel);
 
-    // Basic profile information
     addHeading("Personal Information");
     addField("Full name", app.full_name);
     addField("Email", app.email);
@@ -108,9 +264,7 @@ async function showApplicationDetails(app) {
     addField("Date submitted", formatDate(app.created_at));
 
     try {
-        // Load role-specific details.
         addHeading("Additional Information");
-
 
         if (app.role === "farmer") {
             const { data: farms, error: farmsError } = await supabase
@@ -241,7 +395,6 @@ async function showApplicationDetails(app) {
         );
     }
 
-    // Load private registration documents through the Edge Function.
     addHeading("Registration Documents");
 
     const documentsContainer = document.createElement("div");
@@ -315,13 +468,17 @@ async function showApplicationDetails(app) {
                     );
 
                     if (!opened) {
-                        alert(
-                            "The browser may have blocked the new tab. Allow pop-ups and try again."
+                        showAlertModal(
+                            "The browser may have blocked the new tab. Allow pop-ups and try again.",
+                            "Pop-up Blocked"
                         );
                     }
                 } catch (error) {
                     console.error("Document viewing failed:", error);
-                    alert("Could not open the document. Check the browser console.");
+                    showAlertModal(
+                        "Could not open the document. Check the browser console.",
+                        "Document Viewing Failed"
+                    );
                 } finally {
                     viewButton.disabled = false;
                     viewButton.textContent = "View document";
@@ -388,7 +545,6 @@ function renderApplications() {
 
     showMessage(`${filteredApplications.length} pending application(s).`);
 }
-
 
 /** Fetch application profiles and update the current application list. */
 async function loadApplications() {
@@ -498,7 +654,11 @@ logoutButton?.addEventListener("click", async () => {
 
     if (error) {
         console.error("Logout failed:", error);
-        alert("Logout failed. Please try again.");
+
+        showAlertModal(
+            "Logout failed. Please try again.",
+            "Logout Failed"
+        );
 
         logoutButton.disabled = false;
         logoutButton.textContent = "Logout";

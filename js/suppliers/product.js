@@ -1,3 +1,4 @@
+
 const STORAGE_BUCKET = "supplier-product-photos";
 const MAX_FILE_SIZE = 3 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -26,9 +27,9 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
     const supplierId = supplier.user_id;
 
     let products = [];
-    let selectedPhoto = null;        // newly chosen file
-    let currentPhotoPath = null;     // photo that will remain (null = none)
-    let originalPhotoPath = null;    // photo the product had when editing began
+    let selectedPhoto = null;
+    let currentPhotoPath = null;
+    let originalPhotoPath = null;
     let editingProductId = null;
     let isSaving = false;
     let deleteTarget = null;
@@ -242,6 +243,41 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
                 </div>
             </div>
         </div>
+
+        <!-- CUSTOM ALERT MODAL -->
+        <div id="productAlertModal" class="modal-overlay" hidden>
+            <div class="modal-content" role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="productAlertTitle"
+                aria-describedby="productAlertMessage">
+
+                <div class="panel-heading">
+                    <div>
+                        <h3 id="productAlertTitle">Notification</h3>
+                    </div>
+
+                    <button
+                        type="button"
+                        id="closeProductAlert"
+                        class="modal-close-btn"
+                        aria-label="Close alert"
+                        title="Close"
+                    >
+                        <span aria-hidden="true">×</span>
+                    </button>
+                </div>
+
+                <p id="productAlertMessage"></p>
+
+                <div class="panel-actions">
+                    <button type="button"
+                        id="confirmProductAlert"
+                        class="primary-button">
+                        OK
+                    </button>
+                </div>
+            </div>
+        </div>
     `;
 
     const $ = selector => view.querySelector(selector);
@@ -259,6 +295,25 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
     const deleteModal = $("#deleteProductModal");
     const deleteMessage = $("#deleteProductMessage");
     const confirmDeleteButton = $("#confirmDeleteBtn");
+
+    const alertModal = $("#productAlertModal");
+    const alertTitle = $("#productAlertTitle");
+    const alertMessage = $("#productAlertMessage");
+
+    // =========================================
+    // CUSTOM ALERT MODAL
+    // =========================================
+
+    function showAlert(message, title = "Notification") {
+        alertTitle.textContent = title;
+        alertMessage.textContent = message;
+        alertModal.hidden = false;
+        $("#confirmProductAlert").focus();
+    }
+
+    function closeAlertModal() {
+        alertModal.hidden = true;
+    }
 
     // =========================================
     // HELPERS
@@ -339,7 +394,6 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
 
         urlCache.set(path, {
             url: data.signedUrl,
-            // refresh a few minutes before the link actually expires
             expires: Date.now() + (SIGNED_URL_SECONDS - 300) * 1000
         });
 
@@ -577,7 +631,6 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
             try {
                 const imageUrl = await getPhotoUrl(product.photo_path);
 
-                // ignore if the modal was closed or switched meanwhile
                 if (editingProductId !== product.product_listing_id) return;
                 if (!currentPhotoPath || selectedPhoto) return;
 
@@ -655,7 +708,6 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
                 uploadedPath = await uploadPhoto(selectedPhoto);
                 productData.photo_path = uploadedPath;
             } else if (wasEditing && !currentPhotoPath) {
-                // the existing photo was removed and not replaced
                 productData.photo_path = null;
             }
 
@@ -671,7 +723,6 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
 
                 if (error) throw error;
 
-                // old file is no longer used (replaced or removed)
                 if (photoToReplace && (uploadedPath || !currentPhotoPath)) {
                     await deletePhoto(photoToReplace);
                 }
@@ -713,7 +764,10 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
             console.error("Product reload error:", error);
         }
 
-        alert(`Product ${wasEditing ? "updated" : "added"} successfully.`);
+        showAlert(
+            `Product ${wasEditing ? "updated" : "added"} successfully.`,
+            "Success"
+        );
     }
 
     // =========================================
@@ -763,7 +817,11 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
 
         } catch (error) {
             console.error("Delete product error:", error);
-            alert(error.message || "Unable to delete product.");
+
+            showAlert(
+                error.message || "Unable to delete product.",
+                "Error"
+            );
 
         } finally {
             confirmDeleteButton.disabled = false;
@@ -778,7 +836,7 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
             console.error("Product reload error:", error);
         }
 
-        alert("Product deleted successfully.");
+        showAlert("Product deleted successfully.", "Success");
     }
 
     // =========================================
@@ -802,10 +860,19 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
 
     confirmDeleteButton.addEventListener("click", deleteProduct);
 
+    // Custom alert modal controls
+    $("#closeProductAlert").addEventListener("click", closeAlertModal);
+    $("#confirmProductAlert").addEventListener("click", closeAlertModal);
+
+    alertModal.addEventListener("click", event => {
+        if (event.target === alertModal) closeAlertModal();
+    });
+
     view.addEventListener("keydown", event => {
         if (event.key !== "Escape") return;
 
-        if (!deleteModal.hidden) closeDeleteModal();
+        if (!alertModal.hidden) closeAlertModal();
+        else if (!deleteModal.hidden) closeDeleteModal();
         else if (!modal.hidden) closeProductModal();
     });
 
@@ -814,7 +881,6 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
     fileInput.addEventListener("change", () => {
         const file = fileInput.files?.[0];
 
-        // file dialog cancelled: fall back to the photo that is kept
         if (!file) {
             selectedPhoto = null;
 
@@ -856,7 +922,7 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
     $("#removeProductPhoto").addEventListener("click", () => {
         selectedPhoto = null;
         fileInput.value = "";
-        currentPhotoPath = null; // saving will clear photo_path in the database
+        currentPhotoPath = null;
 
         hidePhotoPreview();
     });

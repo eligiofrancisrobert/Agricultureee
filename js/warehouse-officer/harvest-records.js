@@ -8,6 +8,9 @@ let renderToken = 0;
 const HARVEST_VIEW_PERMISSION = 'produce_records.view';
 const HARVEST_EDIT_PERMISSION = 'harvest_inventory.edit';
 
+let harvestAlertResolve = null;
+let harvestAlertPreviousOverflow = '';
+
 function el(tag, className = '', text = '') {
     const node = document.createElement(tag);
 
@@ -19,6 +22,321 @@ function el(tag, className = '', text = '') {
 
     return node;
 }
+
+// ---------- CUSTOM ALERT MODAL ----------
+
+function ensureHarvestAlertModal() {
+    if (document.getElementById('woHarvestAlertModal')) return;
+
+    if (!document.getElementById('woHarvestAlertStyles')) {
+        const style = document.createElement('style');
+        style.id = 'woHarvestAlertStyles';
+
+        style.textContent = `
+            .fim-modal {
+                position: fixed;
+                inset: 0;
+                z-index: 99999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+                background: rgba(0, 0, 0, 0.48);
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity .2s ease, visibility .2s ease;
+            }
+
+            .fim-modal.is-open {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .fim-modal-overlay {
+                position: absolute;
+                inset: 0;
+            }
+
+            .fim-modal-dialog {
+                position: relative;
+                z-index: 1;
+                width: 100%;
+                max-width: 420px;
+                padding: 28px;
+                border-radius: 18px;
+                background: var(--card-bg, var(--surface, #ffffff));
+                color: var(--text-color, var(--text, #181614));
+                border: 1px solid var(--border-color, rgba(0,0,0,.08));
+                box-shadow: 0 20px 60px rgba(0,0,0,.2);
+                transform: translateY(12px) scale(.98);
+                transition: transform .2s ease;
+            }
+
+            .fim-modal.is-open .fim-modal-dialog {
+                transform: translateY(0) scale(1);
+            }
+
+            .fim-modal-head {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 16px;
+                margin-bottom: 18px;
+            }
+
+            .fim-modal-title-group {
+                display: flex;
+                align-items: center;
+                gap: 13px;
+                min-width: 0;
+            }
+
+            .fim-modal-icon {
+                width: 46px;
+                height: 46px;
+                flex: 0 0 46px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                font-size: 23px;
+                font-weight: 700;
+            }
+
+            .fim-modal-icon.success {
+                color: #27834d;
+                background: rgba(39, 131, 77, .13);
+            }
+
+            .fim-modal-icon.error {
+                color: #c7463d;
+                background: rgba(199, 70, 61, .13);
+            }
+
+            .fim-modal-heading {
+                min-width: 0;
+            }
+
+            .fim-modal-heading h3 {
+                margin: 0;
+                font-size: 18px;
+                font-weight: 700;
+                line-height: 1.35;
+                color: inherit;
+            }
+
+            .fim-modal-heading p {
+                margin: 4px 0 0;
+                font-size: 13px;
+                color: var(--muted-color, #888);
+                line-height: 1.4;
+            }
+
+            .fim-modal-close {
+                width: 32px;
+                height: 32px;
+                flex: 0 0 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: none;
+                border-radius: 8px;
+                background: transparent;
+                color: var(--muted-color, #888);
+                font-size: 22px;
+                cursor: pointer;
+            }
+
+            .fim-modal-close:hover {
+                background: var(--hover-bg, rgba(128,128,128,.12));
+                color: inherit;
+            }
+
+            .fim-modal-body {
+                margin-bottom: 24px;
+                font-size: 14px;
+                line-height: 1.65;
+                color: var(--muted-color, #777);
+                overflow-wrap: anywhere;
+            }
+
+            .fim-modal-actions {
+                display: flex;
+                justify-content: flex-end;
+            }
+
+            .fim-modal-button {
+                min-width: 100px;
+                padding: 10px 22px;
+                border: none;
+                border-radius: 9px;
+                background: #C65D3A;
+                color: #fff;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: background .2s ease, transform .2s ease;
+            }
+
+            .fim-modal-button:hover {
+                background: #a94b2e;
+                transform: translateY(-1px);
+            }
+
+            .fim-modal-button:focus-visible,
+            .fim-modal-close:focus-visible {
+                outline: 3px solid rgba(198, 93, 58, .35);
+                outline-offset: 3px;
+            }
+
+            [data-theme="dark"] .fim-modal-dialog {
+                background: var(--card-bg, #242321);
+                color: var(--text-color, #f5f1eb);
+                border-color: var(--border-color, rgba(255,255,255,.1));
+            }
+
+            [data-theme="dark"] .fim-modal-body {
+                color: var(--muted-color, #b5b0a8);
+            }
+
+            @media (max-width: 480px) {
+                .fim-modal-dialog {
+                    padding: 23px 20px;
+                }
+            }
+        `;
+
+        document.head.appendChild(style);
+    }
+
+    const modal = el('div', 'fim-modal');
+    modal.id = 'woHarvestAlertModal';
+    modal.setAttribute('role', 'presentation');
+    modal.setAttribute('aria-hidden', 'true');
+
+    const overlay = el('div', 'fim-modal-overlay');
+
+    const dialog = el('div', 'fim-modal-dialog');
+    dialog.setAttribute('role', 'alertdialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'woHarvestAlertTitle');
+    dialog.setAttribute('aria-describedby', 'woHarvestAlertMessage');
+
+    const header = el('div', 'fim-modal-head');
+
+    const titleGroup = el('div', 'fim-modal-title-group');
+
+    const icon = el('div', 'fim-modal-icon success');
+    icon.id = 'woHarvestAlertIcon';
+    icon.setAttribute('aria-hidden', 'true');
+
+    const heading = el('div', 'fim-modal-heading');
+
+    const title = el('h3', '', 'Notification');
+    title.id = 'woHarvestAlertTitle';
+
+    const subtitle = el('p', '', 'Harvest Records');
+
+    heading.append(title, subtitle);
+    titleGroup.append(icon, heading);
+
+    const closeButton = el('button', 'fim-modal-close', '×');
+    closeButton.type = 'button';
+    closeButton.setAttribute('aria-label', 'Close notification');
+
+    header.append(titleGroup, closeButton);
+
+    const message = el('div', 'fim-modal-body');
+    message.id = 'woHarvestAlertMessage';
+
+    const actions = el('div', 'fim-modal-actions');
+
+    const okButton = el('button', 'fim-modal-button', 'OK');
+    okButton.type = 'button';
+
+    actions.append(okButton);
+    dialog.append(header, message, actions);
+    modal.append(overlay, dialog);
+
+    document.body.appendChild(modal);
+
+    const close = () => closeHarvestAlertModal();
+
+    overlay.addEventListener('click', close);
+    closeButton.addEventListener('click', close);
+    okButton.addEventListener('click', close);
+
+    modal.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            close();
+        }
+    });
+}
+
+function showHarvestAlert(message, type = 'success', title = '') {
+    ensureHarvestAlertModal();
+
+    const modal = document.getElementById('woHarvestAlertModal');
+    const icon = document.getElementById('woHarvestAlertIcon');
+    const titleElement = document.getElementById('woHarvestAlertTitle');
+    const subtitle = modal.querySelector('.fim-modal-heading p');
+    const messageElement = document.getElementById('woHarvestAlertMessage');
+    const okButton = modal.querySelector('.fim-modal-button');
+
+    if (harvestAlertResolve) {
+        harvestAlertResolve();
+        harvestAlertResolve = null;
+    }
+
+    const isSuccess = type === 'success';
+
+    icon.className = `fim-modal-icon ${isSuccess ? 'success' : 'error'}`;
+    icon.textContent = isSuccess ? '✓' : '!';
+
+    titleElement.textContent =
+        title || (isSuccess ? 'Success' : 'Something went wrong');
+
+    subtitle.textContent = 'Harvest Records';
+    messageElement.textContent = message;
+
+    okButton.textContent = 'OK';
+
+    harvestAlertPreviousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+
+    return new Promise(resolve => {
+        harvestAlertResolve = resolve;
+
+        requestAnimationFrame(() => {
+            okButton.focus();
+        });
+    });
+}
+
+function closeHarvestAlertModal() {
+    const modal = document.getElementById('woHarvestAlertModal');
+
+    if (!modal || !modal.classList.contains('is-open')) return;
+
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+
+    document.body.style.overflow = harvestAlertPreviousOverflow;
+
+    if (harvestAlertResolve) {
+        const resolve = harvestAlertResolve;
+        harvestAlertResolve = null;
+        resolve();
+    }
+}
+
+// ---------- PERMISSIONS ----------
 
 async function checkHarvestPermission(permissionKey) {
     const { data, error } = await supabase.rpc(
@@ -250,17 +568,24 @@ function createVerificationForm(record, refresh) {
 
             if (error) throw error;
 
-            alert(
+            await showHarvestAlert(
                 decision === 'confirmed'
                     ? 'Harvest successfully verified.'
-                    : 'Harvest submission successfully rejected.'
+                    : 'Harvest submission successfully rejected.',
+                'success',
+                decision === 'confirmed' ? 'Harvest Verified' : 'Submission Rejected'
             );
 
             await refresh();
 
         } catch (error) {
             console.error('Harvest verification failed:', error);
-            alert(error.message || 'Unable to submit harvest verification.');
+
+            await showHarvestAlert(
+                error.message || 'Unable to submit harvest verification.',
+                'error',
+                'Verification Failed'
+            );
         } finally {
             submitButton.disabled = false;
             submitButton.textContent = 'Submit Verification';
@@ -346,12 +671,22 @@ function createRecordCard(record, ctx, refresh, canEditHarvest) {
 
                     if (error) throw error;
 
-                    alert('Harvest successfully claimed for verification.');
+                    await showHarvestAlert(
+                        'Harvest successfully claimed for verification.',
+                        'success',
+                        'Harvest Claimed'
+                    );
+
                     await refresh();
 
                 } catch (error) {
                     console.error('Failed to claim harvest:', error);
-                    alert(error.message || 'Unable to claim this harvest.');
+
+                    await showHarvestAlert(
+                        error.message || 'Unable to claim this harvest.',
+                        'error',
+                        'Claim Failed'
+                    );
                 } finally {
                     claimButton.disabled = false;
                     claimButton.textContent = 'Claim Harvest';

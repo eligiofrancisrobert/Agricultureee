@@ -1,4 +1,3 @@
-
 import { supabase } from "../connection.js";
 
 // ---------- THEME ----------
@@ -240,6 +239,223 @@ function createElement(tag, className = "", text = "") {
     return element;
 }
 
+// ---------- CUSTOM ALERT MODAL ----------
+
+function initializeActivityAlertStyles() {
+    if (document.getElementById("activity-alert-styles")) return;
+
+    const style = document.createElement("style");
+    style.id = "activity-alert-styles";
+
+    style.textContent = `
+        .activity-alert-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+
+        .activity-alert-modal {
+            width: 100%;
+            max-width: 420px;
+            padding: 28px;
+            border-radius: 18px;
+            background: var(--surface, #F8F4EC);
+            color: var(--text-primary, #181614);
+            border: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+            animation: activityAlertAppear 0.2s ease-out;
+        }
+
+        .activity-alert-modal h2 {
+            margin: 0 0 12px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary, #181614);
+        }
+
+        .activity-alert-modal p {
+            margin: 0;
+            line-height: 1.6;
+            font-size: 0.95rem;
+            color: var(--text-secondary, inherit);
+            overflow-wrap: anywhere;
+        }
+
+        .activity-alert-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 26px;
+        }
+
+        .activity-alert-actions button {
+            min-width: 90px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 9px;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .activity-alert-actions button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .activity-alert-primary {
+            background: #C65D3A;
+            color: #fff;
+        }
+
+        .activity-alert-secondary {
+            background: var(--surface-secondary, #e8e2d8);
+            color: var(--text-primary, #181614);
+        }
+
+        html[data-theme="dark"] .activity-alert-modal {
+            --surface: #24221f;
+            --surface-secondary: #38342f;
+            --text-primary: #F8F4EC;
+            --text-secondary: #d0c9bf;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        html[data-theme="light"] .activity-alert-modal {
+            --surface: #F8F4EC;
+            --surface-secondary: #e8e2d8;
+            --text-primary: #181614;
+            --text-secondary: #625d55;
+            --border: rgba(0, 0, 0, 0.1);
+        }
+
+        @keyframes activityAlertAppear {
+            from {
+                opacity: 0;
+                transform: translateY(10px) scale(0.98);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .activity-alert-modal {
+                padding: 22px;
+            }
+
+            .activity-alert-actions {
+                flex-direction: column-reverse;
+            }
+
+            .activity-alert-actions button {
+                width: 100%;
+            }
+        }
+    `;
+
+    document.head.append(style);
+}
+
+function showActivityAlert(message, options = {}) {
+    initializeActivityAlertStyles();
+
+    return new Promise(resolve => {
+        const {
+            title = "Notice",
+            confirm = false,
+            confirmText = "Confirm",
+            cancelText = "Cancel"
+        } = options;
+
+        const overlay = createElement("div", "activity-alert-overlay");
+        const modal = createElement("section", "activity-alert-modal");
+
+        modal.setAttribute("role", "alertdialog");
+        modal.setAttribute("aria-modal", "true");
+        modal.setAttribute("aria-labelledby", "activity-alert-title");
+        modal.setAttribute("aria-describedby", "activity-alert-message");
+
+        const heading = createElement("h2", "", title);
+        heading.id = "activity-alert-title";
+
+        const description = createElement("p", "", message);
+        description.id = "activity-alert-message";
+
+        const actions = createElement("div", "activity-alert-actions");
+
+        let cancelButton = null;
+
+        if (confirm) {
+            cancelButton = createElement(
+                "button",
+                "activity-alert-secondary",
+                cancelText
+            );
+
+            cancelButton.type = "button";
+            actions.append(cancelButton);
+        }
+
+        const confirmButton = createElement(
+            "button",
+            "activity-alert-primary",
+            confirm ? confirmText : "Okay"
+        );
+
+        confirmButton.type = "button";
+        actions.append(confirmButton);
+
+        modal.append(heading, description, actions);
+        overlay.append(modal);
+        document.body.append(overlay);
+
+        function close(result) {
+            overlay.remove();
+            resolve(result);
+        }
+
+        confirmButton.addEventListener("click", () => {
+            close(true);
+        });
+
+        cancelButton?.addEventListener("click", () => {
+            close(false);
+        });
+
+        overlay.addEventListener("click", event => {
+            if (event.target === overlay) {
+                close(false);
+            }
+        });
+
+        function handleEscape(event) {
+            if (event.key === "Escape") {
+                document.removeEventListener("keydown", handleEscape);
+                close(false);
+            }
+        }
+
+        document.addEventListener("keydown", handleEscape);
+
+        overlay.addEventListener("click", () => {
+            confirmButton.focus();
+        });
+
+        confirmButton.focus();
+    });
+}
+
 function toStatusClass(status) {
     return String(status || "pending")
         .toLowerCase()
@@ -386,7 +602,10 @@ async function loadPlantings(plantingIds) {
 
 async function updateActivityStatus(activity, newStatus, card, buttons) {
     if (!farmerPermissions.edit) {
-        alert("You do not have permission to edit activities.");
+        showActivityAlert(
+            "You do not have permission to edit activities.",
+            { title: "Permission Denied" }
+        );
         return;
     }
 
@@ -420,7 +639,10 @@ async function updateActivityStatus(activity, newStatus, card, buttons) {
 
 async function startActivity(activity, button) {
     if (!farmerPermissions.edit) {
-        alert("You do not have permission to edit activities.");
+        showActivityAlert(
+            "You do not have permission to edit activities.",
+            { title: "Permission Denied" }
+        );
         return;
     }
 
@@ -433,7 +655,12 @@ async function startActivity(activity, button) {
     if (error) {
         console.error("Start activity error:", error);
         button.disabled = false;
-        alert(error.message || "Unable to start this activity.");
+
+        showActivityAlert(
+            error.message || "Unable to start this activity.",
+            { title: "Unable to Start Activity" }
+        );
+
         return;
     }
 
@@ -451,7 +678,10 @@ function getLocalDateValue() {
 
 function openCompletionModal(activity) {
     if (!farmerPermissions.create) {
-        alert("You do not have permission to submit activity completions.");
+        showActivityAlert(
+            "You do not have permission to submit activity completions.",
+            { title: "Permission Denied" }
+        );
         return;
     }
 
@@ -727,8 +957,18 @@ function createActivityCard(activity, planting, farm) {
         const acceptButton = createElement("button", "btn-approve", "Accept");
         acceptButton.type = "button";
 
-        declineButton.addEventListener("click", () => {
-            if (!window.confirm("Decline this activity?")) return;
+        declineButton.addEventListener("click", async () => {
+            const confirmed = await showActivityAlert(
+                "Decline this activity?",
+                {
+                    title: "Confirm Decline",
+                    confirm: true,
+                    confirmText: "Decline",
+                    cancelText: "Cancel"
+                }
+            );
+
+            if (!confirmed) return;
 
             updateActivityStatus(activity, "declined", card, [
                 declineButton,

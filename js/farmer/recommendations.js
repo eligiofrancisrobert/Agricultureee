@@ -587,14 +587,6 @@ function initializeLogout() {
     });
 }
 
-// ---------- COMING SOON ----------
-
-document.querySelectorAll("[data-coming-soon]").forEach(link => {
-    link.addEventListener("click", event => {
-        event.preventDefault();
-        alert("This feature is not yet available.");
-    });
-});
 
 // ---------- INITIALIZATION ----------
 

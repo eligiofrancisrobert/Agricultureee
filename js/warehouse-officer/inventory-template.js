@@ -654,7 +654,7 @@ function createPhotoInput(
                 el('span', 'wo-inventory-no-photo', 'Invalid photo')
             );
 
-            alert(error.message);
+            showAlert(error.message, 'error', 'Invalid photo');
             return;
         }
 
@@ -733,6 +733,233 @@ function openModal(form) {
     };
 
     form.querySelector('input:not([type="file"]), select')?.focus();
+}
+
+/* =========================================================
+CUSTOM DIALOGS (replaces native alert() / confirm())
+========================================================= */
+
+let activeDialog = null;
+
+function injectDialogStyles() {
+    if (document.getElementById('wo-dialog-styles')) return;
+
+    const style = document.createElement('style');
+    style.id = 'wo-dialog-styles';
+    style.textContent = `
+        .wo-dialog-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.5);
+        }
+        .wo-dialog {
+            width: 100%;
+            max-width: 26rem;
+            padding: 1.5rem;
+            border-radius: 12px;
+            border-top: 5px solid #2563eb;
+            background: var(--surface, #fff);
+            color: var(--text, #1f2937);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+        .wo-dialog.error,
+        .wo-dialog.danger { border-top-color: #dc2626; }
+        .wo-dialog.success { border-top-color: #16a34a; }
+        .wo-dialog.warning { border-top-color: #d97706; }
+        .wo-dialog-title {
+            margin: 0 0 0.5rem;
+            font-size: 1.15rem;
+        }
+        .wo-dialog-message {
+            margin: 0 0 1.25rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .wo-dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+        .wo-dialog-btn {
+            padding: 0.55rem 1.1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: #f3f4f6;
+            color: #1f2937;
+            font: inherit;
+            cursor: pointer;
+        }
+        .wo-dialog-btn.primary {
+            border-color: #2563eb;
+            background: #2563eb;
+            color: #fff;
+        }
+        .wo-dialog-btn.danger {
+            border-color: #dc2626;
+            background: #dc2626;
+            color: #fff;
+        }
+        .wo-dialog-btn:focus-visible {
+            outline: 3px solid rgba(37, 99, 235, 0.45);
+            outline-offset: 2px;
+        }
+    `;
+
+    document.head.append(style);
+}
+
+/** Close the active custom dialog. Resolves its promise with `result`. */
+function closeActiveDialog(result = false) {
+    if (!activeDialog) return;
+
+    const { overlay, onKey, previouslyFocused, resolve } = activeDialog;
+
+    window.removeEventListener('keydown', onKey, true);
+    overlay.remove();
+    activeDialog = null;
+
+    previouslyFocused?.focus?.();
+    resolve(result);
+}
+
+function openDialog({
+    title,
+    message,
+    type = 'info',
+    confirmText = 'OK',
+    cancelText = 'Cancel',
+    showCancel = false
+}) {
+    injectDialogStyles();
+    closeActiveDialog(false);
+
+    return new Promise(resolve => {
+        const overlay = el('div', 'wo-dialog-overlay');
+        const dialog = el('div', `wo-dialog ${type}`);
+
+        const titleId = `wo-dialog-title-${Date.now()}`;
+        const messageId = `wo-dialog-message-${Date.now()}`;
+
+        dialog.setAttribute('role', showCancel ? 'alertdialog' : 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+        dialog.setAttribute('aria-labelledby', titleId);
+        dialog.setAttribute('aria-describedby', messageId);
+
+        const titleNode = el('h3', 'wo-dialog-title', title);
+        titleNode.id = titleId;
+
+        const messageNode = el('p', 'wo-dialog-message', message);
+        messageNode.id = messageId;
+
+        const actions = el('div', 'wo-dialog-actions');
+
+        const confirmButton = button(
+            confirmText,
+            `wo-dialog-btn ${type === 'danger' ? 'danger' : 'primary'}`,
+            () => closeActiveDialog(true)
+        );
+
+        if (showCancel) {
+            actions.append(
+                button(
+                    cancelText,
+                    'wo-dialog-btn',
+                    () => closeActiveDialog(false)
+                )
+            );
+        }
+
+        actions.append(confirmButton);
+        dialog.append(titleNode, messageNode, actions);
+        overlay.append(dialog);
+
+        // Alerts can be dismissed by clicking outside; confirms cannot.
+        overlay.addEventListener('mousedown', event => {
+            if (event.target === overlay && !showCancel) {
+                closeActiveDialog(true);
+            }
+        });
+
+        const onKey = event => {
+            // Stop the underlying form modal from also reacting to the key.
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                closeActiveDialog(false);
+                return;
+            }
+
+            if (event.key === 'Tab') {
+                const focusable = Array.from(
+                    dialog.querySelectorAll('button:not([disabled])')
+                );
+
+                if (!focusable.length) return;
+
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+
+                if (event.shiftKey && document.activeElement === first) {
+                    event.preventDefault();
+                    last.focus();
+                } else if (!event.shiftKey && document.activeElement === last) {
+                    event.preventDefault();
+                    first.focus();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', onKey, true);
+        document.body.append(overlay);
+
+        activeDialog = {
+            overlay,
+            onKey,
+            resolve,
+            previouslyFocused: document.activeElement
+        };
+
+        confirmButton.focus();
+    });
+}
+
+/** Replacement for alert(). */
+function showAlert(message, type = 'error', title = '') {
+    const defaultTitles = {
+        error: 'Something went wrong',
+        success: 'Success',
+        warning: 'Warning',
+        info: 'Notice'
+    };
+
+    return openDialog({
+        title: title || defaultTitles[type] || 'Notice',
+        message: String(message || ''),
+        type
+    });
+}
+
+/** Replacement for confirm(). Resolves true or false. */
+function showConfirm(message, {
+    title = 'Please confirm',
+    confirmText = 'Confirm',
+    cancelText = 'Cancel',
+    danger = false
+} = {}) {
+    return openDialog({
+        title,
+        message: String(message || ''),
+        type: danger ? 'danger' : 'warning',
+        confirmText,
+        cancelText,
+        showCancel: true
+    });
 }
 
 /* =========================================================
@@ -953,7 +1180,7 @@ async function renderToolForm(category, item, onSaved) {
     try {
         await requirePermission(permission);
     } catch (error) {
-        alert(error.message);
+        showAlert(error.message, 'error', 'Permission denied');
         return;
     }
 
@@ -1239,7 +1466,7 @@ async function renderEquipmentBorrowForm(item, people, onSaved) {
     try {
         await requirePermission('supplies.issue');
     } catch (error) {
-        alert(error.message);
+        showAlert(error.message, 'error', 'Permission denied');
         return;
     }
 
@@ -1829,7 +2056,11 @@ async function renderEquipmentHistory(
                                 reload
                             );
                         } catch (error) {
-                            alert(error.message || 'Unable to open return form.');
+                            showAlert(
+                                error.message || 'Unable to open return form.',
+                                'error',
+                                'Unable to open return form'
+                            );
                         }
                     }),
 
@@ -1847,7 +2078,11 @@ async function renderEquipmentHistory(
                                 reload
                             );
                         } catch (error) {
-                            alert(error.message || 'Unable to open incident form.');
+                            showAlert(
+                                error.message || 'Unable to open incident form.',
+                                'error',
+                                'Unable to open incident form'
+                            );
                         }
                     })
                 );
@@ -1964,7 +2199,7 @@ async function renderSupplyUsageForm(category, item, onSaved) {
     try {
         await requirePermission(usagePermission);
     } catch (error) {
-        alert(error.message);
+        showAlert(error.message, 'error', 'Permission denied');
         return;
     }
 
@@ -2418,7 +2653,7 @@ async function renderReplenishmentRequestForm(category, item, onSaved) {
     try {
         await requirePermission('inventory.manage');
     } catch (error) {
-        alert(error.message);
+        showAlert(error.message, 'error', 'Permission denied');
         return;
     }
 
@@ -2533,7 +2768,11 @@ async function renderReplenishmentRequestForm(category, item, onSaved) {
 
             await onSaved();
 
-            alert('Replenishment request submitted successfully.');
+            showAlert(
+                'Replenishment request submitted successfully.',
+                'success',
+                'Request submitted'
+            );
 
         } catch (error) {
             console.error('Replenishment request failed:', error);
@@ -2565,7 +2804,6 @@ async function renderReplenishmentRequestForm(category, item, onSaved) {
 
     openModal(form);
 }
-
 
 /* =========================================================
 TOOL INVENTORY PAGE
@@ -2729,11 +2967,16 @@ async function renderToolsInventory(root, config, ctx) {
                         permissions.delete || permissions.manage
                     );
 
-                    if (!confirm(
-                        `Delete "${selected.tool_name}" from inventory?`
-                    )) {
-                        return;
-                    }
+                    const confirmed = await showConfirm(
+                        `Delete "${selected.tool_name}" from inventory? This action cannot be undone.`,
+                        {
+                            title: 'Delete inventory item',
+                            confirmText: 'Delete',
+                            danger: true
+                        }
+                    );
+
+                    if (!confirmed) return;
 
                     await requirePermission(
                         permissions.delete || permissions.manage
@@ -2754,7 +2997,11 @@ async function renderToolsInventory(root, config, ctx) {
 
                 } catch (error) {
                     console.error('Delete failed:', error);
-                    alert(error.message || 'Unable to delete item.');
+                    showAlert(
+                        error.message || 'Unable to delete item.',
+                        'error',
+                        'Delete failed'
+                    );
                 }
             },
 
@@ -2839,7 +3086,11 @@ async function renderToolsInventory(root, config, ctx) {
                                         load
                                     );
                                 } catch (error) {
-                                    alert(error.message);
+                                    showAlert(
+                                        error.message,
+                                        'error',
+                                        'Permission denied'
+                                    );
                                 }
                             }
                         )
@@ -2932,7 +3183,11 @@ async function renderToolsInventory(root, config, ctx) {
                                         load
                                     );
                                 } catch (error) {
-                                    alert(error.message);
+                                    showAlert(
+                                        error.message,
+                                        'error',
+                                        'Permission denied'
+                                    );
                                 }
                             }
                         )
@@ -2978,7 +3233,6 @@ async function renderToolsInventory(root, config, ctx) {
 
     await load();
 }
-
 
 /* =========================================================
 HARVEST / PRODUCE INVENTORY
@@ -3056,7 +3310,7 @@ async function renderProduceEditForm(item, onSaved) {
     try {
         await requirePermission('harvest_inventory.edit');
     } catch (error) {
-        alert(error.message);
+        showAlert(error.message, 'error', 'Permission denied');
         return;
     }
 
@@ -3429,11 +3683,16 @@ async function renderHarvestInventory(root, config, ctx) {
                     try {
                         await requirePermission('harvest_inventory.edit');
 
-                        if (!confirm(
-                            'Remove this produce record from warehouse inventory? The original harvest record will remain.'
-                        )) {
-                            return;
-                        }
+                        const confirmed = await showConfirm(
+                            'Remove this produce record from warehouse inventory? The original harvest record will remain.',
+                            {
+                                title: 'Remove produce record',
+                                confirmText: 'Remove',
+                                danger: true
+                            }
+                        );
+
+                        if (!confirmed) return;
 
                         await requirePermission('harvest_inventory.edit');
 
@@ -3456,9 +3715,11 @@ async function renderHarvestInventory(root, config, ctx) {
                             error
                         );
 
-                        alert(
+                        showAlert(
                             error.message
-                            || 'Unable to remove produce record.'
+                            || 'Unable to remove produce record.',
+                            'error',
+                            'Remove failed'
                         );
                     }
                 },
@@ -3539,9 +3800,11 @@ async function renderHarvestInventory(root, config, ctx) {
                                     error
                                 );
 
-                                alert(
+                                showAlert(
                                     error.message
-                                    || 'Unable to add this harvest. It may already exist.'
+                                    || 'Unable to add this harvest. It may already exist.',
+                                    'error',
+                                    'Unable to add harvest'
                                 );
 
                                 actionButton.disabled = false;
@@ -3590,6 +3853,7 @@ PAGE ENTRY POINTS
 /** Render a configured inventory module and load its records and actions. */
 export async function renderInventoryPage(root, config, ctx = {}) {
     closeModal();
+    closeActiveDialog(false);
     revokeObjectUrls();
 
     if (config.type === 'harvest') {
@@ -3602,5 +3866,6 @@ export async function renderInventoryPage(root, config, ctx = {}) {
 /** Close the active inventory modal and revoke generated object URLs. */
 export function cleanupInventoryPage() {
     closeModal();
+    closeActiveDialog(false);
     revokeObjectUrls();
 }

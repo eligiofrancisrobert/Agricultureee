@@ -222,6 +222,122 @@
     transform: translateX(4px);
 }
 
+
+/* =========================================
+   CONTACT FEEDBACK MODAL
+========================================= */
+
+.contact-feedback-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.contact-feedback-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.contact-feedback-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+}
+
+.contact-feedback-content {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    padding: 35px 28px;
+    border-radius: 18px;
+    background: #F8F4EC;
+    color: #181614;
+    text-align: center;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
+    transform: translateY(20px) scale(0.97);
+    transition: transform 0.25s ease;
+}
+
+.contact-feedback-modal.show .contact-feedback-content {
+    transform: translateY(0) scale(1);
+}
+
+.contact-feedback-icon {
+    width: 68px;
+    height: 68px;
+    margin: 0 auto 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 28px;
+}
+
+.contact-feedback-icon.success {
+    background: rgba(154, 167, 107, 0.18);
+    color: #72834B;
+}
+
+.contact-feedback-icon.error {
+    background: rgba(198, 93, 58, 0.15);
+    color: #C65D3A;
+}
+
+.contact-feedback-content h3 {
+    margin: 0 0 12px;
+    font-size: 23px;
+    font-weight: 700;
+}
+
+.contact-feedback-content p {
+    margin: 0 0 25px;
+    color: #68635D;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.contact-feedback-content button {
+    width: 100%;
+    padding: 13px 20px;
+    border: none;
+    border-radius: 9px;
+    background: #C65D3A;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.contact-feedback-content button:hover {
+    background: #A94B2D;
+    transform: translateY(-2px);
+}
+
+.contact-feedback-content button:focus-visible {
+    outline: 3px solid rgba(198, 93, 58, 0.35);
+    outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+    .contact-feedback-content {
+        padding: 30px 22px;
+    }
+
+    .contact-feedback-content h3 {
+        font-size: 21px;
+    }
+}
+
+
 /* Tablet */
 @media (max-width: 900px) {
 
@@ -244,7 +360,7 @@
         font-size: clamp(2.5rem, 7vw, 4rem);
     }
 
-    .contact-info > p {
+    .contact-info>p {
         max-width: 700px;
     }
 
@@ -287,7 +403,7 @@
         line-height: 1;
     }
 
-    .contact-info > p {
+    .contact-info>p {
         font-size: 0.9rem;
         line-height: 1.7;
     }
@@ -375,7 +491,7 @@
         font-size: 2.1rem;
     }
 
-    .contact-info > p {
+    .contact-info>p {
         font-size: 0.85rem;
     }
 

@@ -996,19 +996,6 @@ function initializeLogout() {
 }
 
 // ==========================================
-// COMING SOON
-// ==========================================
-
-function initializeComingSoonLinks() {
-    document.querySelectorAll('[data-coming-soon]').forEach(link => {
-        link.addEventListener('click', event => {
-            event.preventDefault();
-            alert('This feature is not yet available.');
-        });
-    });
-}
-
-// ==========================================
 // INITIALIZATION
 // ==========================================
 
@@ -1018,7 +1005,6 @@ async function initializeHarvestPage() {
     try {
         // Basic page behavior first, so these work even if access is denied.
         initializeLogout();
-        initializeComingSoonLinks();
 
         if (todayLabel) {
             todayLabel.textContent = new Date().toLocaleDateString('en-PH', {
