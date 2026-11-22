@@ -1,0 +1,356 @@
+/* ============================================================
+   Sidebar drawer for the JS-built menu bar (sidebar.js).
+   Supplier page: .shell / .sidebar / .nav / .nav-logout / .main.
+   Breakpoint 900px. Load this LAST in the <link> list.
+   ============================================================ */
+
+/* Hidden on desktop */
+.menu-bar,
+.menu-backdrop {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    :root {
+        --menu-bar-h: 64px;
+    }
+
+    .shell {
+        display: block;
+    }
+
+    /* ---------- Top menu bar ---------- */
+    .menu-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        position: sticky;
+        top: 0;
+        z-index: 1001;
+        height: var(--menu-bar-h);
+        box-sizing: border-box;
+        padding: 0 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface-card);
+    }
+
+    .menu-bar .logo {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0;
+        border: 0;
+    }
+
+    .menu-bar .logo h1 {
+        margin: 0;
+        font-family: 'Outfit', 'Poppins', sans-serif;
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--primary-text);
+    }
+
+    .menu-bar .logo h1 span {
+        color: var(--primary-color);
+    }
+
+    .menu-bar .logo-image {
+        display: block;
+        width: 30px;
+        height: 30px;
+        object-fit: contain;
+    }
+
+    /* ---------- Hamburger ---------- */
+    .menu-bar .menu-toggle {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        flex: 0 0 auto;
+        width: 42px;
+        height: 42px;
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius, 10px);
+        background: transparent;
+        color: var(--primary-text);
+        box-shadow: none;
+        cursor: pointer;
+    }
+
+    .menu-bar .menu-toggle:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 2px;
+    }
+
+    .menu-toggle-bar {
+        display: block;
+        width: 20px;
+        height: 2px;
+        border-radius: 2px;
+        background: currentColor;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    /* Hamburger turns into an X when open */
+    .menu-toggle[aria-expanded="true"] .menu-toggle-bar:nth-child(1) {
+        transform: translateY(6px) rotate(45deg);
+    }
+    .menu-toggle[aria-expanded="true"] .menu-toggle-bar:nth-child(2) {
+        opacity: 0;
+    }
+    .menu-toggle[aria-expanded="true"] .menu-toggle-bar:nth-child(3) {
+        transform: translateY(-6px) rotate(-45deg);
+    }
+
+    /* ---------- Profile inside the bar ---------- */
+    .menu-bar .topbar-right {
+        display: flex;
+        flex: 0 0 auto;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        width: auto;
+        margin-left: auto;
+    }
+
+    .menu-bar .topbar-right > * {
+        flex-shrink: 0;
+    }
+
+    .menu-bar .avatar {
+        width: 38px;
+        height: 38px;
+    }
+
+    /* Theme toggle sits next to the avatar in the bar */
+    .menu-bar .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius, 10px);
+        background: transparent;
+        color: var(--primary-text);
+        cursor: pointer;
+    }
+
+    /* The date is hidden on small screens (chip is left empty) */
+    .topbar .chip {
+        display: none;
+    }
+
+    /* ---------- Sidebar as off-canvas drawer (below the bar) ---------- */
+    .shell > .sidebar {
+        position: fixed;
+        top: var(--menu-bar-h);
+        left: 0;
+        bottom: 0;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        gap: 20px;
+        width: min(290px, 85vw);
+        height: auto;
+        min-height: 0;
+        padding: 20px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        border-bottom: 0;
+        transform: translateX(-105%);
+        visibility: hidden;
+        transition: transform 0.3s ease, visibility 0s linear 0.3s;
+    }
+
+    .shell > .sidebar.is-open {
+        transform: translateX(0);
+        visibility: visible;
+        box-shadow: 0 18px 55px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease, visibility 0s;
+    }
+
+    /* The logo already shows in the menu bar */
+    .shell > .sidebar .logo {
+        display: none;
+    }
+
+    .shell > .sidebar .nav {
+        flex: 1 1 auto;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        order: 0;
+        width: 100%;
+        gap: 10px;
+        overflow: visible;
+    }
+
+    .shell > .sidebar .nav > a {
+        padding: 13px 18px;
+        font-size: inherit;
+    }
+
+    /* Log out stays at the bottom of the drawer */
+    .shell > .sidebar .nav-logout {
+        flex: none;
+        width: 100%;
+        margin: auto 0 0;
+        padding: 12px;
+        font-size: inherit;
+    }
+
+    /* The main content should use the full width (no sidebar offset) */
+    .shell > .main {
+        margin-left: 0;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* ---------- Backdrop ---------- */
+    .menu-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 999;
+        background: rgba(0, 0, 0, 0.55);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    .menu-backdrop.is-visible {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    body.menu-open {
+        overflow: hidden;
+    }
+}
+
+@media (max-width: 420px) {
+    .menu-bar .logo-image {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shell > .sidebar,
+    .menu-backdrop,
+    .menu-toggle-bar {
+        transition: none !important;
+    }
+}
+
+
+/* ============================================================
+   Tables become cards on small screens.
+   Labels come from responsive-tables.js (td[data-label]).
+   Layout: first cell = card title, other cells in a 2-column grid
+   with a small label above each value. Everything left-aligned.
+   ============================================================ */
+@media (max-width: 700px) {
+    #view table,
+    #view table tbody {
+        display: block;
+        width: 100%;
+        min-width: 0;
+    }
+
+    /* Header row is replaced by the per-cell labels */
+    #view table thead {
+        display: none;
+    }
+
+    #view table tbody tr {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px 16px;
+        margin: 0 0 14px;
+        padding: 16px;
+        box-sizing: border-box;
+        border: 1px solid var(--border);
+        border-radius: var(--radius, 12px);
+        background: var(--surface-card);
+    }
+
+    #view table tbody td {
+        display: block;
+        min-width: 0;
+        width: auto;
+        padding: 0;
+        border: 0;
+        text-align: left;
+        font-size: 0.95rem;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+
+    /* Small label above each value */
+    #view table tbody td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 3px;
+        font-size: 0.72rem;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        opacity: 0.6;
+    }
+
+    /* First cell is the card title: full width, bigger, no label */
+    #view table tbody td:first-child {
+        grid-column: 1 / -1;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+        font-size: 1.05rem;
+        font-weight: 600;
+    }
+
+    #view table tbody td:first-child[data-label]::before {
+        display: none;
+    }
+
+    /* Cells without a header (action buttons) take the full row */
+    #view table tbody td:not([data-label]):not(:first-child) {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+    }
+
+    #view table tbody tr.table-empty-row {
+        display: block;
+        text-align: center;
+    }
+
+    #view table tbody tr.table-empty-row td {
+        border: 0;
+        padding: 0;
+        font-weight: 400;
+        font-size: 0.95rem;
+    }
+
+    /* Let wrappers stop scrolling sideways now that tables fit */
+    #view .table-wrap,
+    #view .table-wrapper,
+    #view .table-responsive {
+        overflow: visible;
+    }
+}
+
+/* Very narrow phones: one column */
+@media (max-width: 380px) {
+    #view table tbody tr {
+        grid-template-columns: 1fr;
+    }
+}

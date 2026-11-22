@@ -3,8 +3,9 @@ const STORAGE_BUCKET = "supplier-product-photos";
 const MAX_FILE_SIZE = 3 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const SIGNED_URL_SECONDS = 3600;
+const PHOTO_CACHE_TTL = 55 * 60 * 1000;
+const PHOTO_BATCH_SIZE = 50;
 
-/* Inline SVG icons: no Font Awesome needed */
 const ICON_PATHS = {
     plus: `<path d="M12 5v14M5 12h14"/>`,
     xmark: `<path d="M18 6 6 18M6 6l12 12"/>`,
@@ -35,7 +36,11 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
     let deleteTarget = null;
     let previewObjectUrl = null;
 
-    const urlCache = new Map();
+    const photoCache = new Map();
+    const photoRequests = new Map();
+
+    let renderVersion = 0;
+    let destroyed = false;
 
     const safe = value => escapeHTML(String(value ?? ""));
 
@@ -74,7 +79,6 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
             </div>
         </section>
 
-        <!-- ADD / EDIT PRODUCT MODAL -->
         <div id="productModal" class="modal-overlay" hidden>
             <div class="modal-content" role="dialog"
                 aria-modal="true" aria-labelledby="productModalTitle">
@@ -87,13 +91,9 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
                         </p>
                     </div>
 
-                    <button
-                        type="button"
-                        id="closeProductModal"
-                        class="modal-close-btn"
-                        aria-label="Close modal"
-                        title="Close"
-                    >
+                    <button type="button" id="closeProductModal"
+                        class="modal-close-btn" aria-label="Close modal"
+                        title="Close">
                         <span aria-hidden="true">×</span>
                     </button>
                 </div>
@@ -101,101 +101,63 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
                 <form id="productForm">
                     <div class="form-group">
                         <label for="productName">Product Name *</label>
-                        <input
-                            id="productName"
-                            type="text"
-                            maxlength="150"
-                            required
-                            placeholder="Enter product name"
-                        />
+                        <input id="productName" type="text"
+                            maxlength="150" required
+                            placeholder="Enter product name" />
                     </div>
 
                     <div class="form-group">
                         <label for="productDescription">Description</label>
-                        <textarea
-                            id="productDescription"
-                            rows="4"
-                            placeholder="Describe your product..."
-                        ></textarea>
+                        <textarea id="productDescription" rows="4"
+                            placeholder="Describe your product..."></textarea>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
                             <label for="productPrice">Price (PHP) *</label>
-                            <input
-                                id="productPrice"
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                required
-                                value="0"
-                            />
+                            <input id="productPrice" type="number"
+                                min="0" step="0.01" required value="0" />
                         </div>
 
                         <div class="form-group">
                             <label for="productStock">Stock Quantity *</label>
-                            <input
-                                id="productStock"
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                required
-                                value="0"
-                            />
+                            <input id="productStock" type="number"
+                                min="0" step="0.01" required value="0" />
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label for="productUnit">Unit</label>
-                        <input
-                            id="productUnit"
-                            type="text"
+                        <input id="productUnit" type="text"
                             maxlength="50"
-                            placeholder="e.g. kg, sack, piece, box"
-                        />
+                            placeholder="e.g. kg, sack, piece, box" />
                     </div>
 
                     <div class="form-group">
                         <label for="productPhoto">Product Photo</label>
-
-                        <input
-                            id="productPhoto"
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp"
-                        />
-
-                        <small>
-                            JPG, PNG or WEBP. Maximum file size: 3 MB.
-                        </small>
+                        <input id="productPhoto" type="file"
+                            accept="image/jpeg,image/png,image/webp" />
+                        <small>JPG, PNG or WEBP. Maximum file size: 3 MB.</small>
                     </div>
 
                     <div id="photoPreviewContainer" hidden>
                         <div class="product-photo-preview">
-                            <img
-                                id="productPhotoPreview"
-                                alt="Product photo preview"
-                            />
-
-                            <button type="button"
-                                id="removeProductPhoto"
-                                class="icon-button"
-                                aria-label="Remove photo">
+                            <img id="productPhotoPreview"
+                                alt="Product photo preview" />
+                            <button type="button" id="removeProductPhoto"
+                                class="icon-button" aria-label="Remove photo">
                                 ${icon("trash")}
                             </button>
                         </div>
                     </div>
 
-                    <div id="productFormError"
-                        class="page-error" hidden></div>
+                    <div id="productFormError" class="page-error" hidden></div>
 
                     <div class="panel-actions">
                         <button type="button" id="cancelProductBtn"
-                            class="secondary-button">
-                            Cancel
-                        </button>
+                            class="secondary-button">Cancel</button>
 
-                        <button type="submit"
-                            id="saveProductBtn"
+                        <button type="submit" id="saveProductBtn"
                             class="primary-button">
                             ${icon("floppy")} Save Product
                         </button>
@@ -204,7 +166,6 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
             </div>
         </div>
 
-        <!-- DELETE CONFIRMATION MODAL -->
         <div id="deleteProductModal" class="modal-overlay" hidden>
             <div class="modal-content" role="dialog"
                 aria-modal="true" aria-labelledby="deleteProductTitle">
@@ -215,13 +176,9 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
                         <p>Are you sure you want to delete this product?</p>
                     </div>
 
-                    <button
-                        type="button"
-                        id="closeDeleteModal"
-                        class="modal-close-btn"
-                        aria-label="Close modal"
-                        title="Close"
-                    >
+                    <button type="button" id="closeDeleteModal"
+                        class="modal-close-btn" aria-label="Close modal"
+                        title="Close">
                         <span aria-hidden="true">×</span>
                     </button>
                 </div>
@@ -229,14 +186,10 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
                 <p id="deleteProductMessage"></p>
 
                 <div class="panel-actions">
-                    <button type="button"
-                        id="cancelDeleteBtn"
-                        class="secondary-button">
-                        Cancel
-                    </button>
+                    <button type="button" id="cancelDeleteBtn"
+                        class="secondary-button">Cancel</button>
 
-                    <button type="button"
-                        id="confirmDeleteBtn"
+                    <button type="button" id="confirmDeleteBtn"
                         class="primary-button">
                         ${icon("trash")} Delete Product
                     </button>
@@ -244,25 +197,17 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
             </div>
         </div>
 
-        <!-- CUSTOM ALERT MODAL -->
         <div id="productAlertModal" class="modal-overlay" hidden>
             <div class="modal-content" role="alertdialog"
-                aria-modal="true"
-                aria-labelledby="productAlertTitle"
+                aria-modal="true" aria-labelledby="productAlertTitle"
                 aria-describedby="productAlertMessage">
 
                 <div class="panel-heading">
-                    <div>
-                        <h3 id="productAlertTitle">Notification</h3>
-                    </div>
+                    <div><h3 id="productAlertTitle">Notification</h3></div>
 
-                    <button
-                        type="button"
-                        id="closeProductAlert"
-                        class="modal-close-btn"
-                        aria-label="Close alert"
-                        title="Close"
-                    >
+                    <button type="button" id="closeProductAlert"
+                        class="modal-close-btn" aria-label="Close alert"
+                        title="Close">
                         <span aria-hidden="true">×</span>
                     </button>
                 </div>
@@ -270,11 +215,8 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
                 <p id="productAlertMessage"></p>
 
                 <div class="panel-actions">
-                    <button type="button"
-                        id="confirmProductAlert"
-                        class="primary-button">
-                        OK
-                    </button>
+                    <button type="button" id="confirmProductAlert"
+                        class="primary-button">OK</button>
                 </div>
             </div>
         </div>
@@ -301,7 +243,7 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
     const alertMessage = $("#productAlertMessage");
 
     // =========================================
-    // CUSTOM ALERT MODAL
+    // ALERT
     // =========================================
 
     function showAlert(message, title = "Notification") {
@@ -327,6 +269,35 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
     function clearError() {
         formError.textContent = "";
         formError.hidden = true;
+    }
+
+    function cleanPhotoPath(path) {
+        return String(path || "").replace(/^\/+/, "").trim();
+    }
+
+    function getCachedPhotoUrl(path) {
+        const cleanPath = cleanPhotoPath(path);
+        if (!cleanPath) return "";
+
+        const cached = photoCache.get(cleanPath);
+        if (!cached) return "";
+
+        if (Date.now() >= cached.expiresAt) {
+            photoCache.delete(cleanPath);
+            return "";
+        }
+
+        return cached.url || "";
+    }
+
+    function setCachedPhotoUrl(path, url) {
+        const cleanPath = cleanPhotoPath(path);
+        if (!cleanPath || !url) return;
+
+        photoCache.set(cleanPath, {
+            url,
+            expiresAt: Date.now() + PHOTO_CACHE_TTL
+        });
     }
 
     function clearPreviewObjectUrl() {
@@ -378,26 +349,131 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
     // =========================================
 
     async function getPhotoUrl(path) {
-        if (!path) return null;
+        const cleanPath = cleanPhotoPath(path);
+        if (!cleanPath) return null;
 
-        const cached = urlCache.get(path);
+        const cached = getCachedPhotoUrl(cleanPath);
+        if (cached) return cached;
 
-        if (cached && cached.expires > Date.now()) {
-            return cached.url;
+        const existingRequest = photoRequests.get(cleanPath);
+        if (existingRequest) return existingRequest;
+
+        const request = (async () => {
+            const { data, error } = await supabase.storage
+                .from(STORAGE_BUCKET)
+                .createSignedUrl(cleanPath, SIGNED_URL_SECONDS);
+
+            if (error) throw error;
+
+            setCachedPhotoUrl(cleanPath, data.signedUrl);
+            return data.signedUrl;
+        })();
+
+        photoRequests.set(cleanPath, request);
+
+        try {
+            return await request;
+        } finally {
+            photoRequests.delete(cleanPath);
+        }
+    }
+
+    async function loadProductPhotos(items) {
+        if (destroyed) return;
+
+        const photoProducts = new Map();
+
+        for (const product of items) {
+            const path = cleanPhotoPath(product.photo_path);
+            if (!path || getCachedPhotoUrl(path)) continue;
+
+            if (!photoProducts.has(path)) {
+                photoProducts.set(path, []);
+            }
+
+            photoProducts.get(path).push(product.product_listing_id);
         }
 
-        const { data, error } = await supabase.storage
-            .from(STORAGE_BUCKET)
-            .createSignedUrl(path, SIGNED_URL_SECONDS);
+        const paths = [...photoProducts.keys()];
+        if (!paths.length) return;
 
-        if (error) throw error;
+        const batches = [];
 
-        urlCache.set(path, {
-            url: data.signedUrl,
-            expires: Date.now() + (SIGNED_URL_SECONDS - 300) * 1000
-        });
+        for (let i = 0; i < paths.length; i += PHOTO_BATCH_SIZE) {
+            batches.push(paths.slice(i, i + PHOTO_BATCH_SIZE));
+        }
 
-        return data.signedUrl;
+        await Promise.all(batches.map(async batch => {
+            if (destroyed) return;
+
+            try {
+                const { data, error } = await supabase.storage
+                    .from(STORAGE_BUCKET)
+                    .createSignedUrls(batch, SIGNED_URL_SECONDS);
+
+                if (error) {
+                    console.warn("Batch photo loading failed:", error.message);
+                    return;
+                }
+
+                for (let i = 0; i < batch.length; i++) {
+                    if (destroyed) return;
+
+                    const path = batch[i];
+                    const result = data?.[i];
+
+                    if (!result || result.error || !result.signedUrl) {
+                        console.warn("Unable to generate photo URL:", path, result?.error);
+                        continue;
+                    }
+
+                    setCachedPhotoUrl(path, result.signedUrl);
+
+                    const productIds = photoProducts.get(path) || [];
+
+                    for (const productId of productIds) {
+                        updateProductPhoto(productId, path, result.signedUrl);
+                    }
+                }
+            } catch (error) {
+                console.error("Product photo batch error:", error);
+            }
+        }));
+    }
+
+    function updateProductPhoto(productId, photoPath, photoUrl) {
+        if (destroyed) return;
+
+        const product = products.find(item =>
+            String(item.product_listing_id) === String(productId)
+        );
+
+        if (!product) return;
+
+        if (cleanPhotoPath(product.photo_path) !== photoPath) return;
+
+        const card = [...list.querySelectorAll("[data-product-id]")]
+            .find(item => item.dataset.productId === String(productId));
+
+        const placeholder = card?.querySelector("[data-photo-container]");
+
+        if (!placeholder) return;
+
+        const image = document.createElement("img");
+
+        image.alt = product.product_name || "Product";
+        image.loading = "lazy";
+        image.decoding = "async";
+        image.src = photoUrl;
+
+        image.addEventListener("error", () => {
+            const fallback = document.createElement("div");
+            fallback.className = "product-photo-placeholder";
+            fallback.innerHTML = icon("box");
+            image.replaceWith(fallback);
+        }, { once: true });
+
+        placeholder.replaceChildren(image);
     }
 
     async function uploadPhoto(file) {
@@ -427,11 +503,13 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
     async function deletePhoto(path) {
         if (!path) return;
 
-        urlCache.delete(path);
+        const cleanPath = cleanPhotoPath(path);
+
+        photoCache.delete(cleanPath);
 
         const { error } = await supabase.storage
             .from(STORAGE_BUCKET)
-            .remove([path]);
+            .remove([cleanPath]);
 
         if (error) {
             console.error("Photo cleanup error:", error);
@@ -469,11 +547,11 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
         if (error) throw error;
 
         products = data || [];
-
         renderProducts();
     }
 
     function renderProducts() {
+        const version = ++renderVersion;
         const query = search.value.trim().toLowerCase();
 
         const filtered = products.filter(product =>
@@ -492,8 +570,8 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
                     ${icon("box")}
                     <p>
                         ${products.length
-                    ? "No matching products found."
-                    : "You have not listed any products yet."}
+                            ? "No matching products found."
+                            : "You have not listed any products yet."}
                     </p>
                 </div>
             `;
@@ -502,84 +580,67 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
 
         list.innerHTML = `
             <div class="supplier-product-grid">
-                ${filtered.map(product => `
-                    <article class="supplier-product-card"
-                        data-product-id="${safe(product.product_listing_id)}">
+                ${filtered.map(product => {
+                    const cachedUrl = getCachedPhotoUrl(product.photo_path);
 
-                        <div class="product-photo" data-photo-container>
-                            ${icon("box")}
-                        </div>
+                    const imageMarkup = cachedUrl
+                        ? `<img src="${safe(cachedUrl)}"
+                                alt="${safe(product.product_name)}"
+                                loading="lazy" decoding="async">`
+                        : `<div class="product-photo-placeholder"
+                                data-photo-container>
+                                ${icon("box")}
+                           </div>`;
 
-                        <div class="product-information">
-                            <h3>${safe(product.product_name)}</h3>
+                    return `
+                        <article class="supplier-product-card"
+                            data-product-id="${safe(product.product_listing_id)}">
 
-                            <span>${formatPrice(product.price)}</span>
+                            <div class="product-photo"
+                                ${cachedUrl ? 'data-photo-container' : ''}>
+                                ${imageMarkup}
+                            </div>
 
-                            <span>
-                                Stock: ${safe(product.stock_quantity)}
-                                ${safe(product.unit || "")}
-                            </span>
+                            <div class="product-information">
+                                <h3>${safe(product.product_name)}</h3>
 
-                            <small>
-                                ${safe(product.description || "No description")}
-                            </small>
-                        </div>
+                                <span>${formatPrice(product.price)}</span>
 
-                        <div class="product-actions">
-                            <button
-                                type="button"
-                                class="secondary-button edit-product"
-                                data-id="${safe(product.product_listing_id)}"
-                            >
-                                ${icon("pen")}
-                                <span>Edit</span>
-                            </button>
+                                <span>
+                                    Stock: ${safe(product.stock_quantity)}
+                                    ${safe(product.unit || "")}
+                                </span>
 
-                            <button
-                                type="button"
-                                class="danger-button delete-product"
-                                data-id="${safe(product.product_listing_id)}"
-                            >
-                                ${icon("trash")}
-                                <span>Delete</span>
-                            </button>
-                        </div>
-                    </article>
-                `).join("")}
+                                <small>
+                                    ${safe(product.description || "No description")}
+                                </small>
+                            </div>
+
+                            <div class="product-actions">
+                                <button type="button"
+                                    class="secondary-button edit-product"
+                                    data-id="${safe(product.product_listing_id)}">
+                                    ${icon("pen")}
+                                    <span>Edit</span>
+                                </button>
+
+                                <button type="button"
+                                    class="danger-button delete-product"
+                                    data-id="${safe(product.product_listing_id)}">
+                                    ${icon("trash")}
+                                    <span>Delete</span>
+                                </button>
+                            </div>
+                        </article>
+                    `;
+                }).join("")}
             </div>
         `;
 
-        loadProductImages(filtered);
-    }
+        // Images load separately without blocking product cards.
+        loadProductPhotos(filtered);
 
-    async function loadProductImages(items) {
-        await Promise.all(items.map(async product => {
-            if (!product.photo_path) return;
-
-            const card = list.querySelector(
-                `[data-product-id="${CSS.escape(String(product.product_listing_id))}"]`
-            );
-
-            const container = card?.querySelector("[data-photo-container]");
-
-            if (!container) return;
-
-            try {
-                const imageUrl = await getPhotoUrl(product.photo_path);
-
-                if (!container.isConnected) return;
-
-                container.innerHTML = `
-                    <img
-                        src="${safe(imageUrl)}"
-                        alt="${safe(product.product_name)}"
-                        loading="lazy"
-                    />
-                `;
-            } catch (error) {
-                console.error("Product image loading error:", error);
-            }
-        }));
+        return version;
     }
 
     // =========================================
@@ -612,6 +673,8 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
         currentPhotoPath = product.photo_path || null;
         originalPhotoPath = product.photo_path || null;
 
+        const activeProductId = editingProductId;
+
         $("#productModalTitle").textContent = "Edit Product";
         $("#productModalDescription").textContent =
             "Update your product information.";
@@ -631,7 +694,7 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
             try {
                 const imageUrl = await getPhotoUrl(product.photo_path);
 
-                if (editingProductId !== product.product_listing_id) return;
+                if (editingProductId !== activeProductId) return;
                 if (!currentPhotoPath || selectedPhoto) return;
 
                 showPhotoPreview(imageUrl);
@@ -653,9 +716,7 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
         const price = Number($("#productPrice").value);
         const stock = Number($("#productStock").value);
 
-        if (!name) {
-            throw new Error("Product name is required.");
-        }
+        if (!name) throw new Error("Product name is required.");
 
         if (!Number.isFinite(price) || price < 0) {
             throw new Error("Enter a valid product price.");
@@ -745,9 +806,7 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
         } catch (error) {
             console.error("Save product error:", error);
 
-            if (uploadedPath) {
-                await deletePhoto(uploadedPath);
-            }
+            if (uploadedPath) await deletePhoto(uploadedPath);
 
             showError(error.message || "Unable to save product.");
 
@@ -860,7 +919,6 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
 
     confirmDeleteButton.addEventListener("click", deleteProduct);
 
-    // Custom alert modal controls
     $("#closeProductAlert").addEventListener("click", closeAlertModal);
     $("#confirmProductAlert").addEventListener("click", closeAlertModal);
 
@@ -944,12 +1002,25 @@ export async function render({ supabase, user, supplier, view, escapeHTML }) {
     });
 
     // =========================================
+    // CLEANUP
+    // =========================================
+
+    function cleanup() {
+        destroyed = true;
+        clearPreviewObjectUrl();
+        photoCache.clear();
+    }
+
+    view.addEventListener("DOMNodeRemoved", event => {
+        if (event.target === view) cleanup();
+    });
+
+    // =========================================
     // INITIAL LOAD
     // =========================================
 
     try {
         await loadProducts();
-
     } catch (error) {
         console.error("Product loading error:", error);
 
