@@ -160,7 +160,12 @@ async function applyFarmerNavigationPermissions() {
 
         if (!href) return;
 
-        const page = href.split("?")[0].split("#")[0].split("/").pop();
+        const page = href
+            .split("?")[0]
+            .split("#")[0]
+            .split("/")
+            .pop()
+            .toLowerCase();
 
         const permission = FARMER_PAGE_PERMISSIONS[page];
 
@@ -193,10 +198,7 @@ function showAccessDenied() {
         <section class="information-section">
             <div>
                 <h2>Access Restricted</h2>
-                <p>
-                    You do not have permission to access this page.
-                    Please contact your Administrator.
-                </p>
+                <p>You don't have permission for this.</p>
             </div>
         </section>
     `;
@@ -262,8 +264,9 @@ export async function initializeFarmerPermissions() {
             todayLabel.textContent = new Date().toLocaleDateString(
                 "en-PH",
                 {
-                    weekday: "short",
-                    month: "short",
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
                     day: "numeric"
                 }
             );

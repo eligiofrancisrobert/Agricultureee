@@ -94,14 +94,13 @@ const ROLE_PERMISSIONS = {
     farmer: new Set([
         'dashboard.view',
         'activities.view',
-        'activities.create',
         'activities.edit',
-        'harvest_records.view',
-        'harvest_records.create',
-        'harvest_records.edit',
         'plantings.view',
         'plantings.edit',
         'recommendations.view',
+        'recommendations.edit',
+        'harvest_records.view',
+        'harvest_records.edit',
     ]),
 
     buyer: new Set([

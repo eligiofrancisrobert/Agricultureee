@@ -1,0 +1,482 @@
+/* =========================================================
+   TANIKALA - FARMER SETTINGS
+   (based on the Farm Manager settings stylesheet)
+   ========================================================= */
+
+.farmer-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md, 20px);
+  min-width: 0;
+}
+
+.farmer-settings .muted {
+  margin: 0;
+  color: var(--secondary-text);
+  font-size: var(--fs-sm, .875rem);
+}
+
+/* ============ LAYOUT ============ */
+
+.farmer-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: var(--space-md, 20px);
+  align-items: start;
+}
+
+.farmer-settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md, 20px);
+  min-width: 0;
+}
+
+/* ============ PANEL ============ */
+
+.farmer-settings-panel {
+  min-width: 0;
+  padding: var(--space-md, 20px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-card);
+  box-shadow: 0 2px 10px rgba(101, 53, 40, .08);
+}
+
+.farmer-settings-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md, 20px);
+  margin-bottom: var(--space-md, 20px);
+}
+
+.farmer-settings-panel-header h3 {
+  margin: 0 0 4px;
+  color: var(--primary-text);
+  font-family: 'Outfit', 'Poppins', sans-serif;
+  font-size: var(--fs-lg, 1.2rem);
+  font-weight: 500;
+}
+
+.farmer-settings-panel-header p {
+  margin: 0;
+  color: var(--secondary-text);
+  font-size: var(--fs-sm, .875rem);
+}
+
+.farmer-pill {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-color) 12%, var(--surface-card));
+  color: var(--primary-color);
+  font-size: .75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ============ PROFILE ============ */
+
+.farmer-profile-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: var(--space-md, 20px);
+  padding-bottom: var(--space-md, 20px);
+  border-bottom: 1px solid var(--border);
+}
+
+.farmer-profile-avatar {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  font-family: 'Outfit', 'Poppins', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+.farmer-profile-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.farmer-profile-main b {
+  color: var(--primary-text);
+  font-size: 1.05rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.farmer-profile-main small {
+  color: var(--secondary-text);
+  font-size: .85rem;
+  overflow-wrap: anywhere;
+}
+
+.farmer-settings-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 20px;
+}
+
+.farmer-settings-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  background: color-mix(in srgb, var(--secondary) 6%, var(--surface-card));
+}
+
+.farmer-settings-field small {
+  color: var(--secondary-text);
+  font-size: .75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.farmer-settings-field b {
+  color: var(--primary-text);
+  font-size: .92rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* ============ APPEARANCE ============ */
+
+.farmer-settings-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.farmer-settings-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md, 20px);
+}
+
+.farmer-settings-list p {
+  margin: 0 0 2px;
+  color: var(--primary-text);
+  font-weight: 500;
+}
+
+.farmer-settings-list small {
+  color: var(--secondary-text);
+  font-size: .8rem;
+  line-height: 1.5;
+}
+
+/* ----- switch ----- */
+
+.farmer-switch {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-block;
+  width: 46px;
+  height: 26px;
+  cursor: pointer;
+}
+
+.farmer-switch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.farmer-switch span {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--secondary-text) 25%, var(--surface-card));
+  transition: background .2s ease, border-color .2s ease;
+}
+
+.farmer-switch span::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+  transition: transform .2s ease;
+}
+
+.farmer-switch input:checked + span {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.farmer-switch input:checked + span::before {
+  transform: translateX(20px);
+}
+
+.farmer-switch input:focus-visible + span {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* ============ FORMS ============ */
+
+.farmer-settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.farmer-settings-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.farmer-settings-form-field label {
+  color: var(--primary-text);
+  font-size: var(--fs-sm, .875rem);
+  font-weight: 500;
+}
+
+.farmer-form-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  outline: none;
+  background: var(--surface-card);
+  color: var(--primary-text);
+  font: inherit;
+  font-size: var(--fs-sm, .875rem);
+  transition: border-color .3s ease, box-shadow .3s ease;
+}
+
+.farmer-form-input::placeholder {
+  color: var(--secondary-text);
+  opacity: .7;
+}
+
+.farmer-form-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+.farmer-show-passwords {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  color: var(--secondary-text);
+  font-size: var(--fs-sm, .875rem);
+  cursor: pointer;
+}
+
+.farmer-show-passwords input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+}
+
+/* ----- strength meter ----- */
+
+.farmer-strength[hidden],
+.farmer-settings-msg[hidden] {
+  display: none !important;
+}
+
+.farmer-strength {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.farmer-strength-bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.farmer-strength-fill {
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  transition: width .3s ease, background .3s ease;
+}
+
+.farmer-strength small {
+  color: var(--secondary-text);
+  font-size: .78rem;
+}
+
+/* ----- messages ----- */
+
+.farmer-settings-msg {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  font-size: var(--fs-sm, .875rem);
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.farmer-settings-msg.error {
+  border-color: color-mix(in srgb, var(--error) 40%, var(--border));
+  background: color-mix(in srgb, var(--error) 10%, var(--surface-card));
+  color: var(--error);
+}
+
+.farmer-settings-msg.success {
+  border-color: color-mix(in srgb, var(--success) 40%, var(--border));
+  background: color-mix(in srgb, var(--success) 10%, var(--surface-card));
+  color: var(--success);
+}
+
+.farmer-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* ============ BUTTONS ============ */
+
+.farmer-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius, 10px);
+  background: var(--primary-color);
+  color: #fff;
+  font: inherit;
+  font-size: var(--fs-sm, .875rem);
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter .2s ease, background .2s ease, border-color .2s ease, color .2s ease;
+}
+
+.farmer-button:hover:not(:disabled) {
+  filter: brightness(.93);
+}
+
+.farmer-button:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.farmer-button:disabled {
+  opacity: .7;
+  cursor: not-allowed;
+}
+
+.farmer-button-secondary {
+  border-color: var(--border);
+  background: var(--surface-card);
+  color: var(--primary-text);
+}
+
+.farmer-button-secondary:hover:not(:disabled) {
+  filter: none;
+  border-color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 8%, var(--surface-card));
+  color: var(--primary-color);
+}
+
+/* ============ TOAST ============ */
+
+.farmer-toast-region {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.farmer-toast {
+  padding: 12px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  background: var(--surface-card);
+  color: var(--primary-text);
+  font-size: var(--fs-sm, .875rem);
+  font-weight: 500;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .18);
+}
+
+/* ============ RESPONSIVE ============ */
+
+@media (max-width: 1000px) {
+  .farmer-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .farmer-settings-panel {
+    padding: 16px;
+  }
+
+  .farmer-settings-panel-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .farmer-profile-head {
+    flex-wrap: wrap;
+  }
+
+  .farmer-settings-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .farmer-settings-actions .farmer-button {
+    width: 100%;
+  }
+
+  .farmer-toast-region {
+    left: 16px;
+    right: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .farmer-switch span,
+  .farmer-switch span::before,
+  .farmer-form-input,
+  .farmer-strength-fill,
+  .farmer-button {
+    transition: none !important;
+  }
+}

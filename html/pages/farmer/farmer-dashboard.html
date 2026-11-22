@@ -16,6 +16,7 @@
     <!-- shared tokens first, page styles after (same order as Farm Manager) -->
     <link rel="stylesheet" href="../../../css/feature/style.css">
     <link rel="stylesheet" href="../../../css/farmer/farmer.css">
+    <link rel="stylesheet" href="../../../css/farmer/settings.css">
 
     <script>
         document.documentElement.dataset.theme = localStorage.getItem('theme') || 'light';
@@ -81,7 +82,7 @@
             </nav>
 
             <div class="sidebar-bottom">
-                <a href="#" class="nav-link" data-coming-soon>
+                <a href="settings.html" class="nav-link">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
                         <circle cx="15" cy="7" r="2" />
@@ -126,6 +127,7 @@
                             </svg>
                         </button>
                     </div>
+
 
                     <div class="profile">
                         <div class="avatar" id="farmerAvatar">F</div>
@@ -197,7 +199,7 @@
                     </div>
                     <span class="card-arrow">→</span>
                 </a>
-                
+
                 <a href="recommendations.html" class="access-card">
                     <div class="access-icon activity-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24">

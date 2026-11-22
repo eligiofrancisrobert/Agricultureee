@@ -1,9 +1,57 @@
-
 import { supabase } from "../connection.js";
 
-// ==========================================
-// ELEMENTS
-// ==========================================
+// ---------- THEME ----------
+
+const THEME_KEY = "theme";
+
+function readSavedTheme() {
+    try {
+        return (
+            localStorage.getItem(THEME_KEY) ||
+            localStorage.getItem("tanikala-theme")
+        );
+    } catch {
+        return null;
+    }
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute(
+        "data-theme",
+        theme === "dark" ? "dark" : "light"
+    );
+}
+
+(function initializeTheme() {
+    applyTheme(readSavedTheme());
+
+    const toggle = document.getElementById("themeToggle");
+
+    toggle?.addEventListener("click", event => {
+        event.stopImmediatePropagation();
+
+        const next =
+            document.documentElement.getAttribute("data-theme") === "dark"
+                ? "light"
+                : "dark";
+
+        applyTheme(next);
+
+        try {
+            localStorage.setItem(THEME_KEY, next);
+        } catch {
+            // Ignore blocked storage.
+        }
+    });
+
+    window.addEventListener("storage", event => {
+        if (event.key === THEME_KEY && event.newValue) {
+            applyTheme(event.newValue);
+        }
+    });
+})();
+
+// ---------- ELEMENTS ----------
 
 const recommendationList = document.getElementById("recommendationList");
 const searchInput = document.getElementById("recommendationSearch");
@@ -13,15 +61,19 @@ const totalRecommendations = document.getElementById("totalRecommendations");
 const monitoringCount = document.getElementById("monitoringCount");
 const inspectionCount = document.getElementById("inspectionCount");
 
+const farmerName = document.getElementById("farmerName");
+const farmerAvatar = document.getElementById("farmerAvatar");
+const logoutButton = document.getElementById("logoutButton");
+const logoutLabel = document.getElementById("logoutLabel");
+const todayLabel = document.getElementById("todayLabel");
+
 let recommendations = [];
 let currentUser = null;
 let canViewRecommendations = false;
 
 const permissionCache = new Map();
 
-// ==========================================
-// NAVIGATION PERMISSIONS
-// ==========================================
+// ---------- FARMER NAVIGATION PERMISSIONS ----------
 
 const FARMER_NAVIGATION_PERMISSIONS = {
     "farmer-dashboard.html": "dashboard.view",
@@ -31,7 +83,9 @@ const FARMER_NAVIGATION_PERMISSIONS = {
     "harvest-records.html": "harvest_records.view"
 };
 
-async function checkPermission(permissionKey) {
+// ---------- PERMISSIONS ----------
+
+async function hasPermission(permissionKey) {
     if (permissionCache.has(permissionKey)) {
         return permissionCache.get(permissionKey);
     }
@@ -44,25 +98,16 @@ async function checkPermission(permissionKey) {
             }
         );
 
-        if (error) {
-            console.error(
-                `[Recommendations] Permission check failed (${permissionKey}):`,
-                error
-            );
-
-            permissionCache.set(permissionKey, false);
-            return false;
-        }
+        if (error) throw error;
 
         const allowed = data === true;
-
         permissionCache.set(permissionKey, allowed);
 
         return allowed;
 
     } catch (error) {
         console.error(
-            `[Recommendations] Permission check error (${permissionKey}):`,
+            `Permission check failed (${permissionKey}):`,
             error
         );
 
@@ -71,13 +116,18 @@ async function checkPermission(permissionKey) {
     }
 }
 
+/**
+ * Checks all Farmer navigation permissions.
+ * Disabled pages are hidden from the sidebar and Quick Access,
+ * regardless of which Farmer page is currently open.
+ */
 async function applyNavigationPermissions() {
     const entries = Object.entries(FARMER_NAVIGATION_PERMISSIONS);
 
     const results = await Promise.all(
         entries.map(async ([page, permissionKey]) => ({
             page,
-            allowed: await checkPermission(permissionKey)
+            allowed: await hasPermission(permissionKey)
         }))
     );
 
@@ -86,37 +136,44 @@ async function applyNavigationPermissions() {
     );
 
     document.querySelectorAll(
-        ".navigation a.nav-link[href]"
+        ".navigation a.nav-link[href], " +
+        ".quick-access a.access-card[href]"
     ).forEach(link => {
         const href = link.getAttribute("href");
 
         if (!href) return;
 
-        const page = href
-            .split("?")[0]
-            .split("#")[0]
-            .split("/")
-            .pop();
+        let page;
 
-        if (!permissionMap.has(page)) return;
+        try {
+            page = new URL(href, window.location.href)
+                .pathname
+                .split("/")
+                .pop()
+                .toLowerCase();
+        } catch {
+            return;
+        }
+
+        if (!Object.hasOwn(FARMER_NAVIGATION_PERMISSIONS, page)) {
+            return;
+        }
 
         const allowed = permissionMap.get(page) === true;
 
         link.hidden = !allowed;
         link.style.display = allowed ? "" : "none";
 
-        if (!allowed) {
-            link.setAttribute("aria-hidden", "true");
-            link.setAttribute("tabindex", "-1");
-        } else {
+        if (allowed) {
             link.removeAttribute("aria-hidden");
             link.removeAttribute("tabindex");
+        } else {
+            link.setAttribute("aria-hidden", "true");
+            link.setAttribute("tabindex", "-1");
         }
     });
-}
 
-function finishPermissionLoading() {
-    document.body.classList.remove("permissions-loading");
+    return permissionMap;
 }
 
 function showAccessDenied() {
@@ -124,7 +181,7 @@ function showAccessDenied() {
         recommendationList.innerHTML = `
             <div class="loading-state">
                 You do not have permission to view recommendations.
-                Please contact your Farm Manager or Administrator.
+                Please contact your Administrator.
             </div>
         `;
     }
@@ -134,9 +191,7 @@ function showAccessDenied() {
     if (inspectionCount) inspectionCount.textContent = "0";
 }
 
-// ==========================================
-// HELPERS
-// ==========================================
+// ---------- HELPERS ----------
 
 function escapeHTML(value = "") {
     return String(value ?? "").replace(/[&<>"']/g, character => ({
@@ -174,9 +229,56 @@ function getStatus(value) {
     return String(value || "").trim().toLowerCase();
 }
 
-// ==========================================
-// SUMMARY
-// ==========================================
+function getFarmerDisplayName(user, profile) {
+    return (
+        user.user_metadata?.full_name ||
+        user.user_metadata?.fullName ||
+        profile?.full_name ||
+        profile?.fullName ||
+        user.email?.split("@")[0] ||
+        "Farmer"
+    );
+}
+
+// ---------- FARMER PROFILE ----------
+
+async function loadFarmerProfile(user) {
+    const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("id, role, status")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    if (error) {
+        console.error("Profile loading error:", error);
+        throw new Error("Unable to verify your Farmer account.");
+    }
+
+    if (!profile || profile.role !== "farmer") {
+        window.location.replace("../../login.html");
+        return null;
+    }
+
+    const accountStatus = String(profile.status || "").toLowerCase();
+
+    if (!["active", "approved"].includes(accountStatus)) {
+        await supabase.auth.signOut();
+        window.location.replace("../../login.html");
+        return null;
+    }
+
+    const name = getFarmerDisplayName(user, profile);
+
+    if (farmerName) farmerName.textContent = name;
+
+    if (farmerAvatar) {
+        farmerAvatar.textContent = name.charAt(0).toUpperCase();
+    }
+
+    return profile;
+}
+
+// ---------- SUMMARY ----------
 
 function updateSummary() {
     if (totalRecommendations) {
@@ -196,9 +298,7 @@ function updateSummary() {
     }
 }
 
-// ==========================================
-// RENDER RECOMMENDATIONS
-// ==========================================
+// ---------- RENDER RECOMMENDATIONS ----------
 
 function renderRecommendations() {
     if (!recommendationList) return;
@@ -313,197 +413,237 @@ function renderRecommendations() {
     `).join("");
 }
 
-// ==========================================
-// LOAD RECOMMENDATIONS
-// ==========================================
+// ---------- LOAD RECOMMENDATIONS ----------
 
 async function loadRecommendations() {
-    try {
+    if (!canViewRecommendations || !currentUser) return;
+
+    if (recommendationList) {
+        recommendationList.innerHTML = `
+            <div class="loading-state">Loading recommendations...</div>
+        `;
+    }
+
+    // 1. Retrieve the current farmer's plantings.
+    const { data: plantings, error: plantingError } = await supabase
+        .from("farm_plantings")
+        .select("*")
+        .eq("farmer_id", currentUser.id);
+
+    if (plantingError) throw plantingError;
+
+    const plantingIds = (plantings || [])
+        .map(planting => planting.id)
+        .filter(Boolean);
+
+    if (!plantingIds.length) {
+        recommendations = [];
+        updateSummary();
+
         if (recommendationList) {
             recommendationList.innerHTML = `
-                <div class="loading-state">Loading recommendations...</div>
+                <div class="loading-state">
+                    No plantings are currently linked to your account.
+                </div>
             `;
+        }
+
+        return;
+    }
+
+    const plantingMap = new Map(
+        plantings.map(planting => [planting.id, planting])
+    );
+
+    // 2. Retrieve crop monitoring and inspection records together.
+    const [monitoringResult, inspectionResult] = await Promise.all([
+        supabase
+            .from("agricultural_technician_crop_monitoring")
+            .select("*")
+            .in("planting_id", plantingIds)
+            .in("monitoring_status", ["submitted", "reviewed"])
+            .order("monitoring_date", { ascending: false }),
+
+        supabase
+            .from("agricultural_inspections")
+            .select("*")
+            .in("planting_id", plantingIds)
+            .order("inspection_date", { ascending: false })
+    ]);
+
+    if (monitoringResult.error) throw monitoringResult.error;
+    if (inspectionResult.error) throw inspectionResult.error;
+
+    const monitoringRecords = monitoringResult.data || [];
+    const inspectionRecords = inspectionResult.data || [];
+
+    // 3. Format monitoring recommendations.
+    const monitoringItems = monitoringRecords.map(record => {
+        const planting = plantingMap.get(record.planting_id);
+
+        return {
+            id: record.monitoring_id,
+            source: "monitoring",
+            sourceLabel: "Crop Monitoring",
+
+            title: "Crop Monitoring Recommendation",
+
+            cropName: getCropName(planting),
+            plantingId: record.planting_id,
+
+            date: record.monitoring_date,
+
+            growthStage: record.growth_stage,
+            health: record.crop_health_status,
+
+            recommendation: record.recommended_action,
+            observations: record.observations,
+
+            pestDetails: record.pest_observed
+                ? record.pest_details || "Pest observed"
+                : "",
+
+            diseaseDetails: record.disease_observed
+                ? record.disease_details || "Disease observed"
+                : "",
+
+            actionRequired: record.action_required
+        };
+    });
+
+    // 4. Format submitted/finalized inspection recommendations.
+    const inspectionItems = inspectionRecords
+        .filter(record => {
+            const status = getStatus(record.inspection_status);
+
+            return status !== "draft" &&
+                status !== "cancelled" &&
+                status !== "deleted";
+        })
+        .map(record => {
+            const planting = plantingMap.get(record.planting_id);
+
+            return {
+                id: record.inspection_id,
+                source: "inspection",
+                sourceLabel: "Farm Inspection",
+
+                title: record.inspection_type
+                    ? `${record.inspection_type} Inspection`
+                    : "Farm Inspection",
+
+                cropName: getCropName(planting),
+                plantingId: record.planting_id,
+
+                date: record.inspection_date,
+
+                health: record.overall_condition,
+
+                recommendation: record.recommended_action,
+                observations: record.observations,
+                findings: record.findings,
+
+                actionRequired: record.action_required
+            };
+        });
+
+    // 5. Combine both sources, newest first.
+    recommendations = [
+        ...monitoringItems,
+        ...inspectionItems
+    ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+    updateSummary();
+    renderRecommendations();
+}
+
+// ---------- EVENT LISTENERS ----------
+
+searchInput?.addEventListener("input", renderRecommendations);
+sourceFilter?.addEventListener("change", renderRecommendations);
+
+// ---------- LOGOUT ----------
+
+function initializeLogout() {
+    if (!logoutButton) return;
+
+    logoutButton.addEventListener("click", async () => {
+        if (logoutLabel) logoutLabel.textContent = "Logging out...";
+
+        logoutButton.disabled = true;
+
+        const { error } = await supabase.auth.signOut();
+
+        if (error) {
+            console.error("Logout error:", error);
+
+            if (logoutLabel) logoutLabel.textContent = "Log out";
+
+            logoutButton.disabled = false;
+            return;
+        }
+
+        window.location.replace("../../login.html");
+    });
+}
+
+// ---------- COMING SOON ----------
+
+document.querySelectorAll("[data-coming-soon]").forEach(link => {
+    link.addEventListener("click", event => {
+        event.preventDefault();
+        alert("This feature is not yet available.");
+    });
+});
+
+// ---------- INITIALIZATION ----------
+
+async function initializeFarmerRecommendations() {
+    document.body.classList.add("permissions-loading");
+
+    try {
+        initializeLogout();
+
+        if (todayLabel) {
+            todayLabel.textContent = new Date().toLocaleDateString("en-PH", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric"
+            });
         }
 
         const {
             data: { user },
-            error: authError
+            error
         } = await supabase.auth.getUser();
 
-        if (authError) throw authError;
-
-        if (!user) {
+        if (error || !user) {
             window.location.replace("../../login.html");
             return;
         }
 
         currentUser = user;
 
-        console.log("[Recommendations] Current farmer:", user.id);
+        const profile = await loadFarmerProfile(user);
 
-        // Check all Farmer navigation permissions.
+        if (!profile) return;
+
+        // Check all sidebar permissions first.
         await applyNavigationPermissions();
 
-        // Check current page permission.
-        canViewRecommendations = await checkPermission(
-            "recommendations.view"
-        );
+        // Check this page's own permission.
+        canViewRecommendations = await hasPermission("recommendations.view");
 
         if (!canViewRecommendations) {
             showAccessDenied();
             return;
         }
 
-        // 1. Retrieve the current farmer's plantings.
-        const { data: plantings, error: plantingError } = await supabase
-            .from("farm_plantings")
-            .select("*")
-            .eq("farmer_id", user.id);
-
-        if (plantingError) throw plantingError;
-
-        console.log("[Recommendations] Farmer plantings:", plantings);
-
-        const plantingIds = (plantings || [])
-            .map(planting => planting.id)
-            .filter(Boolean);
-
-        if (!plantingIds.length) {
-            recommendations = [];
-            updateSummary();
-
-            recommendationList.innerHTML = `
-                <div class="loading-state">
-                    No plantings are currently linked to your account.
-                </div>
-            `;
-
-            return;
-        }
-
-        const plantingMap = new Map(
-            plantings.map(planting => [planting.id, planting])
-        );
-
-        // 2. Retrieve crop monitoring records.
-        const { data: monitoringRecords, error: monitoringError } =
-            await supabase
-                .from("agricultural_technician_crop_monitoring")
-                .select("*")
-                .in("planting_id", plantingIds)
-                .in("monitoring_status", ["submitted", "reviewed"])
-                .order("monitoring_date", { ascending: false });
-
-        if (monitoringError) throw monitoringError;
-
-        console.log(
-            "[Recommendations] Monitoring records:",
-            monitoringRecords
-        );
-
-        // 3. Retrieve inspection records.
-        const { data: inspectionRecords, error: inspectionError } =
-            await supabase
-                .from("agricultural_inspections")
-                .select("*")
-                .in("planting_id", plantingIds)
-                .order("inspection_date", { ascending: false });
-
-        if (inspectionError) throw inspectionError;
-
-        console.log(
-            "[Recommendations] Inspection records:",
-            inspectionRecords
-        );
-
-        // 4. Format monitoring recommendations.
-        const monitoringItems = (monitoringRecords || []).map(record => {
-            const planting = plantingMap.get(record.planting_id);
-
-            return {
-                id: record.monitoring_id,
-                source: "monitoring",
-                sourceLabel: "Crop Monitoring",
-
-                title: "Crop Monitoring Recommendation",
-
-                cropName: getCropName(planting),
-                plantingId: record.planting_id,
-
-                date: record.monitoring_date,
-
-                growthStage: record.growth_stage,
-                health: record.crop_health_status,
-
-                recommendation: record.recommended_action,
-                observations: record.observations,
-
-                pestDetails: record.pest_observed
-                    ? record.pest_details || "Pest observed"
-                    : "",
-
-                diseaseDetails: record.disease_observed
-                    ? record.disease_details || "Disease observed"
-                    : "",
-
-                actionRequired: record.action_required
-            };
-        });
-
-        // 5. Format submitted/finalized inspection recommendations.
-        const inspectionItems = (inspectionRecords || [])
-            .filter(record => {
-                const status = getStatus(record.inspection_status);
-
-                return status !== "draft" &&
-                    status !== "cancelled" &&
-                    status !== "deleted";
-            })
-            .map(record => {
-                const planting = plantingMap.get(record.planting_id);
-
-                return {
-                    id: record.inspection_id,
-                    source: "inspection",
-                    sourceLabel: "Farm Inspection",
-
-                    title: record.inspection_type
-                        ? `${record.inspection_type} Inspection`
-                        : "Farm Inspection",
-
-                    cropName: getCropName(planting),
-                    plantingId: record.planting_id,
-
-                    date: record.inspection_date,
-
-                    health: record.overall_condition,
-
-                    recommendation: record.recommended_action,
-                    observations: record.observations,
-                    findings: record.findings,
-
-                    actionRequired: record.action_required
-                };
-            });
-
-        // 6. Combine both sources.
-        recommendations = [
-            ...monitoringItems,
-            ...inspectionItems
-        ].sort((a, b) => {
-            return new Date(b.date || 0) - new Date(a.date || 0);
-        });
-
-        console.log(
-            "[Recommendations] Final displayed records:",
-            recommendations
-        );
-
-        updateSummary();
-        renderRecommendations();
+        await loadRecommendations();
 
     } catch (error) {
-        console.error("[Recommendations] Loading failed:", error);
+        console.error("Farmer Recommendations Initialization Error:", error);
 
         if (recommendationList) {
             recommendationList.innerHTML = `
@@ -520,15 +660,4 @@ async function loadRecommendations() {
     }
 }
 
-// ==========================================
-// EVENT LISTENERS
-// ==========================================
-
-searchInput?.addEventListener("input", renderRecommendations);
-sourceFilter?.addEventListener("change", renderRecommendations);
-
-// ==========================================
-// INITIALIZATION
-// ==========================================
-
-loadRecommendations();
+initializeFarmerRecommendations();

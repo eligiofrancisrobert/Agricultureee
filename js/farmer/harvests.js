@@ -1,4 +1,3 @@
-
 import { supabase } from '../connection.js';
 
 // ==========================================
@@ -10,6 +9,7 @@ const farmerAvatarElement = document.getElementById('farmerAvatar');
 const todayLabel = document.getElementById('todayLabel');
 
 const logoutButton = document.getElementById('logoutButton');
+const logoutLabel = document.getElementById('logoutLabel');
 const themeToggle = document.getElementById('themeToggle');
 
 const harvestForm = document.getElementById('harvestForm');
@@ -74,24 +74,22 @@ function applyTheme(theme) {
 (function initializeTheme() {
     applyTheme(readSavedTheme());
 
-    if (themeToggle) {
-        themeToggle.addEventListener('click', event => {
-            event.stopImmediatePropagation();
+    themeToggle?.addEventListener('click', event => {
+        event.stopImmediatePropagation();
 
-            const next =
-                document.documentElement.getAttribute('data-theme') === 'dark'
-                    ? 'light'
-                    : 'dark';
+        const next =
+            document.documentElement.getAttribute('data-theme') === 'dark'
+                ? 'light'
+                : 'dark';
 
-            applyTheme(next);
+        applyTheme(next);
 
-            try {
-                localStorage.setItem(THEME_KEY, next);
-            } catch {
-                // Ignore blocked storage.
-            }
-        });
-    }
+        try {
+            localStorage.setItem(THEME_KEY, next);
+        } catch {
+            // Ignore blocked storage.
+        }
+    });
 
     window.addEventListener('storage', event => {
         if (
@@ -191,11 +189,20 @@ function hidePermissionsLoading() {
     document.body.classList.remove('permissions-loading');
 }
 
+function getFarmerDisplayName(user) {
+    return (
+        user.user_metadata?.full_name ||
+        user.user_metadata?.fullName ||
+        user.email?.split('@')[0] ||
+        'Farmer'
+    );
+}
+
 // ==========================================
 // PERMISSIONS
 // ==========================================
 
-async function checkPermission(permissionKey) {
+async function hasPermission(permissionKey) {
     if (permissionCache.has(permissionKey)) {
         return permissionCache.get(permissionKey);
     }
@@ -208,15 +215,7 @@ async function checkPermission(permissionKey) {
             }
         );
 
-        if (error) {
-            console.error(
-                `Permission check failed (${permissionKey}):`,
-                error
-            );
-
-            permissionCache.set(permissionKey, false);
-            return false;
-        }
+        if (error) throw error;
 
         const allowed = data === true;
 
@@ -226,7 +225,7 @@ async function checkPermission(permissionKey) {
 
     } catch (error) {
         console.error(
-            `Permission check error (${permissionKey}):`,
+            `Permission check failed (${permissionKey}):`,
             error
         );
 
@@ -241,9 +240,9 @@ async function loadHarvestPermissions() {
         createPermission,
         editPermission
     ] = await Promise.all([
-        checkPermission('harvest_records.view'),
-        checkPermission('harvest_records.create'),
-        checkPermission('harvest_records.edit')
+        hasPermission('harvest_records.view'),
+        hasPermission('harvest_records.create'),
+        hasPermission('harvest_records.edit')
     ]);
 
     canViewHarvests = viewPermission;
@@ -253,13 +252,18 @@ async function loadHarvestPermissions() {
     return canViewHarvests;
 }
 
+/**
+ * Checks all Farmer navigation permissions.
+ * Disabled pages are hidden from the sidebar and Quick Access,
+ * regardless of which Farmer page is currently open.
+ */
 async function applyNavigationPermissions() {
     const entries = Object.entries(FARMER_NAVIGATION_PERMISSIONS);
 
     const results = await Promise.all(
         entries.map(async ([page, permissionKey]) => ({
             page,
-            allowed: await checkPermission(permissionKey)
+            allowed: await hasPermission(permissionKey)
         }))
     );
 
@@ -268,33 +272,44 @@ async function applyNavigationPermissions() {
     );
 
     document.querySelectorAll(
-        '.navigation a.nav-link[href]'
+        '.navigation a.nav-link[href], ' +
+        '.quick-access a.access-card[href]'
     ).forEach(link => {
         const href = link.getAttribute('href');
 
         if (!href) return;
 
-        const page = href
-            .split('?')[0]
-            .split('#')[0]
-            .split('/')
-            .pop();
+        let page;
 
-        if (!permissionMap.has(page)) return;
+        try {
+            page = new URL(href, window.location.href)
+                .pathname
+                .split('/')
+                .pop()
+                .toLowerCase();
+        } catch {
+            return;
+        }
+
+        if (!Object.hasOwn(FARMER_NAVIGATION_PERMISSIONS, page)) {
+            return;
+        }
 
         const allowed = permissionMap.get(page) === true;
 
         link.hidden = !allowed;
         link.style.display = allowed ? '' : 'none';
 
-        if (!allowed) {
-            link.setAttribute('aria-hidden', 'true');
-            link.setAttribute('tabindex', '-1');
-        } else {
+        if (allowed) {
             link.removeAttribute('aria-hidden');
             link.removeAttribute('tabindex');
+        } else {
+            link.setAttribute('aria-hidden', 'true');
+            link.setAttribute('tabindex', '-1');
         }
     });
+
+    return permissionMap;
 }
 
 function configureHarvestForm() {
@@ -329,7 +344,7 @@ function showAccessDenied() {
             <tr>
                 <td colspan="6" class="harvest-empty">
                     You do not have permission to view harvest records.
-                    Please contact your Farm Manager or Administrator.
+                    Please contact your Administrator.
                 </td>
             </tr>
         `;
@@ -367,10 +382,14 @@ async function validateFarmerSession() {
         .from('profiles')
         .select('id, role, status')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
+
+    if (profileError) {
+        console.error('Profile loading error:', profileError);
+        throw new Error('Unable to verify your Farmer account.');
+    }
 
     if (
-        profileError ||
         !profile ||
         profile.role !== 'farmer' ||
         !['active', 'approved'].includes(
@@ -394,39 +413,17 @@ async function validateFarmerSession() {
 function displayFarmerProfile() {
     if (!currentUser) return;
 
-    const metadata = currentUser.user_metadata || {};
-
-    const firstName = metadata.first_name || metadata.firstName || '';
-    const middleName = metadata.middle_name || metadata.middleName || '';
-    const lastName = metadata.last_name || metadata.lastName || '';
-
-    const fullName = [firstName, middleName, lastName]
-        .filter(Boolean)
-        .join(' ')
-        .trim();
-
-    const displayName =
-        fullName ||
-        metadata.full_name ||
-        metadata.name ||
-        currentUser.email?.split('@')[0] ||
-        'Farmer';
+    const displayName = getFarmerDisplayName(currentUser);
 
     if (farmerNameElement) {
         farmerNameElement.textContent = displayName;
     }
 
     if (farmerAvatarElement) {
-        farmerAvatarElement.textContent = displayName.charAt(0).toUpperCase();
-    }
-
-    if (todayLabel) {
-        todayLabel.textContent = new Date().toLocaleDateString('en-PH', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        });
+        farmerAvatarElement.textContent = displayName
+            .trim()
+            .charAt(0)
+            .toUpperCase();
     }
 }
 
@@ -974,18 +971,41 @@ function cleanupHarvestRealtime() {
 // LOGOUT
 // ==========================================
 
-async function handleLogout() {
-    cleanupHarvestRealtime();
+function initializeLogout() {
+    if (!logoutButton) return;
 
-    const { error } = await supabase.auth.signOut();
+    logoutButton.addEventListener('click', async () => {
+        if (logoutLabel) logoutLabel.textContent = 'Logging out...';
 
-    if (error) {
-        console.error('Logout failed:', error);
-        alert('Unable to log out. Please try again.');
-        return;
-    }
+        logoutButton.disabled = true;
+        cleanupHarvestRealtime();
 
-    window.location.replace('../../login.html');
+        const { error } = await supabase.auth.signOut();
+
+        if (error) {
+            console.error('Logout error:', error);
+
+            if (logoutLabel) logoutLabel.textContent = 'Log out';
+
+            logoutButton.disabled = false;
+            return;
+        }
+
+        window.location.replace('../../login.html');
+    });
+}
+
+// ==========================================
+// COMING SOON
+// ==========================================
+
+function initializeComingSoonLinks() {
+    document.querySelectorAll('[data-coming-soon]').forEach(link => {
+        link.addEventListener('click', event => {
+            event.preventDefault();
+            alert('This feature is not yet available.');
+        });
+    });
 }
 
 // ==========================================
@@ -993,8 +1013,21 @@ async function handleLogout() {
 // ==========================================
 
 async function initializeHarvestPage() {
+    document.body.classList.add('permissions-loading');
+
     try {
-        applyTheme(readSavedTheme() || 'light');
+        // Basic page behavior first, so these work even if access is denied.
+        initializeLogout();
+        initializeComingSoonLinks();
+
+        if (todayLabel) {
+            todayLabel.textContent = new Date().toLocaleDateString('en-PH', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
 
         if (harvestedDateInput) {
             harvestedDateInput.max = getLocalDate();
@@ -1006,9 +1039,11 @@ async function initializeHarvestPage() {
 
         displayFarmerProfile();
 
-        const hasViewPermission = await loadHarvestPermissions();
-
+        // Check all sidebar permissions first.
         await applyNavigationPermissions();
+
+        // Check this page's own permissions.
+        const hasViewPermission = await loadHarvestPermissions();
 
         if (!hasViewPermission) {
             showAccessDenied();
@@ -1026,14 +1061,6 @@ async function initializeHarvestPage() {
         subscribeToHarvestUpdates();
 
         harvestForm?.addEventListener('submit', handleHarvestSubmission);
-        logoutButton?.addEventListener('click', handleLogout);
-
-        document.querySelectorAll('[data-coming-soon]').forEach(link => {
-            link.addEventListener('click', event => {
-                event.preventDefault();
-                alert('This feature is not yet available.');
-            });
-        });
 
     } catch (error) {
         console.error('Farmer Harvest Page Initialization Error:', error);
