@@ -79,8 +79,8 @@ let allPlantings = [];
 let fieldsMap = new Map();
 let farmsMap = new Map();
 
-// Latest harvest date per planting
-let harvestDatesMap = new Map();
+// Latest assignment date per planting
+let assignmentDatesMap = new Map();
 
 const paginationNav = document.createElement("nav");
 paginationNav.className = "pagination";
@@ -257,10 +257,6 @@ async function loadPlantingPermissions() {
     return canViewPlantings;
 }
 
-/**
- * Checks every Farmer navigation permission.
- * This makes the sidebar consistent on every tab.
- */
 async function applyNavigationPermissions() {
     const entries = Object.entries(
         FARMER_NAVIGATION_PERMISSIONS
@@ -428,9 +424,9 @@ async function loadFarms(farmIds) {
     );
 }
 
-// ---------- HARVEST DATE LOOKUP ----------
+// ---------- ASSIGNMENT DATE LOOKUP ----------
 
-async function loadHarvestDates(plantingIds) {
+async function loadAssignmentDates(plantingIds) {
     const uniquePlantingIds = [
         ...new Set(plantingIds.filter(Boolean))
     ];
@@ -439,30 +435,32 @@ async function loadHarvestDates(plantingIds) {
         return new Map();
     }
 
-    const { data: harvestRecords, error } = await supabase
-        .from("harvested_crops")
-        .select("planting_id, harvested_date")
+    const { data: assignments, error } = await supabase
+        .from("farm_actions")
+        .select("planting_id, created_at")
+        .eq("farmer_id", currentUser.id)
         .in("planting_id", uniquePlantingIds)
-        .not("harvested_date", "is", null)
-        .order("harvested_date", { ascending: false });
+        .not("planting_id", "is", null)
+        .order("created_at", { ascending: false });
 
     if (error) {
-        console.error("Harvest date loading error:", error);
+        console.error("Assignment date loading error:", error);
+
         throw new Error(
-            "Unable to load harvest dates for your planting records."
+            "Unable to load assignment dates for your planting records."
         );
     }
 
     const latestDates = new Map();
 
-    (harvestRecords || []).forEach(record => {
-        if (!record.planting_id || !record.harvested_date) {
+    (assignments || []).forEach(assignment => {
+        if (!assignment.planting_id || !assignment.created_at) {
             return;
         }
 
-        const existingDate = latestDates.get(record.planting_id);
+        const existingDate = latestDates.get(assignment.planting_id);
 
-        const newTimestamp = getDateTimestamp(record.harvested_date);
+        const newTimestamp = getDateTimestamp(assignment.created_at);
         const existingTimestamp = getDateTimestamp(existingDate);
 
         if (
@@ -470,8 +468,8 @@ async function loadHarvestDates(plantingIds) {
             newTimestamp > existingTimestamp
         ) {
             latestDates.set(
-                record.planting_id,
-                record.harvested_date
+                assignment.planting_id,
+                assignment.created_at
             );
         }
     });
@@ -691,11 +689,11 @@ function createPlantingCard(planting, activity, farm) {
         )
     );
 
-    const harvestedDate = harvestDatesMap.get(planting.id);
+    const assignmentDate = assignmentDatesMap.get(planting.id);
 
-    if (harvestedDate) {
+    if (assignmentDate) {
         plantingDetails.append(
-            createDetail("Harvested date", formatDate(harvestedDate))
+            createDetail("Assigned date", formatDate(assignmentDate))
         );
     }
 
@@ -796,7 +794,7 @@ async function loadMyPlantings() {
 
     if (!plantings || plantings.length === 0) {
         allPlantings = [];
-        harvestDatesMap = new Map();
+        assignmentDatesMap = new Map();
         currentPage = 1;
 
         displayMessage(
@@ -844,37 +842,33 @@ async function loadMyPlantings() {
 
     farmsMap = await loadFarms(farmIds);
 
-    // Fetch the latest actual harvest date for each planting.
-    harvestDatesMap = await loadHarvestDates(
+    // Get the latest assignment timestamp for every planting.
+    assignmentDatesMap = await loadAssignmentDates(
         plantings.map(planting => planting.id)
     );
 
-    // Harvested plantings first, latest harvested date first.
-    // Unharvested plantings follow, latest sowing date first.
+    // Latest assignment first, regardless of planting or crop status.
+    // Plantings without an assignment record are placed after assigned ones.
     plantings.sort((a, b) => {
-        const harvestDateA = harvestDatesMap.get(a.id);
-        const harvestDateB = harvestDatesMap.get(b.id);
+        const assignmentDateA = assignmentDatesMap.get(a.id);
+        const assignmentDateB = assignmentDatesMap.get(b.id);
 
-        const hasHarvestDateA = Boolean(harvestDateA);
-        const hasHarvestDateB = Boolean(harvestDateB);
+        const hasAssignmentDateA = Boolean(assignmentDateA);
+        const hasAssignmentDateB = Boolean(assignmentDateB);
 
-        // Plantings with harvest records come before unharvested ones.
-        if (hasHarvestDateA && !hasHarvestDateB) return -1;
-        if (!hasHarvestDateA && hasHarvestDateB) return 1;
+        if (hasAssignmentDateA && !hasAssignmentDateB) return -1;
+        if (!hasAssignmentDateA && hasAssignmentDateB) return 1;
 
-        if (hasHarvestDateA && hasHarvestDateB) {
-            const harvestTimestampA =
-                getDateTimestamp(harvestDateA);
+        if (hasAssignmentDateA && hasAssignmentDateB) {
+            const timestampA = getDateTimestamp(assignmentDateA);
+            const timestampB = getDateTimestamp(assignmentDateB);
 
-            const harvestTimestampB =
-                getDateTimestamp(harvestDateB);
-
-            if (harvestTimestampA !== harvestTimestampB) {
-                return harvestTimestampB - harvestTimestampA;
+            if (timestampA !== timestampB) {
+                return timestampB - timestampA;
             }
         }
 
-        // Fallback: latest planting date first.
+        // Fallback for records without an assignment timestamp.
         return (
             getDateTimestamp(b.sowing_date) -
             getDateTimestamp(a.sowing_date)
@@ -1014,7 +1008,8 @@ function subscribeToPlantingChanges() {
             {
                 event: "*",
                 schema: "public",
-                table: "harvested_crops"
+                table: "farm_actions",
+                filter: `farmer_id=eq.${currentUser.id}`
             },
             () => {
                 schedulePlantingsReload();
