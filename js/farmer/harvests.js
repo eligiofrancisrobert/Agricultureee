@@ -1,3 +1,4 @@
+
 import { supabase } from '../connection.js';
 
 // ==========================================
@@ -29,6 +30,7 @@ const rejectedHarvestBody = document.getElementById('rejectedHarvestBody');
 // ==========================================
 
 let currentUser = null;
+let assignedFarm = null;
 let assignedPlantings = [];
 let harvestRealtimeChannel = null;
 let resubmittingHarvestId = null;
@@ -183,6 +185,10 @@ function resetResubmissionState() {
     if (submitHarvestButton) {
         submitHarvestButton.textContent = 'Submit Harvest Record';
     }
+
+    if (plantingSelect) {
+        plantingSelect.disabled = false;
+    }
 }
 
 function hidePermissionsLoading() {
@@ -252,11 +258,6 @@ async function loadHarvestPermissions() {
     return canViewHarvests;
 }
 
-/**
- * Checks all Farmer navigation permissions.
- * Disabled pages are hidden from the sidebar and Quick Access,
- * regardless of which Farmer page is currently open.
- */
 async function applyNavigationPermissions() {
     const entries = Object.entries(FARMER_NAVIGATION_PERMISSIONS);
 
@@ -330,7 +331,7 @@ function configureHarvestForm() {
     }
 
     if (plantingSelect) {
-        plantingSelect.disabled = !canCreateHarvest && !canEditHarvest;
+        plantingSelect.disabled = !canCreateHarvest;
     }
 }
 
@@ -428,39 +429,110 @@ function displayFarmerProfile() {
 }
 
 // ==========================================
+// LOAD FARMER'S ASSIGNED FARM
+// ==========================================
+
+async function loadAssignedFarm() {
+    if (!currentUser) {
+        throw new Error('Farmer session is unavailable.');
+    }
+
+    const { data: farm, error } = await supabase
+        .from('farmer_farms')
+        .select('id, farm_name, farm_location')
+        .eq('id', '44e6a115-e48d-4eb9-b52c-5fad620a3639')
+        .eq('farmer_id', currentUser.id)
+        .eq('farm_status', 'active')
+        .maybeSingle();
+
+    if (error) throw error;
+
+    if (!farm) {
+        assignedFarm = null;
+        throw new Error(
+            "Susan's Farm is not assigned or is no longer active for your account."
+        );
+    }
+
+    assignedFarm = farm;
+
+    console.log('Assigned farm:', assignedFarm);
+
+    return assignedFarm;
+}
+
+// ==========================================
 // LOAD ASSIGNED PLANTINGS
 // ==========================================
+
 async function loadAssignedPlantings() {
     if (!canCreateHarvest && !canEditHarvest) return;
     if (!plantingSelect) return;
 
     plantingSelect.innerHTML = `
-        <option value="">Loading ready-to-harvest plantings...</option>
+        <option value="">Loading assigned farm plantings...</option>
     `;
 
     plantingSelect.disabled = true;
+    assignedPlantings = [];
 
     try {
+        const farm = await loadAssignedFarm();
+
+        if (!farm) {
+            plantingSelect.innerHTML = `
+                <option value="">No assigned active farm found</option>
+            `;
+
+            if (submitHarvestButton) {
+                submitHarvestButton.disabled = true;
+            }
+
+            return;
+        }
+
+        const { data: fields, error: fieldsError } = await supabase
+            .from('farm_fields')
+            .select('id')
+            .eq('farm_id', farm.id);
+
+        if (fieldsError) throw fieldsError;
+
+        const fieldIds = (fields || []).map(field => field.id);
+
+        if (fieldIds.length === 0) {
+            plantingSelect.innerHTML = `
+                <option value="">No fields found in ${escapeHTML(farm.farm_name)}</option>
+            `;
+
+            if (submitHarvestButton) {
+                submitHarvestButton.disabled = true;
+            }
+
+            return;
+        }
+
         const { data: plantings, error: plantingError } = await supabase
             .from('farm_plantings')
             .select(`
                 id,
+                field_id,
                 crop_name,
                 expected_harvest_date,
                 crop_status,
                 activity_status
             `)
             .eq('farmer_id', currentUser.id)
+            .in('field_id', fieldIds)
             .eq('crop_status', 'ready')
+            .eq('activity_status', 'in_progress')
             .order('expected_harvest_date', { ascending: true });
 
         if (plantingError) throw plantingError;
 
         if (!plantings || plantings.length === 0) {
-            assignedPlantings = [];
-
             plantingSelect.innerHTML = `
-                <option value="">No ready-to-harvest plantings available</option>
+                <option value="">No ready-to-harvest plantings in ${escapeHTML(farm.farm_name)}</option>
             `;
 
             if (submitHarvestButton) {
@@ -480,8 +552,6 @@ async function loadAssignedPlantings() {
 
         if (harvestError) throw harvestError;
 
-        // Exclude plantings with pending or confirmed harvest records.
-        // Rejected records remain eligible for resubmission.
         const alreadySubmittedPlantingIds = new Set(
             (harvestRecords || [])
                 .filter(record =>
@@ -496,7 +566,7 @@ async function loadAssignedPlantings() {
 
         if (assignedPlantings.length === 0) {
             plantingSelect.innerHTML = `
-                <option value="">No available plantings for harvest submission</option>
+                <option value="">All ready plantings already have harvest submissions</option>
             `;
 
             if (submitHarvestButton) {
@@ -511,6 +581,10 @@ async function loadAssignedPlantings() {
             ${assignedPlantings.map(planting => `
                 <option value="${escapeHTML(planting.id)}">
                     ${escapeHTML(planting.crop_name || 'Unnamed Crop')}
+                    ${planting.expected_harvest_date
+                ? ` — Expected: ${escapeHTML(formatDate(planting.expected_harvest_date))}`
+                : ''
+            }
                 </option>
             `).join('')}
         `;
@@ -520,12 +594,12 @@ async function loadAssignedPlantings() {
         updateSubmitButtonState();
 
     } catch (error) {
-        console.error('Failed to load ready-to-harvest plantings:', error);
+        console.error('Failed to load assigned farm plantings:', error);
 
         assignedPlantings = [];
 
         plantingSelect.innerHTML = `
-            <option value="">Unable to load plantings</option>
+            <option value="">Unable to load assigned farm plantings</option>
         `;
 
         if (submitHarvestButton) {
@@ -533,7 +607,7 @@ async function loadAssignedPlantings() {
         }
 
         showMessage(
-            'Unable to load your available plantings. Please try again.',
+            error.message || 'Unable to load your assigned farm plantings. Please try again.',
             'error'
         );
     }
@@ -596,7 +670,7 @@ async function handleHarvestSubmission(event) {
     );
 
     if (!selectedPlanting) {
-        showMessage('Please select one of your assigned plantings.', 'error');
+        showMessage('Please select one of your assigned farm plantings.', 'error');
         return;
     }
 
@@ -683,6 +757,7 @@ async function handleHarvestSubmission(event) {
             'success'
         );
 
+        await loadAssignedPlantings();
         await loadHarvestHistory();
 
     } catch (error) {
@@ -833,9 +908,9 @@ async function loadHarvestHistory() {
                         <td>${escapeHTML(cropName)}</td>
                         <td>${escapeHTML(formatDate(record.harvested_date))}</td>
                         <td>${escapeHTML(formatQuantity(
-                            record.harvest_quantity,
-                            record.harvest_unit
-                        ))}</td>
+                    record.harvest_quantity,
+                    record.harvest_unit
+                ))}</td>
                         <td>${escapeHTML(verifiedQuantity)}</td>
                         <td>
                             <span class="harvest-status status-${escapeHTML(status)}">
@@ -876,24 +951,24 @@ async function loadHarvestHistory() {
                 <td>${escapeHTML(cropName)}</td>
                 <td>${escapeHTML(formatDate(record.harvested_date))}</td>
                 <td>${escapeHTML(formatQuantity(
-                    record.harvest_quantity,
-                    record.harvest_unit
-                ))}</td>
+            record.harvest_quantity,
+            record.harvest_unit
+        ))}</td>
                 <td>${escapeHTML(
-                    record.verification_notes ||
-                    'No rejection remarks provided.'
-                )}</td>
+            record.verification_notes ||
+            'No rejection remarks provided.'
+        )}</td>
                 <td>
                     ${canEditHarvest
-                        ? `<button
+                ? `<button
                             type="button"
                             class="harvest-resubmit-btn"
                             data-resubmit-id="${escapeHTML(record.harvest_id)}"
                         >
                             Resubmit
                         </button>`
-                        : '—'
-                    }
+                : '—'
+            }
                 </td>
             </tr>
         `;
@@ -924,7 +999,17 @@ async function loadHarvestHistory() {
                 resubmittingHarvestId = rejectedRecord.harvest_id;
 
                 if (plantingSelect) {
+                    plantingSelect.innerHTML = `
+                        <option value="${escapeHTML(rejectedRecord.planting_id)}">
+                            ${escapeHTML(
+                        plantingMap.get(rejectedRecord.planting_id) ||
+                        'Previously submitted crop'
+                    )}
+                        </option>
+                    `;
+
                     plantingSelect.value = rejectedRecord.planting_id;
+                    plantingSelect.disabled = true;
                 }
 
                 if (harvestedDateInput) {
@@ -953,9 +1038,8 @@ async function loadHarvestHistory() {
                 }
 
                 showMessage(
-                    `Rejection Reason: ${
-                        rejectedRecord.verification_notes ||
-                        'No reason provided.'
+                    `Rejection Reason: ${rejectedRecord.verification_notes ||
+                    'No reason provided.'
                     } Please correct your details before resubmitting.`,
                     'error'
                 );
@@ -993,6 +1077,7 @@ function subscribeToHarvestUpdates() {
             },
             async () => {
                 await loadHarvestHistory();
+                await loadAssignedPlantings();
             }
         )
         .subscribe(status => {
@@ -1045,7 +1130,6 @@ async function initializeHarvestPage() {
     document.body.classList.add('permissions-loading');
 
     try {
-        // Basic page behavior first, so these work even if access is denied.
         initializeLogout();
 
         if (todayLabel) {
@@ -1067,10 +1151,8 @@ async function initializeHarvestPage() {
 
         displayFarmerProfile();
 
-        // Check all sidebar permissions first.
         await applyNavigationPermissions();
 
-        // Check this page's own permissions.
         const hasViewPermission = await loadHarvestPermissions();
 
         if (!hasViewPermission) {
