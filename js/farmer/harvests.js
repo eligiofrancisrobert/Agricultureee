@@ -438,62 +438,105 @@ async function loadAssignedPlantings() {
         <option value="">Loading ready-to-harvest plantings...</option>
     `;
 
-    const { data, error } = await supabase
-        .from('farm_plantings')
-        .select(`
-            id,
-            crop_name,
-            expected_harvest_date,
-            crop_status,
-            activity_status
-        `)
-        .eq('farmer_id', currentUser.id)
-        .eq('crop_status', 'ready')
-        .order('expected_harvest_date', { ascending: true });
+    plantingSelect.disabled = true;
 
-    if (error) {
+    try {
+        const { data: plantings, error: plantingError } = await supabase
+            .from('farm_plantings')
+            .select(`
+                id,
+                crop_name,
+                expected_harvest_date,
+                crop_status,
+                activity_status
+            `)
+            .eq('farmer_id', currentUser.id)
+            .eq('crop_status', 'ready')
+            .order('expected_harvest_date', { ascending: true });
+
+        if (plantingError) throw plantingError;
+
+        if (!plantings || plantings.length === 0) {
+            assignedPlantings = [];
+
+            plantingSelect.innerHTML = `
+                <option value="">No ready-to-harvest plantings available</option>
+            `;
+
+            if (submitHarvestButton) {
+                submitHarvestButton.disabled = true;
+            }
+
+            return;
+        }
+
+        const plantingIds = plantings.map(planting => planting.id);
+
+        const { data: harvestRecords, error: harvestError } = await supabase
+            .from('harvested_crops')
+            .select('planting_id, confirmation_status')
+            .eq('farmer_id', currentUser.id)
+            .in('planting_id', plantingIds);
+
+        if (harvestError) throw harvestError;
+
+        // Exclude plantings with pending or confirmed harvest records.
+        // Rejected records remain eligible for resubmission.
+        const alreadySubmittedPlantingIds = new Set(
+            (harvestRecords || [])
+                .filter(record =>
+                    record.confirmation_status !== 'rejected'
+                )
+                .map(record => record.planting_id)
+        );
+
+        assignedPlantings = plantings.filter(
+            planting => !alreadySubmittedPlantingIds.has(planting.id)
+        );
+
+        if (assignedPlantings.length === 0) {
+            plantingSelect.innerHTML = `
+                <option value="">No available plantings for harvest submission</option>
+            `;
+
+            if (submitHarvestButton) {
+                submitHarvestButton.disabled = true;
+            }
+
+            return;
+        }
+
+        plantingSelect.innerHTML = `
+            <option value="">Select a ready-to-harvest planting</option>
+            ${assignedPlantings.map(planting => `
+                <option value="${escapeHTML(planting.id)}">
+                    ${escapeHTML(planting.crop_name || 'Unnamed Crop')}
+                </option>
+            `).join('')}
+        `;
+
+        plantingSelect.disabled = false;
+
+        updateSubmitButtonState();
+
+    } catch (error) {
         console.error('Failed to load ready-to-harvest plantings:', error);
+
+        assignedPlantings = [];
 
         plantingSelect.innerHTML = `
             <option value="">Unable to load plantings</option>
         `;
 
-        showMessage(
-            'Unable to load your ready-to-harvest plantings. Please try again.',
-            'error'
-        );
-
-        return;
-    }
-
-    assignedPlantings = data || [];
-
-    if (assignedPlantings.length === 0) {
-        plantingSelect.innerHTML = `
-            <option value="">No ready-to-harvest plantings available</option>
-        `;
-
-        plantingSelect.disabled = true;
-
         if (submitHarvestButton) {
             submitHarvestButton.disabled = true;
         }
 
-        return;
+        showMessage(
+            'Unable to load your available plantings. Please try again.',
+            'error'
+        );
     }
-
-    plantingSelect.disabled = false;
-
-    plantingSelect.innerHTML = `
-        <option value="">Select a ready-to-harvest planting</option>
-        ${assignedPlantings.map(planting => `
-            <option value="${escapeHTML(planting.id)}">
-                ${escapeHTML(planting.crop_name || 'Unnamed Crop')}
-            </option>
-        `).join('')}
-    `;
-
-    updateSubmitButtonState();
 }
 
 function updateSubmitButtonState() {
