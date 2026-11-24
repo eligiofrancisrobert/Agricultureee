@@ -43,11 +43,6 @@ export async function render(root, ctx = {}) {
             </div>
 
             <div class="crop-monitoring-toolbar">
-                <input
-                    type="search"
-                    id="cropSearch"
-                    placeholder="Search crop, farmer, farm, or field..."
-                >
                 <span id="cropCount">Loading crops...</span>
             </div>
 
@@ -55,7 +50,6 @@ export async function render(root, ctx = {}) {
                 <p>Loading planted crops...</p>
             </div>
 
-            <!-- ADD MONITORING RECORD MODAL -->
             <div
                 id="monitoringModal"
                 class="crop-monitoring-modal"
@@ -226,7 +220,6 @@ export async function render(root, ctx = {}) {
     `;
 
     const content = root.querySelector('#cropMonitoringContent');
-    const searchInput = root.querySelector('#cropSearch');
     const count = root.querySelector('#cropCount');
 
     const modal = root.querySelector('#monitoringModal');
@@ -370,7 +363,6 @@ export async function render(root, ctx = {}) {
                 outline-offset: 3px;
             }
 
-            /* Dark theme support */
             html[data-theme="dark"] .crop-alert-dialog,
             body[data-theme="dark"] .crop-alert-dialog,
             html.dark .crop-alert-dialog,
@@ -502,6 +494,7 @@ export async function render(root, ctx = {}) {
             }
 
             document.body.style.overflow = previousOverflow;
+            document.removeEventListener('keydown', handleAlertEscape);
         }
 
         okButton.addEventListener('click', closeAlert);
@@ -515,7 +508,6 @@ export async function render(root, ctx = {}) {
         function handleAlertEscape(event) {
             if (event.key === 'Escape' && alertModal === overlay) {
                 closeAlert();
-                document.removeEventListener('keydown', handleAlertEscape);
             }
         }
 
@@ -762,22 +754,9 @@ export async function render(root, ctx = {}) {
     }
 
     function displayCrops() {
-        const search = searchInput.value.trim().toLowerCase();
+        count.textContent = `${crops.length} planted crop(s)`;
 
-        const filtered = crops.filter(crop => {
-            const searchable = [
-                crop.crop_name,
-                crop.farmer?.full_name,
-                crop.farm?.farm_name,
-                crop.field?.field_name
-            ].join(' ').toLowerCase();
-
-            return searchable.includes(search);
-        });
-
-        count.textContent = `${filtered.length} planted crop(s)`;
-
-        if (!filtered.length) {
+        if (!crops.length) {
             content.innerHTML = `
                 <div class="empty-state">
                     <h3>No planted crops found</h3>
@@ -789,7 +768,7 @@ export async function render(root, ctx = {}) {
 
         content.innerHTML = `
             <div class="crop-monitoring-grid">
-                ${filtered.map(crop => {
+                ${crops.map(crop => {
                     const latestStage = getLatestStage(crop.id);
 
                     return `
@@ -1253,10 +1232,6 @@ export async function render(root, ctx = {}) {
 
             if (error) throw error;
 
-            if (growthStage === 'ready_for_harvest') {
-                crop.crop_status = 'ready';
-            }
-
             await loadMonitoringRecords(crops.map(item => item.id));
 
             expandedHistoryIds.add(plantingId);
@@ -1406,7 +1381,6 @@ export async function render(root, ctx = {}) {
         }
     }
 
-    searchInput.addEventListener('input', displayCrops);
     content.addEventListener('click', handleContentClick);
     modal.addEventListener('click', handleModalClick);
     modal.addEventListener('change', handlePhotoPreview);
@@ -1416,7 +1390,6 @@ export async function render(root, ctx = {}) {
     await loadCrops();
 
     cleanupHandler = () => {
-        searchInput.removeEventListener('input', displayCrops);
         content.removeEventListener('click', handleContentClick);
         modal.removeEventListener('click', handleModalClick);
         modal.removeEventListener('change', handlePhotoPreview);
