@@ -209,49 +209,110 @@ function showAccessDenied() {
  * Checks authentication, account status, navigation,
  * and permission to access the current page.
  */
-async function initializeSettingsPage() {
-    document.body.classList.add('permissions-loading');
+export async function initializeFarmerPermissions() {
+    document.body.classList.add("permissions-loading");
 
     try {
-        initializeLogout();
+        const {
+            data: { user },
+            error: authError
+        } = await supabase.auth.getUser();
 
-        // Coming Soon links initialization
-        document.querySelectorAll('[data-coming-soon]').forEach(link => {
-            link.addEventListener('click', event => {
-                event.preventDefault();
-                toast('This feature is coming soon.');
-            });
-        });
-
-        if (todayLabel) {
-            todayLabel.textContent = new Date().toLocaleDateString('en-PH', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
+        if (authError || !user) {
+            window.location.replace("../../login.html");
+            return false;
         }
 
-        const isValidFarmer = await validateFarmerSession();
+        currentUser = user;
 
-        if (!isValidFarmer) return;
+        const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("id, role, status")
+            .eq("id", user.id)
+            .maybeSingle();
 
-        await applyNavigationPermissions();
-        await renderSettings();
+        if (profileError) throw profileError;
+
+        if (
+            !profile ||
+            profile.role !== "farmer" ||
+            !["active", "approved"].includes(profile.status)
+        ) {
+            await supabase.auth.signOut();
+            window.location.replace("../../login.html");
+            return false;
+        }
+
+        // Farmer profile information.
+        const fullName =
+            user.user_metadata?.full_name ||
+            user.user_metadata?.fullName ||
+            user.email?.split("@")[0] ||
+            "Farmer";
+
+        const firstName = fullName.trim().split(/\s+/)[0];
+
+        if (farmerName) farmerName.textContent = fullName;
+        if (welcomeName) welcomeName.textContent = firstName;
+
+        if (farmerAvatar) {
+            farmerAvatar.textContent = firstName.charAt(0).toUpperCase();
+        }
+
+        // Update date when the element exists.
+        if (todayLabel) {
+            todayLabel.textContent = new Date().toLocaleDateString(
+                "en-PH",
+                {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                }
+            );
+        }
+
+        // Check every Farmer page permission.
+        const permissionMap =
+            await applyFarmerNavigationPermissions();
+
+        // Check permission for the currently opened page.
+        const currentPage = getCurrentPage();
+        const currentPermission = getPermissionForPage(currentPage);
+
+        if (currentPermission) {
+            const allowed =
+                permissionMap.get(currentPage) === true;
+
+            if (!allowed) {
+                showAccessDenied();
+                return false;
+            }
+        }
+
+        return true;
 
     } catch (error) {
-        console.error('Farmer Settings Initialization Error:', error);
-
-        settingsRoot?.replaceChildren(
-            h(
-                'p',
-                { class: 'farmer-settings-msg error' },
-                error.message || 'Something went wrong while loading the page.'
-            )
+        console.error(
+            "Farmer permission initialization failed:",
+            error
         );
 
+        if (mainContent) {
+            mainContent.innerHTML = `
+                <div class="error-message">
+                    <h2>Unable to load this page</h2>
+                    <p>
+                        Please refresh the page or log in again.
+                    </p>
+                </div>
+            `;
+        }
+
+        return false;
+
     } finally {
-        document.body.classList.remove('permissions-loading');
+        document.body.classList.remove("permissions-loading");
     }
 }
 
@@ -281,6 +342,15 @@ async function logout() {
 }
 
 logoutButton?.addEventListener("click", logout);
+
+// ---------- COMING SOON ----------
+
+document.querySelectorAll("[data-coming-soon]").forEach(link => {
+    link.addEventListener("click", event => {
+        event.preventDefault();
+        alert("This feature is not yet available.");
+    });
+});
 
 // ---------- INITIALIZE ----------
 

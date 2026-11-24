@@ -727,7 +727,14 @@ async function initializeSettingsPage() {
 
     try {
         initializeLogout();
-        initializeComingSoonLinks();
+
+        // Initialize Coming Soon links directly.
+        document.querySelectorAll('[data-coming-soon]').forEach(link => {
+            link.addEventListener('click', event => {
+                event.preventDefault();
+                toast('This feature is coming soon.');
+            });
+        });
 
         if (todayLabel) {
             todayLabel.textContent = new Date().toLocaleDateString('en-PH', {
@@ -742,9 +749,7 @@ async function initializeSettingsPage() {
 
         if (!isValidFarmer) return;
 
-        // Check all sidebar permissions.
         await applyNavigationPermissions();
-
         await renderSettings();
 
     } catch (error) {
