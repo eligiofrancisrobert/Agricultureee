@@ -780,14 +780,17 @@ async function loadMyPlantings() {
         ])
     );
 
+    // Latest planting date first, oldest planting date last.
     plantings.sort((a, b) => {
-        const orderA =
-            activityStatusOrder.get(a.activity_status) ?? Infinity;
+        const dateA = a.sowing_date
+            ? new Date(a.sowing_date).getTime()
+            : 0;
 
-        const orderB =
-            activityStatusOrder.get(b.activity_status) ?? Infinity;
+        const dateB = b.sowing_date
+            ? new Date(b.sowing_date).getTime()
+            : 0;
 
-        return orderA - orderB;
+        return dateB - dateA;
     });
 
     allPlantings = plantings;
