@@ -1,4 +1,3 @@
-
 import { supabase } from '../connection.js';
 
 // ==========================================
@@ -437,24 +436,30 @@ async function loadAssignedFarm() {
         throw new Error('Farmer session is unavailable.');
     }
 
-    const { data: farm, error } = await supabase
-        .from('farmer_farms')
-        .select('id, farm_name, farm_location')
-        .eq('id', '44e6a115-e48d-4eb9-b52c-5fad620a3639')
-        .eq('farmer_id', currentUser.id)
-        .eq('farm_status', 'active')
-        .maybeSingle();
+    const { data, error } = await supabase.rpc(
+        'farmer_get_assigned_farm'
+    );
 
-    if (error) throw error;
+    if (error) {
+        console.error('Assigned farm RPC error:', error);
+        throw new Error('Unable to retrieve your assigned farm.');
+    }
+
+    const farm = Array.isArray(data) ? data[0] : data;
 
     if (!farm) {
         assignedFarm = null;
+
         throw new Error(
-            "Susan's Farm is not assigned or is no longer active for your account."
+            'You do not have a currently assigned active farm. Please contact your Farm Manager.'
         );
     }
 
-    assignedFarm = farm;
+    assignedFarm = {
+        id: farm.farm_id,
+        farm_name: farm.farm_name,
+        farm_location: farm.farm_location
+    };
 
     console.log('Assigned farm:', assignedFarm);
 
@@ -478,18 +483,6 @@ async function loadAssignedPlantings() {
 
     try {
         const farm = await loadAssignedFarm();
-
-        if (!farm) {
-            plantingSelect.innerHTML = `
-                <option value="">No assigned active farm found</option>
-            `;
-
-            if (submitHarvestButton) {
-                submitHarvestButton.disabled = true;
-            }
-
-            return;
-        }
 
         const { data: fields, error: fieldsError } = await supabase
             .from('farm_fields')
