@@ -19,14 +19,17 @@ function showMessage(text, isError = false) {
 function getResetRedirectUrl() {
     const hostname = window.location.hostname;
 
+    // Local development
     if (hostname === "127.0.0.1" || hostname === "localhost") {
         return "http://127.0.0.1:5500/html/reset-password.html";
     }
 
+    // GitHub Pages
     if (hostname === "eligiofrancisrobert.github.io") {
         return "https://eligiofrancisrobert.github.io/Tanikala/html/reset-password.html";
     }
 
+    // Vercel production
     if (hostname === "tanikala.vercel.app") {
         return "https://tanikala.vercel.app/html/reset-password.html";
     }
@@ -60,16 +63,21 @@ form.addEventListener("submit", async (event) => {
 
         const { error } = await supabase.auth.resetPasswordForEmail(
             email,
-            { redirectTo }
+            {
+                redirectTo
+            }
         );
 
-        if (error) throw error;
+        if (error) {
+            throw error;
+        }
 
         showMessage(
             "If an account exists with that email, a password reset link has been sent. Please check your inbox and spam folder."
         );
 
         form.reset();
+
     } catch (error) {
         console.error("Password recovery error:", error);
 
@@ -79,6 +87,7 @@ form.addEventListener("submit", async (event) => {
                 : "Unable to send the recovery email. Please try again later.",
             true
         );
+
     } finally {
         resetButton.disabled = false;
 
