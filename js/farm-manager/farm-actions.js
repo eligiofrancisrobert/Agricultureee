@@ -1,3 +1,4 @@
+
 import { supabase } from '../connection.js';
 import { h, toast } from '../admin/ui.js';
 
@@ -30,6 +31,9 @@ const PERMISSIONS = {
     APPROVE: 'farm_actions.approve'
 };
 
+const SIGNED_URL_TTL = 240;
+const MAX_SIGNED_URL_CONCURRENCY = 3;
+
 let farmActionPermissions = {
     view: false,
     create: false,
@@ -51,7 +55,10 @@ let viewRoot = null;
 let farmActionsChannel = null;
 let farmActionsReloadTimer = null;
 let submissionsByAction = new Map();
-let farmActionsPollingTimer = null;
+let signedUrlCache = new Map();
+
+let refreshInProgress = false;
+let refreshQueued = false;
 
 /* ============================================================
    PERMISSION HELPERS
@@ -131,8 +138,7 @@ function statusKey(status) {
 }
 
 function statusClass(status) {
-    const key = statusKey(status);
-    return `fa-status fa-status-${key}`;
+    return `fa-status fa-status-${statusKey(status)}`;
 }
 
 function humanize(value) {
@@ -192,6 +198,66 @@ function errorMessage(error) {
 
 function countByStatus(status) {
     return actions.filter(action => action.status === status).length;
+}
+
+/* ============================================================
+   SIGNED URL CACHE
+   ============================================================ */
+
+async function getEvidenceSignedUrl(filePath) {
+    if (!filePath) return null;
+
+    const cached = signedUrlCache.get(filePath);
+
+    if (cached && cached.expiresAt > Date.now()) {
+        return cached.url;
+    }
+
+    try {
+        const { data, error } = await supabase.storage
+            .from('farm-action-evidence')
+            .createSignedUrl(filePath, 300);
+
+        if (error) throw error;
+
+        if (!data?.signedUrl) return null;
+
+        signedUrlCache.set(filePath, {
+            url: data.signedUrl,
+            expiresAt: Date.now() + SIGNED_URL_TTL * 1000
+        });
+
+        return data.signedUrl;
+
+    } catch (error) {
+        console.error('Evidence signed URL error:', error);
+        return null;
+    }
+}
+
+async function loadEvidenceSignedUrls(evidenceList) {
+    let currentIndex = 0;
+
+    const workers = Array.from(
+        {
+            length: Math.min(
+                MAX_SIGNED_URL_CONCURRENCY,
+                evidenceList.length
+            )
+        },
+        async () => {
+            while (currentIndex < evidenceList.length) {
+                const index = currentIndex++;
+                const evidence = evidenceList[index];
+
+                evidence.signedUrl = await getEvidenceSignedUrl(
+                    evidence.file_path
+                );
+            }
+        }
+    );
+
+    await Promise.all(workers);
 }
 
 /* ============================================================
@@ -389,7 +455,6 @@ function renderPage(onCreate) {
    ============================================================ */
 
 async function openCreateActionModal(onCreated) {
-    // Always recheck permission before opening the modal.
     const canCreate = await checkFarmActionPermission(PERMISSIONS.CREATE);
 
     farmActionPermissions.create = canCreate;
@@ -638,7 +703,6 @@ async function openCreateActionModal(onCreated) {
 
         if (!form.reportValidity()) return;
 
-        // Recheck permission immediately before insertion.
         const canCreate = await checkFarmActionPermission(PERMISSIONS.CREATE);
 
         if (!canCreate) {
@@ -816,9 +880,7 @@ async function loadSubmissionDetails(actionList) {
         }
     }
 
-    const completionIds = [
-        ...completionById.keys()
-    ];
+    const completionIds = [...completionById.keys()];
 
     if (!completionIds.length) return;
 
@@ -845,17 +907,10 @@ async function loadSubmissionDetails(actionList) {
 
         if (!submission) continue;
 
-        const { data, error } = await supabase.storage
-            .from('farm-action-evidence')
-            .createSignedUrl(evidence.file_path, 300);
-
-        if (error) {
-            console.error('Evidence URL error:', error);
-        }
-
+        // Metadata only. Signed URLs are generated when review is opened.
         submission.evidence.push({
             ...evidence,
-            signedUrl: data?.signedUrl || null
+            signedUrl: null
         });
     }
 }
@@ -865,7 +920,6 @@ async function loadSubmissionDetails(actionList) {
    ============================================================ */
 
 async function openSubmissionReview(action, completion, onReviewed) {
-    // Recheck permission before showing review controls.
     const canApprove = await checkFarmActionPermission(PERMISSIONS.APPROVE);
 
     farmActionPermissions.approve = canApprove;
@@ -883,6 +937,11 @@ async function openSubmissionReview(action, completion, onReviewed) {
     if (!completion) {
         toast('No completion submission was found for this action.');
         return;
+    }
+
+    // Generate signed URLs only for the submission being reviewed.
+    if (completion.evidence.length) {
+        await loadEvidenceSignedUrls(completion.evidence);
     }
 
     const dialog = h('dialog', {
@@ -951,7 +1010,6 @@ async function openSubmissionReview(action, completion, onReviewed) {
     }
 
     const submitReview = async decision => {
-        // Recheck permission immediately before the review RPC.
         const canApprove = await checkFarmActionPermission(PERMISSIONS.APPROVE);
 
         if (!canApprove) {
@@ -976,7 +1034,6 @@ async function openSubmissionReview(action, completion, onReviewed) {
 
         verifyButton.disabled = true;
         revisionButton.disabled = true;
-
         verifyButton.textContent = 'Processing...';
 
         try {
@@ -1150,12 +1207,15 @@ async function loadActions() {
 
 function cleanupRealtime() {
     clearTimeout(farmActionsReloadTimer);
-    clearInterval(farmActionsPollingTimer);
+    farmActionsReloadTimer = null;
 
     if (farmActionsChannel) {
         supabase.removeChannel(farmActionsChannel);
         farmActionsChannel = null;
     }
+
+    refreshInProgress = false;
+    refreshQueued = false;
 }
 
 function subscribeToFarmActions(managerId, onUpdate) {
@@ -1164,8 +1224,8 @@ function subscribeToFarmActions(managerId, onUpdate) {
     const scheduleRefresh = () => {
         clearTimeout(farmActionsReloadTimer);
 
-        farmActionsReloadTimer = setTimeout(async () => {
-            await onUpdate();
+        farmActionsReloadTimer = setTimeout(() => {
+            onUpdate();
         }, 500);
     };
 
@@ -1215,10 +1275,6 @@ function subscribeToFarmActions(managerId, onUpdate) {
                 console.error('Farm Actions Realtime connection failed.');
             }
         });
-
-    farmActionsPollingTimer = setInterval(async () => {
-        await onUpdate();
-    }, 2000);
 }
 
 /* ============================================================
@@ -1231,6 +1287,7 @@ export function cleanup() {
     viewRoot = null;
     actions = [];
     submissionsByAction = new Map();
+    signedUrlCache.clear();
 
     farmActionPermissions = {
         view: false,
@@ -1253,12 +1310,10 @@ export async function render(root, ctx) {
         h('p', { class: 'muted' }, 'Checking Farm Actions permissions...')
     );
 
-    // Load all three permissions before rendering the page.
     await loadFarmActionPermissions();
 
     if (viewRoot !== root) return;
 
-    // Block the entire page if View permission is disabled.
     if (!farmActionPermissions.view) {
         root.replaceChildren(
             h('section', { class: 'fa-empty' },
@@ -1306,15 +1361,32 @@ export async function render(root, ctx) {
     };
 
     const refresh = async () => {
-        try {
-            await loadActions();
+        if (viewRoot !== root) return;
 
-            if (viewRoot === root) {
-                renderCurrentPage();
-            }
+        if (refreshInProgress) {
+            refreshQueued = true;
+            return;
+        }
+
+        refreshInProgress = true;
+
+        try {
+            do {
+                refreshQueued = false;
+
+                await loadActions();
+
+                if (viewRoot === root) {
+                    renderCurrentPage();
+                }
+
+            } while (refreshQueued && viewRoot === root);
 
         } catch (error) {
             console.error('Realtime Farm Actions refresh failed:', error);
+
+        } finally {
+            refreshInProgress = false;
         }
     };
 
