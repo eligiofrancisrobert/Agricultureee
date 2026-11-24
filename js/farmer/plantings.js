@@ -79,6 +79,9 @@ let allPlantings = [];
 let fieldsMap = new Map();
 let farmsMap = new Map();
 
+// Latest harvest date per planting
+let harvestDatesMap = new Map();
+
 const paginationNav = document.createElement("nav");
 paginationNav.className = "pagination";
 paginationNav.setAttribute("aria-label", "Planting records pages");
@@ -146,6 +149,14 @@ function formatDate(dateValue) {
         month: "short",
         day: "numeric"
     });
+}
+
+function getDateTimestamp(dateValue) {
+    if (!dateValue) return 0;
+
+    const timestamp = new Date(dateValue).getTime();
+
+    return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
 function displayMessage(message, className = "empty-state") {
@@ -417,6 +428,57 @@ async function loadFarms(farmIds) {
     );
 }
 
+// ---------- HARVEST DATE LOOKUP ----------
+
+async function loadHarvestDates(plantingIds) {
+    const uniquePlantingIds = [
+        ...new Set(plantingIds.filter(Boolean))
+    ];
+
+    if (!uniquePlantingIds.length) {
+        return new Map();
+    }
+
+    const { data: harvestRecords, error } = await supabase
+        .from("harvested_crops")
+        .select("planting_id, harvested_date")
+        .in("planting_id", uniquePlantingIds)
+        .not("harvested_date", "is", null)
+        .order("harvested_date", { ascending: false });
+
+    if (error) {
+        console.error("Harvest date loading error:", error);
+        throw new Error(
+            "Unable to load harvest dates for your planting records."
+        );
+    }
+
+    const latestDates = new Map();
+
+    (harvestRecords || []).forEach(record => {
+        if (!record.planting_id || !record.harvested_date) {
+            return;
+        }
+
+        const existingDate = latestDates.get(record.planting_id);
+
+        const newTimestamp = getDateTimestamp(record.harvested_date);
+        const existingTimestamp = getDateTimestamp(existingDate);
+
+        if (
+            !existingDate ||
+            newTimestamp > existingTimestamp
+        ) {
+            latestDates.set(
+                record.planting_id,
+                record.harvested_date
+            );
+        }
+    });
+
+    return latestDates;
+}
+
 // ---------- LOAD LINKED PLANTINGS ----------
 
 async function loadPlantings(plantingIds) {
@@ -629,6 +691,14 @@ function createPlantingCard(planting, activity, farm) {
         )
     );
 
+    const harvestedDate = harvestDatesMap.get(planting.id);
+
+    if (harvestedDate) {
+        plantingDetails.append(
+            createDetail("Harvested date", formatDate(harvestedDate))
+        );
+    }
+
     card.append(plantingDetails);
 
     if (canEditPlantings) {
@@ -726,6 +796,7 @@ async function loadMyPlantings() {
 
     if (!plantings || plantings.length === 0) {
         allPlantings = [];
+        harvestDatesMap = new Map();
         currentPage = 1;
 
         displayMessage(
@@ -773,24 +844,41 @@ async function loadMyPlantings() {
 
     farmsMap = await loadFarms(farmIds);
 
-    const activityStatusOrder = new Map(
-        plantingActivityStatuses.map((status, index) => [
-            status.code,
-            index
-        ])
+    // Fetch the latest actual harvest date for each planting.
+    harvestDatesMap = await loadHarvestDates(
+        plantings.map(planting => planting.id)
     );
 
-    // Latest planting date first, oldest planting date last.
+    // Harvested plantings first, latest harvested date first.
+    // Unharvested plantings follow, latest sowing date first.
     plantings.sort((a, b) => {
-        const dateA = a.sowing_date
-            ? new Date(a.sowing_date).getTime()
-            : 0;
+        const harvestDateA = harvestDatesMap.get(a.id);
+        const harvestDateB = harvestDatesMap.get(b.id);
 
-        const dateB = b.sowing_date
-            ? new Date(b.sowing_date).getTime()
-            : 0;
+        const hasHarvestDateA = Boolean(harvestDateA);
+        const hasHarvestDateB = Boolean(harvestDateB);
 
-        return dateB - dateA;
+        // Plantings with harvest records come before unharvested ones.
+        if (hasHarvestDateA && !hasHarvestDateB) return -1;
+        if (!hasHarvestDateA && hasHarvestDateB) return 1;
+
+        if (hasHarvestDateA && hasHarvestDateB) {
+            const harvestTimestampA =
+                getDateTimestamp(harvestDateA);
+
+            const harvestTimestampB =
+                getDateTimestamp(harvestDateB);
+
+            if (harvestTimestampA !== harvestTimestampB) {
+                return harvestTimestampB - harvestTimestampA;
+            }
+        }
+
+        // Fallback: latest planting date first.
+        return (
+            getDateTimestamp(b.sowing_date) -
+            getDateTimestamp(a.sowing_date)
+        );
     });
 
     allPlantings = plantings;
@@ -916,6 +1004,17 @@ function subscribeToPlantingChanges() {
                 schema: "public",
                 table: "farm_plantings",
                 filter: `farmer_id=eq.${currentUser.id}`
+            },
+            () => {
+                schedulePlantingsReload();
+            }
+        )
+        .on(
+            "postgres_changes",
+            {
+                event: "*",
+                schema: "public",
+                table: "harvested_crops"
             },
             () => {
                 schedulePlantingsReload();
