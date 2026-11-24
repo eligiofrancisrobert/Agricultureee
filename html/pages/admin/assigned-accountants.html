@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -14,7 +13,11 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500&family=Poppins:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
-
+    <link rel="icon" href="/assets/favicon.ico" sizes="48x48">
+    <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="icon" href="/assets/favicon-16.png" type="image/png" sizes="16x16">
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+    
     <!-- Shared and page-specific stylesheets. -->
     <link rel="stylesheet" href="../../../css/feature/style.css">
     <link rel="stylesheet" href="../../../css/auth/signup.css">
@@ -29,9 +32,7 @@
     <header class="topbar">
         <div class="logo">
             <h1>T<span>ani</span>kala</h1>
-            <img src="../../../assets/logo.png"
-                 alt="Tanikala Logo"
-                 class="logo-image">
+            <img src="../../../assets/logo.png" alt="Tanikala Logo" class="logo-image">
         </div>
     </header>
 
@@ -46,15 +47,11 @@
             </div>
 
             <div class="page-actions">
-                <button class="btn ghost"
-                        type="button"
-                        onclick="history.back()">
+                <button class="btn ghost" type="button" onclick="history.back()">
                     Back
                 </button>
 
-                <button class="btn"
-                        id="assignFarmBtn"
-                        type="button">
+                <button class="btn" id="assignFarmBtn" type="button">
                     <span>Assign Farm</span>
                     <span class="button-arrow">→</span>
                 </button>
@@ -74,14 +71,10 @@
 
             <div class="toolbar">
 
-                <input
-                    id="accountantSearch"
-                    type="search"
-                    placeholder="Search Accountant or farm"
+                <input id="accountantSearch" type="search" placeholder="Search Accountant or farm"
                     aria-label="Search Accountants">
 
-                <select id="assignmentFilter"
-                        aria-label="Filter assignments">
+                <select id="assignmentFilter" aria-label="Filter assignments">
 
                     <option value="all">All Accountants</option>
                     <option value="assigned">Assigned</option>
@@ -162,9 +155,7 @@
 
             <div class="staff-buttons">
 
-                <button class="btn ghost"
-                        id="cancelFarmAssignment"
-                        type="button">
+                <button class="btn ghost" id="cancelFarmAssignment" type="button">
                     Cancel
                 </button>
 
@@ -180,14 +171,12 @@
     </dialog>
 
     <!-- Page-specific behavior scripts. -->
-    <script type="module"
-            src="../../../js/admin/assigned-accountants.js"></script>
+    <script type="module" src="../../../js/admin/assigned-accountants.js"></script>
 
-    <script type="module"
-            src="../../../js/feature/theme.js"></script>
+    <script type="module" src="../../../js/feature/theme.js"></script>
 
-    <script type="module"
-            src="../../../js/admin/sidebar-menu.js"></script>
+    <script type="module" src="../../../js/admin/sidebar-menu.js"></script>
 
 </body>
+
 </html>
