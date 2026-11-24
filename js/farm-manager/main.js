@@ -166,16 +166,25 @@ function hasPermission(permissionKey) {
     return permissionState.get(permissionKey) === true;
 }
 
-
 function canAccessRoute(routeKey) {
     if (routeKey === 'browse-products') {
-        // Cart page only requires shopping_cart.view.
-        if (isCartRoute()) {
-            return hasPermission('shopping_cart.view');
-        }
+        const cartRoute = isCartRoute();
+        const permissionKey = cartRoute
+            ? 'shopping_cart.view'
+            : 'browse_produce.view';
 
-        // Browse Products page has its own permission.
-        return hasPermission('browse_produce.view');
+        const allowed = hasPermission(permissionKey);
+
+        console.error('[FM ROUTE DEBUG]', {
+            hash: location.hash,
+            routeKey,
+            cartRoute,
+            permissionKey,
+            allowed,
+            permissions: Object.fromEntries(permissionState)
+        });
+
+        return allowed;
     }
 
     const permissionKey = ROUTE_PERMISSIONS[routeKey];
@@ -184,7 +193,6 @@ function canAccessRoute(routeKey) {
 
     return hasPermission(permissionKey);
 }
-
 
 function applyNavigationPermissions() {
     document.querySelectorAll('.nav > a').forEach((anchor) => {
