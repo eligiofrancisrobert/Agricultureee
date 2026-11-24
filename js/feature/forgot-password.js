@@ -6,7 +6,7 @@ const emailInput = document.getElementById("email");
 const message = document.getElementById("message");
 const resetButton = document.getElementById("resetButton");
 
-/** Display the recovery result and set its visual and live-region state. */
+/** Display the recovery result. */
 function showMessage(text, isError = false) {
     message.textContent = text;
     message.hidden = false;
@@ -15,7 +15,26 @@ function showMessage(text, isError = false) {
     message.style.color = isError ? "#A12622" : "#35452D";
 }
 
-/** Request a Supabase recovery email with the environment-specific redirect. */
+/** Get the correct reset-password URL for the current environment. */
+function getResetRedirectUrl() {
+    const hostname = window.location.hostname;
+
+    if (hostname === "127.0.0.1" || hostname === "localhost") {
+        return "http://127.0.0.1:5500/html/reset-password.html";
+    }
+
+    if (hostname === "eligiofrancisrobert.github.io") {
+        return "https://eligiofrancisrobert.github.io/Tanikala/html/reset-password.html";
+    }
+
+    if (hostname === "tanikala.vercel.app") {
+        return "https://tanikala.vercel.app/html/reset-password.html";
+    }
+
+    throw new Error("Unsupported application domain.");
+}
+
+/** Send the Supabase password recovery email. */
 form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -27,14 +46,17 @@ form.addEventListener("submit", async (event) => {
     }
 
     resetButton.disabled = true;
-    resetButton.querySelector("span").textContent = "Sending...";
+
+    const buttonText = resetButton.querySelector("span");
+
+    if (buttonText) {
+        buttonText.textContent = "Sending...";
+    }
+
     message.hidden = true;
 
     try {
-        const redirectTo = window.location.hostname === "127.0.0.1" ||
-            window.location.hostname === "localhost"
-            ? "http://127.0.0.1:5500/html/reset-password.html"
-            : "https://eligiofrancisrobert.github.io/Tanikala/html/reset-password.html";
+        const redirectTo = getResetRedirectUrl();
 
         const { error } = await supabase.auth.resetPasswordForEmail(
             email,
@@ -50,12 +72,18 @@ form.addEventListener("submit", async (event) => {
         form.reset();
     } catch (error) {
         console.error("Password recovery error:", error);
+
         showMessage(
-            "Unable to send the recovery email. Please try again later.",
+            error.message === "Unsupported application domain."
+                ? "This application domain is not configured for password recovery."
+                : "Unable to send the recovery email. Please try again later.",
             true
         );
     } finally {
         resetButton.disabled = false;
-        resetButton.querySelector("span").textContent = "Send reset link";
+
+        if (buttonText) {
+            buttonText.textContent = "Send reset link";
+        }
     }
 });
