@@ -1,4 +1,3 @@
-
 import { supabase } from "../connection.js";
 
 // ---------- THEME ----------
@@ -81,6 +80,26 @@ let farmsMap = new Map();
 
 // Latest assignment date per planting
 let assignmentDatesMap = new Map();
+
+// ---------- PLANTING CARD SORTING ----------
+
+const ACTIVITY_STATUS_ORDER = [
+    "assigned",
+    "accepted",
+    "preparing",
+    "awaiting_supplies",
+    "ready_to_plant",
+    "in_progress",
+    "completed",
+    "cancelled"
+];
+
+const activityStatusOrderMap = new Map(
+    ACTIVITY_STATUS_ORDER.map((status, index) => [
+        status,
+        index
+    ])
+);
 
 const paginationNav = document.createElement("nav");
 paginationNav.className = "pagination";
@@ -721,6 +740,10 @@ function createPlantingCard(planting, activity, farm) {
 
                     statusBadge.className =
                         `activity-status activity-status--${toStatusClass(newValue)}`;
+
+                    // Re-sort cards after activity status changes.
+                    sortPlantings();
+                    renderPlantingsPage();
                 }
             }
         );
@@ -751,6 +774,50 @@ function createPlantingCard(planting, activity, farm) {
     }
 
     return card;
+}
+
+// ---------- SORT PLANTINGS ----------
+
+function sortPlantings() {
+    allPlantings.sort((a, b) => {
+        const statusA = String(a.activity_status || "")
+            .toLowerCase()
+            .trim();
+
+        const statusB = String(b.activity_status || "")
+            .toLowerCase()
+            .trim();
+
+        const orderA = activityStatusOrderMap.has(statusA)
+            ? activityStatusOrderMap.get(statusA)
+            : ACTIVITY_STATUS_ORDER.length;
+
+        const orderB = activityStatusOrderMap.has(statusB)
+            ? activityStatusOrderMap.get(statusB)
+            : ACTIVITY_STATUS_ORDER.length;
+
+        // First: workflow status order
+        if (orderA !== orderB) {
+            return orderA - orderB;
+        }
+
+        // Second: latest assignment date first
+        const assignmentDateA = assignmentDatesMap.get(a.id);
+        const assignmentDateB = assignmentDatesMap.get(b.id);
+
+        const timestampA = getDateTimestamp(assignmentDateA);
+        const timestampB = getDateTimestamp(assignmentDateB);
+
+        if (timestampA !== timestampB) {
+            return timestampB - timestampA;
+        }
+
+        // Fallback: latest sowing date first
+        return (
+            getDateTimestamp(b.sowing_date) -
+            getDateTimestamp(a.sowing_date)
+        );
+    });
 }
 
 // ---------- LOAD MY PLANTINGS ----------
@@ -847,35 +914,12 @@ async function loadMyPlantings() {
         plantings.map(planting => planting.id)
     );
 
-    // Latest assignment first, regardless of planting or crop status.
-    // Plantings without an assignment record are placed after assigned ones.
-    plantings.sort((a, b) => {
-        const assignmentDateA = assignmentDatesMap.get(a.id);
-        const assignmentDateB = assignmentDatesMap.get(b.id);
-
-        const hasAssignmentDateA = Boolean(assignmentDateA);
-        const hasAssignmentDateB = Boolean(assignmentDateB);
-
-        if (hasAssignmentDateA && !hasAssignmentDateB) return -1;
-        if (!hasAssignmentDateA && hasAssignmentDateB) return 1;
-
-        if (hasAssignmentDateA && hasAssignmentDateB) {
-            const timestampA = getDateTimestamp(assignmentDateA);
-            const timestampB = getDateTimestamp(assignmentDateB);
-
-            if (timestampA !== timestampB) {
-                return timestampB - timestampA;
-            }
-        }
-
-        // Fallback for records without an assignment timestamp.
-        return (
-            getDateTimestamp(b.sowing_date) -
-            getDateTimestamp(a.sowing_date)
-        );
-    });
-
     allPlantings = plantings;
+
+    // Sort by activity status workflow,
+    // then latest assignment date within the same status.
+    sortPlantings();
+
     currentPage = 1;
 
     renderPlantingsPage();
