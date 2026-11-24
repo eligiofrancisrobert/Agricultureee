@@ -38,6 +38,61 @@ function createHeader(text) {
     return createElement('th', '', text);
 }
 
+/**
+ * Verify access to each produce record using the database helper.
+ *
+ * This checks the current Warehouse Officer farm assignment.
+ * Administrators are also supported by the database helper.
+ *
+ * If a permission check fails, the function throws instead of
+ * displaying potentially unauthorized contribution records.
+ */
+async function filterAuthorizedInventory(inventory) {
+    const uniqueProduceIds = [
+        ...new Set(
+            (inventory || [])
+                .map(item => item.produce_id)
+                .filter(Boolean)
+        )
+    ];
+
+    if (!uniqueProduceIds.length) {
+        return [];
+    }
+
+    const permissionResults = await Promise.all(
+        uniqueProduceIds.map(async produceId => {
+            const { data, error } = await supabase.rpc(
+                'can_access_warehouse_produce_inventory',
+                {
+                    p_produce_id: produceId
+                }
+            );
+
+            if (error) {
+                throw new Error(
+                    `Unable to verify access to produce ${produceId}: ${error.message}`
+                );
+            }
+
+            return {
+                produceId,
+                allowed: data === true
+            };
+        })
+    );
+
+    const allowedProduceIds = new Set(
+        permissionResults
+            .filter(result => result.allowed)
+            .map(result => result.produceId)
+    );
+
+    return (inventory || []).filter(item =>
+        allowedProduceIds.has(item.produce_id)
+    );
+}
+
 export function createHarvestContributionsSection() {
     const section = createElement(
         'section',
@@ -123,6 +178,8 @@ export function createHarvestContributionsSection() {
                 contribution.produce_id
             );
 
+            // Never display a contribution without an authorized
+            // matching inventory record.
             if (!produce) continue;
 
             const cropName = String(
@@ -198,6 +255,9 @@ export function createHarvestContributionsSection() {
     /**
      * Pass preloaded records to avoid duplicate database requests.
      * If called without arguments, the function loads its own data.
+     *
+     * Both paths now verify every produce record against the
+     * current database access helper before displaying contributions.
      */
     async function load(
         preloadedContributions,
@@ -278,7 +338,26 @@ export function createHarvestContributionsSection() {
 
             if (currentToken !== loadToken) return;
 
-            renderRows(contributions, inventory);
+            // Explicitly validate access, including preloaded records.
+            const authorizedInventory =
+                await filterAuthorizedInventory(inventory);
+
+            if (currentToken !== loadToken) return;
+
+            const authorizedProduceIds = new Set(
+                authorizedInventory.map(item => item.produce_id)
+            );
+
+            const authorizedContributions = (
+                contributions || []
+            ).filter(contribution =>
+                authorizedProduceIds.has(contribution.produce_id)
+            );
+
+            renderRows(
+                authorizedContributions,
+                authorizedInventory
+            );
 
         } catch (error) {
             console.error(
@@ -288,7 +367,7 @@ export function createHarvestContributionsSection() {
 
             if (currentToken === loadToken) {
                 renderEmptyState(
-                    'Unable to load harvest contributions.'
+                    'Unable to verify access or load harvest contributions.'
                 );
             }
         }

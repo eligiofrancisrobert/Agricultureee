@@ -2,6 +2,7 @@
    CROP ASSESSMENTS (Agricultural Technician)
    Built on the shared admin tokens, so it follows the
    light / dark theme automatically (:root[data-theme="dark"]).
+   Mobile-first polish: touch-friendly, no horizontal scroll.
 
    Tokens used (from the global stylesheet):
    --bg --card --text --muted --primary --primary-dark
@@ -12,20 +13,26 @@
 .at-page {
     display: flex;
     flex-direction: column;
-    gap: clamp(18px, 2vw, 26px);
+    gap: clamp(14px, 2vw, 26px);
     min-width: 0;
+    max-width: 100%;
     color: var(--text);
+}
+
+.at-page * {
+    box-sizing: border-box;
 }
 
 /* ---------- Page heading ---------- */
 .at-page-heading h2 {
-    font-size: 1.6rem;
+    font-size: clamp(1.35rem, 4.5vw, 1.6rem);
     overflow-wrap: anywhere;
 }
 
 .at-page-heading p {
     margin-top: 4px;
     color: var(--muted);
+    font-size: clamp(.85rem, 3.2vw, 1rem);
 }
 
 /* ---------- Summary cards (same look as .tile) ---------- */
@@ -57,6 +64,7 @@
 .at-assessment-summary-card span {
     color: var(--muted);
     font-size: .8rem;
+    overflow-wrap: anywhere;
 }
 
 .at-assessment-summary-card.healthy {
@@ -134,6 +142,7 @@
 .at-section-summary {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
 }
 
@@ -178,10 +187,6 @@
     border-radius: var(--r);
     background: var(--card);
     transition: border-color .2s, transform .2s;
-}
-
-.at-assessment-card:hover {
-    border-color: var(--primary);
 }
 
 .at-assessment-card-header {
@@ -337,40 +342,195 @@
     border-radius: 10px;
     background: color-mix(in srgb, var(--error) 8%, var(--card));
     color: var(--red);
+    overflow-wrap: anywhere;
 }
 
-/* ---------- Responsive (same breakpoints as the admin shell) ---------- */
-@media (max-width: 560px) {
-    .at-page-heading h2 {
-        font-size: 1.45rem;
+/* Hover only on devices that really hover (no "stuck" hover on phones) */
+@media (hover: hover) {
+    .at-assessment-card:hover {
+        border-color: var(--primary);
     }
+}
 
-    .at-assessment-toolbar {
-        flex-direction: column;
-        align-items: stretch;
+/* ==========================================================
+   RESPONSIVE
+   ========================================================== */
+
+/* ---------- Tablet ---------- */
+@media (max-width: 900px) {
+    .at-assessments-grid {
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
     }
 
     .at-search-input {
-        flex: 1 1 100%;
         max-width: none;
-        min-height: 46px;
+    }
+}
+
+/* ---------- Phone ---------- */
+@media (max-width: 600px) {
+    .at-page {
+        gap: 14px;
+    }
+
+    /* Summary: 2 per row, odd last card takes the full row */
+    .at-assessment-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .at-assessment-summary-card {
+        padding: 12px 14px;
+    }
+
+    .at-assessment-summary-card strong {
+        font-size: 1.45rem;
+    }
+
+    .at-assessment-summary-card span {
+        font-size: .75rem;
+        line-height: 1.3;
+    }
+
+    .at-assessment-summary-grid > .at-assessment-summary-card:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+
+    /* Toolbar: search on top, filters side by side below */
+    .at-assessment-toolbar {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .at-search-input {
+        grid-column: 1 / -1;
+        flex: none;
+        width: 100%;
+        min-width: 0;
+        min-height: 48px;
+        padding: 0 16px 0 44px;
+        background-position: 15px center;
+        font-size: 16px; /* prevents iOS zoom-on-focus */
     }
 
     .at-filter-select {
-        flex: 1 1 100%;
+        flex: none;
+        width: 100%;
         min-width: 0;
+        min-height: 46px;
+        padding: 9px 12px;
+        font-size: 16px;
+        text-overflow: ellipsis;
+    }
+
+    /* A lone filter spans the whole row */
+    .at-assessment-toolbar > .at-filter-select:last-child:nth-child(even) {
+        grid-column: 1 / -1;
+    }
+
+    .at-section-summary > span {
+        font-size: .8rem;
+    }
+
+    /* Cards: one column, tighter spacing */
+    .at-assessments-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
     }
 
     .at-assessment-card {
+        gap: 12px;
         padding: 16px 14px;
     }
 
     .at-assessment-card-header {
-        flex-direction: column;
         gap: 8px;
+    }
+
+    .at-assessment-title {
+        font-size: 1.02rem;
+        line-height: 1.3;
+    }
+
+    .at-assessment-date {
+        margin-top: -4px;
+    }
+
+    .at-status-badge {
+        padding: 4px 10px;
+        font-size: .7rem;
+    }
+
+    /* Detail boxes: 2 per row, odd last box full row */
+    .at-assessment-details {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .at-assessment-detail {
+        padding: 10px 12px;
+    }
+
+    .at-assessment-details > .at-assessment-detail:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+
+    .at-assessment-section,
+    .at-assessment-recommendation {
+        padding: 10px 12px;
+    }
+
+    .at-assessment-section p,
+    .at-assessment-recommendation p {
+        font-size: .9rem;
+        line-height: 1.55;
+    }
+
+    .at-assessment-action {
+        padding: 12px;
+        line-height: 1.35;
+    }
+
+    .at-empty-state {
+        padding: 32px 14px;
+    }
+
+    .at-error-state {
+        padding: 12px 14px;
+    }
+}
+
+/* ---------- Small phones ---------- */
+@media (max-width: 380px) {
+    /* Title and badge stack so neither gets squeezed */
+    .at-assessment-card-header {
+        flex-direction: column;
+        gap: 6px;
     }
 
     .at-assessment-date {
         margin-top: 0;
+    }
+
+    .at-assessment-summary-card strong {
+        font-size: 1.3rem;
+    }
+
+    .at-assessment-details {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* Filters stack when there is no room side by side */
+    .at-assessment-toolbar {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .at-assessment-card,
+    .at-search-input,
+    .at-filter-select {
+        transition: none;
     }
 }

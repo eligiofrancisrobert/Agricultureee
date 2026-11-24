@@ -430,13 +430,12 @@ function displayFarmerProfile() {
 // ==========================================
 // LOAD ASSIGNED PLANTINGS
 // ==========================================
-
 async function loadAssignedPlantings() {
     if (!canCreateHarvest && !canEditHarvest) return;
     if (!plantingSelect) return;
 
     plantingSelect.innerHTML = `
-        <option value="">Loading your plantings...</option>
+        <option value="">Loading ready-to-harvest plantings...</option>
     `;
 
     const { data, error } = await supabase
@@ -449,18 +448,18 @@ async function loadAssignedPlantings() {
             activity_status
         `)
         .eq('farmer_id', currentUser.id)
-        .neq('crop_status', 'harvested')
+        .eq('crop_status', 'ready')
         .order('expected_harvest_date', { ascending: true });
 
     if (error) {
-        console.error('Failed to load assigned plantings:', error);
+        console.error('Failed to load ready-to-harvest plantings:', error);
 
         plantingSelect.innerHTML = `
             <option value="">Unable to load plantings</option>
         `;
 
         showMessage(
-            'Unable to load your assigned plantings. Please try again.',
+            'Unable to load your ready-to-harvest plantings. Please try again.',
             'error'
         );
 
@@ -471,7 +470,7 @@ async function loadAssignedPlantings() {
 
     if (assignedPlantings.length === 0) {
         plantingSelect.innerHTML = `
-            <option value="">No eligible plantings available</option>
+            <option value="">No ready-to-harvest plantings available</option>
         `;
 
         plantingSelect.disabled = true;
@@ -486,7 +485,7 @@ async function loadAssignedPlantings() {
     plantingSelect.disabled = false;
 
     plantingSelect.innerHTML = `
-        <option value="">Select an assigned planting</option>
+        <option value="">Select a ready-to-harvest planting</option>
         ${assignedPlantings.map(planting => `
             <option value="${escapeHTML(planting.id)}">
                 ${escapeHTML(planting.crop_name || 'Unnamed Crop')}
