@@ -1,5 +1,6 @@
 
 import { supabase } from "../connection.js";
+import { getUserLocation } from "../location.js";
 
 const form = document.getElementById("loginForm");
 const emailInput = document.getElementById("email");
@@ -22,6 +23,7 @@ let otpCancelled = false;
 let verifiedSession = null;
 let otpCooldownInterval = null;
 let otpCooldownUntil = 0;
+let loginLocation = null;
 
 function clearLoginCredentials() {
     if (passwordInput) passwordInput.value = "";
@@ -375,7 +377,12 @@ async function getFunctionErrorDetails(error) {
 async function invokeOtpFunction(body) {
     const { data, error } = await supabase.functions.invoke(
         "email-otp-login",
-        { body }
+        {
+            body: {
+                ...body,
+                location: loginLocation
+            }
+        }
     );
 
     if (error) {
@@ -442,6 +449,21 @@ form.addEventListener("submit", async event => {
         const password = passwordInput.value;
 
         verifiedSession = null;
+        loginLocation = null;
+
+        // Location is optional. Login continues if permission is denied.
+        try {
+            const locationData = await getUserLocation();
+
+            loginLocation = locationData.address || null;
+
+            console.log("Login location:", loginLocation);
+        } catch (locationError) {
+            console.warn(
+                "Unable to obtain login location:",
+                locationError.message
+            );
+        }
 
         const requestData = await invokeOtpFunction({
             action: "request",
@@ -509,7 +531,6 @@ form.addEventListener("submit", async event => {
                         );
                     }
 
-                    // Successful OTP: immediately clear any old cooldown.
                     verifiedSession = verifyData.session;
 
                     stopOtpCooldown();
