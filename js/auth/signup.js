@@ -1,4 +1,4 @@
-
+import { getUserLocation } from "../location.js";
 import { supabase } from "../connection.js";
 
 const form = document.getElementById("signupForm");
