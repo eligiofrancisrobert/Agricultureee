@@ -1,5 +1,10 @@
+
 import { getUserLocation } from "../location.js";
 import { supabase } from "../connection.js";
+
+const useCurrentLocationButton = document.getElementById("useCurrentLocation");
+const locationStatus = document.getElementById("locationStatus");
+const addressInput = document.getElementById("address");
 
 const form = document.getElementById("signupForm");
 const message = document.getElementById("message");
@@ -19,7 +24,10 @@ const farmerDocumentHint = document.getElementById("farmerDocumentHint");
 
 let farmCounter = 0;
 
-/** Display registration feedback, marking failures for error styling. */
+/* =========================================================
+   GENERAL MESSAGES
+========================================================= */
+
 function showMessage(text, error = false) {
     if (!message) return;
 
@@ -36,6 +44,149 @@ function clearMessage() {
     message.classList.remove("error");
 }
 
+function showLocationStatus(text, type = "") {
+    if (!locationStatus) return;
+
+    locationStatus.textContent = text;
+    locationStatus.classList.remove("success", "error");
+
+    if (type) {
+        locationStatus.classList.add(type);
+    }
+}
+
+/* =========================================================
+   CURRENT LOCATION
+========================================================= */
+
+async function getReadableAddress(latitude, longitude) {
+    if (
+        !Number.isFinite(latitude) ||
+        !Number.isFinite(longitude)
+    ) {
+        throw new Error("Invalid location coordinates.");
+    }
+
+    const url = new URL(
+        "https://nominatim.openstreetmap.org/reverse"
+    );
+
+    url.searchParams.set("format", "jsonv2");
+    url.searchParams.set("lat", latitude);
+    url.searchParams.set("lon", longitude);
+    url.searchParams.set("addressdetails", "1");
+
+    const response = await fetch(url.toString(), {
+        headers: {
+            Accept: "application/json",
+            "Accept-Language": "en"
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(
+            "Unable to retrieve your address. Please try again."
+        );
+    }
+
+    const result = await response.json();
+
+    if (!result.display_name) {
+        throw new Error(
+            "No readable address was found for your location."
+        );
+    }
+
+    return result.display_name;
+}
+
+async function handleCurrentLocation() {
+    if (!useCurrentLocationButton || !addressInput) return;
+
+    if (!navigator.geolocation) {
+        showLocationStatus(
+            "Geolocation is not supported by your browser.",
+            "error"
+        );
+        return;
+    }
+
+    useCurrentLocationButton.disabled = true;
+
+    const originalContent = useCurrentLocationButton.innerHTML;
+
+    useCurrentLocationButton.innerHTML = `
+        <span>Getting your location...</span>
+    `;
+
+    showLocationStatus(
+        "Please allow location access when your browser asks for permission."
+    );
+
+    try {
+        const coordinates = await getUserLocation();
+
+        if (
+            !coordinates ||
+            !Number.isFinite(coordinates.latitude) ||
+            !Number.isFinite(coordinates.longitude)
+        ) {
+            throw new Error("Unable to obtain valid location coordinates.");
+        }
+
+        showLocationStatus(
+            "Location detected. Converting coordinates into an address..."
+        );
+
+        const readableAddress = await getReadableAddress(
+            coordinates.latitude,
+            coordinates.longitude
+        );
+
+        addressInput.value = readableAddress;
+
+        addressInput.dispatchEvent(
+            new Event("input", { bubbles: true })
+        );
+
+        addressInput.dispatchEvent(
+            new Event("change", { bubbles: true })
+        );
+
+        showLocationStatus(
+            "Your current address has been detected. You can still edit it.",
+            "success"
+        );
+
+    } catch (error) {
+        console.error("Location detection failed:", error);
+
+        let errorMessage =
+            error?.message || "Unable to detect your location.";
+
+        if (error?.code === 1) {
+            errorMessage =
+                "Location permission was denied. Please allow location access in your browser settings.";
+        } else if (error?.code === 2) {
+            errorMessage =
+                "Your current location is unavailable. Please try again.";
+        } else if (error?.code === 3) {
+            errorMessage =
+                "Location request timed out. Please try again.";
+        }
+
+        showLocationStatus(errorMessage, "error");
+
+    } finally {
+        useCurrentLocationButton.disabled = false;
+        useCurrentLocationButton.innerHTML = originalContent;
+    }
+}
+
+/* =========================================================
+   FORM HELPERS
+========================================================= */
+
 function value(id) {
     return document.getElementById(id)?.value.trim() ?? "";
 }
@@ -48,7 +199,6 @@ function appendValue(data, key, id) {
     data.append(key, value(id));
 }
 
-/** Validate an optional/required document and append it to the multipart form. */
 function appendFile(data, key, id, label, required = true) {
     const file = getFile(id);
 
@@ -65,7 +215,7 @@ function appendFile(data, key, id, label, required = true) {
     const allowedTypes = [
         "application/pdf",
         "image/jpeg",
-        "image/png",
+        "image/png"
     ];
 
     if (!allowedTypes.includes(file.type)) {
@@ -74,6 +224,10 @@ function appendFile(data, key, id, label, required = true) {
 
     data.append(key, file, file.name);
 }
+
+/* =========================================================
+   FARM CROPS
+========================================================= */
 
 function uniqueCrops(crops) {
     const seen = new Set();
@@ -92,15 +246,9 @@ function uniqueCrops(crops) {
         });
 }
 
-/*
- * Read crops from one farm card only.
- * Each farm owns its own crop checkboxes and custom crop input.
- */
 function selectedCropsForFarm(farmCard) {
     const listed = Array.from(
-        farmCard.querySelectorAll(
-            '[data-crop]:checked'
-        )
+        farmCard.querySelectorAll("[data-crop]:checked")
     )
         .map(input => input.dataset.crop || input.value)
         .filter(Boolean);
@@ -165,6 +313,10 @@ function updateOtherCropField(farmCard) {
     updateCropSummary(farmCard);
 }
 
+/* =========================================================
+   FARM CARDS
+========================================================= */
+
 function updateFarmNumbers() {
     if (!farmsContainer) return;
 
@@ -175,12 +327,18 @@ function updateFarmNumbers() {
     farmCards.forEach((card, index) => {
         const number = card.querySelector(".farm-entry-number");
         const title = card.querySelector(".farm-entry-title");
+
         const removeButton = card.querySelector(
             '[data-action="remove-farm"]'
         );
 
-        if (number) number.textContent = `F ${index + 1}`;
-        if (title) title.textContent = `Farm  ${index + 1} Details`;
+        if (number) {
+            number.textContent = `F ${index + 1}`;
+        }
+
+        if (title) {
+            title.textContent = `Farm ${index + 1} Details`;
+        }
 
         if (removeButton) {
             removeButton.hidden = farmCards.length === 1;
@@ -188,8 +346,6 @@ function updateFarmNumbers() {
     });
 }
 
-
-/** Clone and initialize a farm card with unique field IDs and crop controls. */
 function addFarm() {
     if (!farmTemplate || !farmsContainer) {
         throw new Error(
@@ -217,7 +373,7 @@ function addFarm() {
         farmNameLabel: '[data-label="farm-name"]',
         farmLocationLabel: '[data-label="farm-location"]',
         cropLabel: ".crop-picker-group > label",
-        otherCropLabel: ".other-crop-field > label",
+        otherCropLabel: ".other-crop-field > label"
     };
 
     const elements = {};
@@ -268,7 +424,6 @@ function addFarm() {
     return card;
 }
 
-
 function resetFarms() {
     if (!farmsContainer) return;
 
@@ -276,22 +431,51 @@ function resetFarms() {
     farmCounter = 0;
 }
 
-function setFieldRequired(element, required) {
-    if (!element) return;
+/* =========================================================
+   ROLE AND FARMER TYPE
+========================================================= */
 
-    element.required = required;
+function updateFarmReminders() {
+    const farmerType = farmerTypeSelect?.value ?? "";
+    const isOwner = roleSelect?.value === "farmer" &&
+        farmerType === "owner_operator";
+
+    const farmerTypeReminder = document.getElementById(
+        "farmerTypeReminder"
+    );
+
+    const ownerFarmReminder = document.getElementById(
+        "ownerFarmReminder"
+    );
+
+    if (farmerTypeReminder) {
+        farmerTypeReminder.hidden = !isOwner;
+    }
+
+    if (ownerFarmReminder) {
+        ownerFarmReminder.hidden = !isOwner;
+    }
+
+    document
+        .querySelectorAll("[data-farm-location-reminder]")
+        .forEach(reminder => {
+            reminder.hidden = !isOwner;
+        });
 }
 
-/** Show fields for the selected role and synchronize role-dependent inputs. */
 function updateRoleSections() {
     const role = roleSelect?.value ?? "";
 
-    document.querySelectorAll(".role-section[data-role]").forEach(section => {
+    document.querySelectorAll(
+        ".role-section[data-role]"
+    ).forEach(section => {
         const visible = section.dataset.role === role;
 
         section.hidden = !visible;
 
-        section.querySelectorAll("input, select, textarea").forEach(input => {
+        section.querySelectorAll(
+            "input, select, textarea"
+        ).forEach(input => {
             if (input.type === "file") {
                 input.disabled = !visible;
             }
@@ -302,14 +486,15 @@ function updateRoleSections() {
     updateFarmerTypeFields();
 }
 
-/** Require only fields that are currently visible and marked data-required. */
 function updateConditionalRequiredFields() {
     document.querySelectorAll("[data-required]").forEach(input => {
         const containingSection = input.closest(
             ".role-section[data-role]"
         );
 
-        const visibleSection = !containingSection || !containingSection.hidden;
+        const visibleSection =
+            !containingSection || !containingSection.hidden;
+
         const visibleField = !input.closest("[hidden]");
 
         input.required =
@@ -321,7 +506,9 @@ function updateConditionalRequiredFields() {
 
 function updateBuyerTypeFields() {
     const buyerType = value("buyerType");
-    const businessBuyer = roleSelect?.value === "buyer" &&
+
+    const businessBuyer =
+        roleSelect?.value === "buyer" &&
         buyerType === "business";
 
     document.querySelectorAll(
@@ -329,7 +516,9 @@ function updateBuyerTypeFields() {
     ).forEach(field => {
         field.hidden = !businessBuyer;
 
-        field.querySelectorAll("input, select").forEach(input => {
+        field.querySelectorAll(
+            "input, select"
+        ).forEach(input => {
             input.disabled = !businessBuyer;
         });
     });
@@ -340,11 +529,13 @@ function updateBuyerTypeFields() {
 function updateFarmerTypeFields() {
     const isFarmer = roleSelect?.value === "farmer";
     const farmerType = farmerTypeSelect?.value ?? "";
-    const isOwner = isFarmer && farmerType === "owner_operator";
-    const isNonOwner = isFarmer &&
+
+    const isOwner =
+        isFarmer && farmerType === "owner_operator";
+
+    const isNonOwner =
+        isFarmer &&
         ["tenant_lessee", "hired_farmer"].includes(farmerType);
-    const farmerTypeReminder = document.getElementById("farmerTypeReminder");
-    const ownerFarmReminder = document.getElementById("ownerFarmReminder");
 
     if (ownerOperatorFields) {
         ownerOperatorFields.hidden = !isOwner;
@@ -373,26 +564,8 @@ function updateFarmerTypeFields() {
         });
     }
 
+    updateFarmReminders();
     updateConditionalRequiredFields();
-
-    function updateFarmReminders() {
-        const farmerType = document.getElementById("farmerType")?.value;
-        const isOwner = farmerType === "owner_operator";
-
-        if (farmerTypeReminder) {
-            farmerTypeReminder.hidden = !isOwner;
-        }
-
-        if (ownerFarmReminder) {
-            ownerFarmReminder.hidden = !isOwner;
-        }
-
-        document
-            .querySelectorAll("[data-farm-location-reminder]")
-            .forEach((reminder) => {
-                reminder.hidden = !isOwner;
-            });
-    }
 }
 
 function resetRoleSpecificFields() {
@@ -406,18 +579,36 @@ function resetRoleSpecificFields() {
         farmProofInput.value = "";
     }
 
-    if (farmProofField) farmProofField.hidden = true;
-    if (farmerDocumentHint) farmerDocumentHint.hidden = true;
+    if (farmProofField) {
+        farmProofField.hidden = true;
+    }
 
-    if (ownerOperatorFields) ownerOperatorFields.hidden = true;
-    if (nonOwnerFarmerNotice) nonOwnerFarmerNotice.hidden = true;
+    if (farmerDocumentHint) {
+        farmerDocumentHint.hidden = true;
+    }
+
+    if (ownerOperatorFields) {
+        ownerOperatorFields.hidden = true;
+    }
+
+    if (nonOwnerFarmerNotice) {
+        nonOwnerFarmerNotice.hidden = true;
+    }
+
+    updateFarmReminders();
 }
 
-/** Validate owner-operator farm entries and return their crop selections. */
+/* =========================================================
+   FARM VALIDATION AND REGISTRATION DATA
+========================================================= */
+
 function validateFarms() {
     const farmerType = value("farmerType");
 
-    if (!["owner_operator", "tenant_lessee", "hired_farmer"].includes(farmerType)) {
+    if (
+        !["owner_operator", "tenant_lessee", "hired_farmer"]
+            .includes(farmerType)
+    ) {
         throw new Error("Please select your farmer type.");
     }
 
@@ -434,40 +625,47 @@ function validateFarms() {
     }
 
     return farmCards.map((card, index) => {
-        const farmName = card.querySelector('[data-field="farmName"]')
-            ?.value.trim() ?? "";
+        const farmName = card.querySelector(
+            '[data-field="farmName"]'
+        )?.value.trim() ?? "";
 
-        const farmLocation = card.querySelector('[data-field="farmLocation"]')
-            ?.value.trim() ?? "";
+        const farmLocation = card.querySelector(
+            '[data-field="farmLocation"]'
+        )?.value.trim() ?? "";
 
         if (!farmName) {
-            throw new Error(`Please enter a name for Farm ${index + 1}.`);
+            throw new Error(
+                `Please enter a name for Farm ${index + 1}.`
+            );
         }
 
         if (!farmLocation) {
-            throw new Error(`Please enter the location for Farm ${index + 1}.`);
+            throw new Error(
+                `Please enter the location for Farm ${index + 1}.`
+            );
         }
 
         const crops = selectedCropsForFarm(card);
 
         if (crops.length === 0) {
-            throw new Error(`Please select at least one crop for Farm ${index + 1}.`);
+            throw new Error(
+                `Please select at least one crop for Farm ${index + 1}.`
+            );
         }
 
         return {
             farmName,
             farmLocation,
-            crops,
+            crops
         };
     });
 }
 
-/** Append farmer type and farm JSON, including first-farm legacy fields. */
 function appendFarmRegistration(data, farms) {
     data.append("farmerType", value("farmerType"));
     data.append("farms", JSON.stringify(farms));
 
-    // Backward compatibility: legacy trigger/consumers may read these fields.
+    // Backward compatibility with existing registration consumers.
     if (farms.length > 0) {
         data.append("farmName", farms[0].farmName);
         data.append("farmLocation", farms[0].farmLocation);
@@ -479,36 +677,49 @@ function appendFarmRegistration(data, farms) {
     }
 }
 
-// Submit registration through the existing Supabase Edge Function.
-/** Submit multipart applicant data and surface Edge Function failures. */
+/* =========================================================
+   SUPABASE REGISTRATION
+========================================================= */
+
 async function submitRegistration(data) {
     const { data: result, error } =
         await supabase.functions.invoke("register-applicant", {
-            body: data,
+            body: data
         });
 
     if (error) {
         console.error("Edge Function error:", error);
 
-        let details = error.message || "Registration request failed.";
+        let details =
+            error.message || "Registration request failed.";
 
         try {
             if (error.context) {
                 const response = await error.context.clone().text();
 
-                console.error("Edge Function response:", response);
+                console.error(
+                    "Edge Function response:",
+                    response
+                );
 
                 if (response) {
                     try {
                         const parsed = JSON.parse(response);
-                        details = parsed.error || parsed.message || response;
+
+                        details =
+                            parsed.error ||
+                            parsed.message ||
+                            response;
                     } catch {
                         details = response;
                     }
                 }
             }
         } catch (readError) {
-            console.error("Could not read error response:", readError);
+            console.error(
+                "Could not read error response:",
+                readError
+            );
         }
 
         throw new Error(details);
@@ -518,32 +729,41 @@ async function submitRegistration(data) {
         console.error("Registration result:", result);
 
         throw new Error(
-            result?.error || "Registration could not be completed."
+            result?.error ||
+            "Registration could not be completed."
         );
     }
 
     return result;
 }
 
-/*
- * Dynamic farm crop-picker interactions.
- * Event delegation allows newly added farm cards to work automatically.
- */
+/* =========================================================
+   FARM CARD EVENT DELEGATION
+========================================================= */
+
 farmsContainer?.addEventListener("click", event => {
-    const actionButton = event.target.closest("button[data-action]");
+    const actionButton = event.target.closest(
+        "button[data-action]"
+    );
 
     if (!actionButton) return;
 
     const card = actionButton.closest(".farm-entry");
+
     if (!card) return;
 
     const action = actionButton.dataset.action;
 
     if (action === "remove-farm") {
-        const cards = farmsContainer.querySelectorAll(".farm-entry");
+        const cards = farmsContainer.querySelectorAll(
+            ".farm-entry"
+        );
 
         if (cards.length <= 1) {
-            showMessage("At least one farm is required for an Owner/Operator.", true);
+            showMessage(
+                "At least one farm is required for an Owner/Operator.",
+                true
+            );
             return;
         }
 
@@ -554,11 +774,20 @@ farmsContainer?.addEventListener("click", event => {
     }
 
     if (action === "toggle-crops") {
-        const dropdown = card.querySelector('[data-field="cropDropdown"]');
-        const isOpen = actionButton.getAttribute("aria-expanded") === "true";
+        const dropdown = card.querySelector(
+            '[data-field="cropDropdown"]'
+        );
+
+        const isOpen =
+            actionButton.getAttribute("aria-expanded") === "true";
 
         dropdown.hidden = isOpen;
-        actionButton.setAttribute("aria-expanded", String(!isOpen));
+
+        actionButton.setAttribute(
+            "aria-expanded",
+            String(!isOpen)
+        );
+
         return;
     }
 
@@ -571,21 +800,30 @@ farmsContainer?.addEventListener("click", event => {
             '[data-action="other-crop-toggle"]'
         );
 
-        if (otherCheckbox) otherCheckbox.checked = false;
+        if (otherCheckbox) {
+            otherCheckbox.checked = false;
+        }
 
         const otherInput = card.querySelector(
             '[data-field="otherCropInput"]'
         );
 
-        if (otherInput) otherInput.value = "";
+        if (otherInput) {
+            otherInput.value = "";
+        }
 
         updateOtherCropField(card);
         return;
     }
 
     if (action === "done-crops") {
-        const dropdown = card.querySelector('[data-field="cropDropdown"]');
-        const trigger = card.querySelector('[data-action="toggle-crops"]');
+        const dropdown = card.querySelector(
+            '[data-field="cropDropdown"]'
+        );
+
+        const trigger = card.querySelector(
+            '[data-action="toggle-crops"]'
+        );
 
         dropdown.hidden = true;
         trigger.setAttribute("aria-expanded", "false");
@@ -594,11 +832,14 @@ farmsContainer?.addEventListener("click", event => {
 
 farmsContainer?.addEventListener("change", event => {
     const card = event.target.closest(".farm-entry");
+
     if (!card) return;
 
     if (
         event.target.matches("[data-crop]") ||
-        event.target.matches('[data-action="other-crop-toggle"]')
+        event.target.matches(
+            '[data-action="other-crop-toggle"]'
+        )
     ) {
         updateOtherCropField(card);
     }
@@ -606,20 +847,28 @@ farmsContainer?.addEventListener("change", event => {
 
 farmsContainer?.addEventListener("input", event => {
     const card = event.target.closest(".farm-entry");
+
     if (!card) return;
 
-    if (event.target.matches('[data-field="otherCropInput"]')) {
+    if (
+        event.target.matches(
+            '[data-field="otherCropInput"]'
+        )
+    ) {
         updateCropSummary(card);
     }
 });
 
-addFarmButton?.addEventListener("click", () => {
-    console.log("Add farm button clicked");
+/* =========================================================
+   BUTTON AND SELECT EVENT LISTENERS
+========================================================= */
 
+addFarmButton?.addEventListener("click", () => {
     try {
         const card = addFarm();
 
         console.log("Farm card created:", card);
+
         console.log(
             "Number of farm cards:",
             farmsContainer.querySelectorAll(".farm-entry").length
@@ -627,9 +876,14 @@ addFarmButton?.addEventListener("click", () => {
 
         updateFarmerTypeFields();
         clearMessage();
+
     } catch (error) {
         console.error("Add farm failed:", error);
-        showMessage(error.message || "Could not add another farm.", true);
+
+        showMessage(
+            error.message || "Could not add another farm.",
+            true
+        );
     }
 });
 
@@ -644,42 +898,63 @@ farmerTypeSelect?.addEventListener("change", () => {
     clearMessage();
 });
 
-document.getElementById("buyerType")?.addEventListener("change", () => {
-    updateBuyerTypeFields();
-    clearMessage();
-});
+document.getElementById("buyerType")?.addEventListener(
+    "change",
+    () => {
+        updateBuyerTypeFields();
+        clearMessage();
+    }
+);
 
-// Show / Hide Password
-document.querySelectorAll(".toggle-password").forEach((button) => {
-    button.addEventListener("click", () => {
-        const targetId = button.dataset.target;
+useCurrentLocationButton?.addEventListener(
+    "click",
+    handleCurrentLocation
+);
+
+/* =========================================================
+   SHOW / HIDE PASSWORD
+========================================================= */
+
+// Matches the .password-toggle class in signup.html.
+document.querySelectorAll(".password-toggle").forEach(toggleButton => {
+    toggleButton.addEventListener("click", () => {
+        const targetId = toggleButton.dataset.target;
+
         const passwordInput = targetId
             ? document.getElementById(targetId)
-            : button.parentElement.querySelector("input");
+            : toggleButton.parentElement.querySelector("input");
 
         if (!passwordInput) return;
 
-        const isPassword = passwordInput.type === "password";
+        const isPassword =
+            passwordInput.type === "password";
+
         passwordInput.type = isPassword ? "text" : "password";
 
-        button.setAttribute(
+        toggleButton.setAttribute(
             "aria-label",
             isPassword ? "Hide password" : "Show password"
         );
 
-        button.setAttribute(
+        toggleButton.setAttribute(
             "aria-pressed",
             String(isPassword)
         );
     });
 });
 
-// Initialize role-dependent fields.
+/* =========================================================
+   FORM INITIALIZATION
+========================================================= */
+
 updateRoleSections();
 updateConditionalRequiredFields();
 
 if (!form) {
-    console.error('Signup form with ID "signupForm" was not found.');
+    console.error(
+        'Signup form with ID "signupForm" was not found.'
+    );
+
 } else {
     form.setAttribute("novalidate", "");
 
@@ -690,10 +965,12 @@ if (!form) {
         updateConditionalRequiredFields();
 
         const passwordInput = document.getElementById("password");
-        const confirmPasswordInput = document.getElementById("confirmPassword");
+        const confirmPasswordInput =
+            document.getElementById("confirmPassword");
 
         const password = passwordInput?.value ?? "";
-        const confirmPassword = confirmPasswordInput?.value ?? "";
+        const confirmPassword =
+            confirmPasswordInput?.value ?? "";
 
         // PASSWORD POLICY VALIDATION
         const strongPassword =
@@ -733,6 +1010,7 @@ if (!form) {
                 true
             );
 
+            invalidField?.focus();
             return;
         }
 
@@ -745,14 +1023,17 @@ if (!form) {
             firstName,
             middleName,
             surname,
-            suffix,
+            suffix
         ].filter(Boolean).join(" ");
 
         const email = value("email").toLowerCase();
         const role = value("role");
 
         if (!["farmer", "buyer", "supplier"].includes(role)) {
-            showMessage("Please select a valid account type.", true);
+            showMessage(
+                "Please select a valid account type.",
+                true
+            );
             return;
         }
 
@@ -764,7 +1045,7 @@ if (!form) {
         try {
             const data = new FormData();
 
-            // Shared account information.
+            // SHARED ACCOUNT INFORMATION
             data.append("firstName", firstName);
             data.append("middleName", middleName);
             data.append("surname", surname);
@@ -777,7 +1058,7 @@ if (!form) {
             appendValue(data, "phone", "phone");
             appendValue(data, "address", "address");
 
-            // FARMER REGISTRATION.
+            // FARMER REGISTRATION
             if (role === "farmer") {
                 const farms = validateFarms();
 
@@ -802,7 +1083,7 @@ if (!form) {
                 }
             }
 
-            // BUYER REGISTRATION.
+            // BUYER REGISTRATION
             if (role === "buyer") {
                 appendValue(data, "buyerType", "buyerType");
                 appendValue(data, "businessName", "buyerBusinessName");
@@ -825,7 +1106,7 @@ if (!form) {
                 }
             }
 
-            // SUPPLIER REGISTRATION.
+            // SUPPLIER REGISTRATION
             if (role === "supplier") {
                 appendValue(data, "businessName", "supplierName");
                 appendValue(data, "businessAddress", "supplierAddress");
@@ -858,6 +1139,10 @@ if (!form) {
             resetRoleSpecificFields();
             updateRoleSections();
 
+            showLocationStatus(
+                "Use your device location to help fill in your address."
+            );
+
         } catch (error) {
             console.error("Signup failed:", error);
 
@@ -865,6 +1150,7 @@ if (!form) {
                 error.message || "Registration failed. Please try again.",
                 true
             );
+
         } finally {
             if (button) {
                 button.disabled = false;
