@@ -188,6 +188,18 @@
                         autocomplete="street-address">
                 </div>
             </div>
+            <button type="button" id="useCurrentLocation" class="location-button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" aria-hidden="true">
+                    <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
+                    <circle cx="12" cy="10" r="2.5" />
+                </svg>
+                <span>Use My Current Location</span>
+            </button>
+
+            <p id="locationStatus" class="location-status" aria-live="polite">
+                Use your device location to help fill in your address.
+            </p>
 
             <!-- FARMER INFORMATION -->
             <section class="role-section" data-role="farmer" hidden>

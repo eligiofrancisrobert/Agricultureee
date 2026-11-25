@@ -594,6 +594,67 @@ body {
     transform: translateY(-50%);
 }
 
+/* ============ CURRENT LOCATION BUTTON ============ */
+.location-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    width: fit-content;
+    padding: 10px 16px;
+
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--primary-color);
+
+    background-color: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+
+    cursor: pointer;
+    transition: background-color 0.25s ease,
+        border-color 0.25s ease,
+        color 0.25s ease,
+        transform 0.2s ease;
+}
+
+.location-button:hover {
+    background-color: color-mix(in srgb,
+            var(--primary-color) 8%,
+            var(--surface-card));
+    border-color: var(--primary-color);
+}
+
+.location-button:active {
+    transform: scale(0.98);
+}
+
+.location-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.location-button svg {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+}
+
+.location-status {
+    font-size: var(--fs-xs);
+    color: var(--secondary-text);
+    line-height: 1.5;
+}
+
+.location-status.success {
+    color: var(--success);
+}
+
+.location-status.error {
+    color: var(--error);
+}
+
 /* ============ RESPONSIVE ============ */
 @media (max-width: 900px) {
 
