@@ -1,4 +1,3 @@
-
 import { supabase } from '../connection.js';
 
 const RPC_GET = 'warehouse_officer_get_deliveries';
@@ -23,6 +22,85 @@ let realtimeChannel = null;
 let realtimeReloadTimer = null;
 let realtimeReloadQueued = false;
 let deliveryCountdownInterval = null;
+let confirmResolve = null;
+
+/* =========================================================
+   CUSTOM CONFIRM DIALOG (replaces window.confirm)
+   Styles live in deliveries.css (.delivery-confirm-*).
+   The dialog is appended to document.body, so renderPage()
+   re-rendering rootElement never removes it.
+   ========================================================= */
+
+function closeConfirm(result = false) {
+    document.getElementById('deliveryConfirmOverlay')?.remove();
+    document.removeEventListener('keydown', onConfirmKey, true);
+
+    if (confirmResolve) {
+        const resolve = confirmResolve;
+        confirmResolve = null;
+        resolve(result);
+    }
+}
+
+function onConfirmKey(event) {
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closeConfirm(false);
+    }
+}
+
+/** Show a confirmation dialog. Resolves true (confirm) or false (cancel). */
+function showConfirm(message, {
+    title = 'Please confirm',
+    confirmText = 'Confirm',
+    cancelText = 'Cancel',
+    danger = false
+} = {}) {
+    closeConfirm(false);
+
+    const overlay = document.createElement('div');
+    overlay.id = 'deliveryConfirmOverlay';
+    overlay.className = 'delivery-confirm-overlay';
+
+    const dialog = document.createElement('div');
+    dialog.className = 'delivery-confirm-dialog';
+    dialog.setAttribute('role', 'alertdialog');
+    dialog.setAttribute('aria-modal', 'true');
+
+    const heading = document.createElement('h3');
+    heading.textContent = title;
+
+    const body = document.createElement('p');
+    body.className = 'delivery-confirm-message';
+    body.textContent = message;
+
+    const actions = document.createElement('div');
+    actions.className = 'delivery-confirm-actions';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = cancelText;
+    cancelBtn.addEventListener('click', () => closeConfirm(false));
+
+    const okBtn = document.createElement('button');
+    okBtn.type = 'button';
+    okBtn.className = danger ? 'is-danger' : 'is-primary';
+    okBtn.textContent = confirmText;
+    okBtn.addEventListener('click', () => closeConfirm(true));
+
+    actions.append(cancelBtn, okBtn);
+    dialog.append(heading, body, actions);
+    overlay.append(dialog);
+    document.body.append(overlay);
+
+    document.addEventListener('keydown', onConfirmKey, true);
+
+    return new Promise(resolve => {
+        confirmResolve = resolve;
+        okBtn.focus();
+    });
+}
 
 /* =========================================================
    REALTIME
@@ -1136,13 +1214,16 @@ async function handleCashPaymentConfirmation(event) {
         return;
     }
 
-    const confirmed = window.confirm(
+    const confirmed = await showConfirm(
         `Confirm that the full payment of ${money(order.total_amount)} has been received?\n\n` +
         `Order: #${order.sale_id.slice(0, 8).toUpperCase()}\n` +
         `Buyer: ${getBuyerDisplay(order)}\n\n` +
         `This will mark the payment as PAID and the order as DELIVERED.\n` +
-        `Partial payment is not allowed.\n\n` +
-        `Continue?`
+        `Partial payment is not allowed.`,
+        {
+            title: 'Confirm payment received',
+            confirmText: 'Payment Received'
+        }
     );
 
     if (!confirmed) return;
@@ -1246,8 +1327,14 @@ async function handleStatusChange(event) {
     }
 
     if (newStatus === 'cancelled') {
-        const confirmed = window.confirm(
-            'Are you sure you want to cancel this order? This action cannot be undone.'
+        const confirmed = await showConfirm(
+            'Are you sure you want to cancel this order? This action cannot be undone.',
+            {
+                title: 'Cancel order',
+                confirmText: 'Cancel Order',
+                cancelText: 'Keep Order',
+                danger: true
+            }
         );
 
         if (!confirmed) {
@@ -1265,9 +1352,10 @@ async function handleStatusChange(event) {
 
     if (
         newStatus !== 'cancelled' &&
-        !window.confirm(
-            confirmationMessages[newStatus] || 'Update this order status?'
-        )
+        !(await showConfirm(
+            confirmationMessages[newStatus] || 'Update this order status?',
+            { title: 'Update order status' }
+        ))
     ) {
         renderPage();
         return;
@@ -1314,8 +1402,12 @@ async function handleShipmentScheduleSubmit(event) {
 
     const saleId = state.shipmentSchedule.saleId;
 
-    const confirmed = window.confirm(
-        `Confirm shipment?\n\nExpected delivery: ${dateTime(expectedDate.toISOString())}`
+    const confirmed = await showConfirm(
+        `Expected delivery: ${dateTime(expectedDate.toISOString())}`,
+        {
+            title: 'Confirm shipment',
+            confirmText: 'Confirm Shipment'
+        }
     );
 
     if (!confirmed) return;
@@ -1511,6 +1603,7 @@ export function cleanup() {
     realtimeReloadQueued = false;
 
     stopDeliveryCountdown();
+    closeConfirm(false);
 
     if (realtimeChannel) {
         supabase.removeChannel(realtimeChannel);

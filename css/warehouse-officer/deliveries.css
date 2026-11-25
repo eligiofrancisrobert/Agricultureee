@@ -1033,6 +1033,158 @@ select.delivery-filter option {
     outline-offset: 2px;
 }
 
+/* ============ CONFIRM DIALOG (replaces window.confirm) ============
+   Same panel / button language as the order modal and Schedule
+   Shipment modal. Sits above them (z-index 100000 > 9999).
+   ============================================================ */
+.delivery-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--space-md, 20px);
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    animation: delivery-confirm-fade 0.2s ease;
+}
+
+.delivery-confirm-dialog {
+    box-sizing: border-box;
+    width: min(440px, 100%);
+    max-height: 90vh;
+    max-height: 90dvh;
+    overflow-y: auto;
+    padding: var(--space-lg, 32px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-family: "Poppins", sans-serif;
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.25);
+    animation: delivery-confirm-pop 0.2s ease;
+}
+
+.delivery-confirm-dialog h3 {
+    margin: 0 0 var(--space-xs, 8px);
+    font-family: "Outfit", sans-serif;
+    font-size: var(--fs-lg, 1.1rem);
+    font-weight: 500;
+    color: var(--primary-text);
+}
+
+.delivery-confirm-message {
+    margin: 0 0 var(--space-md, 20px);
+    color: var(--secondary-text);
+    font-size: var(--fs-sm, 0.9rem);
+    line-height: 1.6;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.delivery-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-sm, 12px);
+    padding-top: var(--space-md, 20px);
+    border-top: 1px solid var(--border);
+}
+
+.delivery-confirm-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs, 8px);
+    padding: var(--space-sm, 12px) var(--space-md, 20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 10px);
+    background-color: var(--surface-card);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: var(--fs-md, 0.95rem);
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, transform 0.2s ease;
+}
+
+/* Cancel = secondary (same as View Details / Cancel shipment) */
+.delivery-confirm-actions button:hover {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 8%, var(--surface-card));
+}
+
+/* Confirm = primary (same as Confirm Shipment) */
+.delivery-confirm-actions .is-primary {
+    border-color: var(--primary-color);
+    background-color: var(--primary-color);
+    color: #FFFFFF;
+}
+
+.delivery-confirm-actions .is-primary:hover {
+    border-color: var(--primary-hover);
+    background-color: var(--primary-hover);
+    color: #FFFFFF;
+}
+
+/* Cancel order = danger */
+.delivery-confirm-actions .is-danger {
+    border-color: var(--error);
+    background-color: var(--error);
+    color: #FFFFFF;
+}
+
+.delivery-confirm-actions .is-danger:hover {
+    border-color: var(--error);
+    background-color: var(--error);
+    color: #FFFFFF;
+    filter: brightness(0.92);
+}
+
+.delivery-confirm-actions button:active {
+    transform: scale(0.98);
+}
+
+.delivery-confirm-actions button:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.delivery-confirm-actions .is-danger:focus-visible {
+    outline-color: var(--error);
+}
+
+@keyframes delivery-confirm-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes delivery-confirm-pop {
+    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 600px) {
+    .delivery-confirm-overlay { padding: 10px; }
+
+    .delivery-confirm-dialog {
+        padding: 16px;
+        border-radius: 16px;
+    }
+
+    .delivery-confirm-actions { flex-direction: column-reverse; }
+    .delivery-confirm-actions button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .delivery-confirm-overlay,
+    .delivery-confirm-dialog { animation: none; }
+    .delivery-confirm-actions button { transition: none !important; }
+}
+
 /* ============ DARK MODE ============ */
 :root[data-theme="dark"] .delivery-stat-card,
 :root[data-theme="dark"] .delivery-toolbar,
