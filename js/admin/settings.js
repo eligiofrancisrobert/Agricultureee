@@ -564,7 +564,10 @@ function render() {
                     : `Role: ${getRoleLabel()}`
             ),
             saveButton
-        )
+        ),
+
+        renderBackupSection()
+
     );
 
     root.replaceChildren(
@@ -892,6 +895,173 @@ async function init() {
         );
     }
 }
+
+
+function renderBackupSection() {
+    return h(
+        'section',
+        { class: 'system-backup' },
+
+        h(
+            'div',
+            { class: 'system-backup-header' },
+            h(
+                'div',
+                {},
+                h('h2', {}, 'System Backup & Recovery'),
+                h(
+                    'p',
+                    {},
+                    'Manage system backups and recovery operations to protect Tanikala data.'
+                )
+            ),
+            h(
+                'span',
+                { class: 'backup-status pending' },
+                'Not Configured'
+            )
+        ),
+
+        h(
+            'div',
+            { class: 'backup-overview' },
+            h(
+                'div',
+                { class: 'backup-overview-card' },
+                h('span', {}, 'Latest Backup'),
+                h('strong', {}, 'No backup yet'),
+                h('small', {}, 'No backup records available')
+            ),
+            h(
+                'div',
+                { class: 'backup-overview-card' },
+                h('span', {}, 'Backup Status'),
+                h('strong', {}, 'Not Configured'),
+                h('small', {}, 'Backup service is not connected')
+            ),
+            h(
+                'div',
+                { class: 'backup-overview-card' },
+                h('span', {}, 'Automatic Backup'),
+                h('strong', {}, 'Disabled'),
+                h('small', {}, 'No schedule configured')
+            )
+        ),
+
+        h(
+            'div',
+            { class: 'backup-panel' },
+            h('h3', {}, 'Create System Backup'),
+            h(
+                'p',
+                {},
+                'Create a protected copy of Tanikala database records and uploaded files.'
+            ),
+            h(
+                'button',
+                {
+                    type: 'button',
+                    class: 'btn btn-primary',
+                    disabled: true,
+                    title: 'Backup service is not configured yet.',
+                },
+                'Create Backup'
+            ),
+            h(
+                'small',
+                { class: 'backup-note' },
+                'Manual backup will be available after the secure backup service is configured.'
+            )
+        ),
+
+        h(
+            'div',
+            { class: 'backup-panel' },
+            h('h3', {}, 'Automatic Backup Schedule'),
+            h(
+                'p',
+                {},
+                'Configure how frequently the system should create backups.'
+            ),
+            h(
+                'div',
+                { class: 'backup-schedule-controls' },
+                h(
+                    'label',
+                    {},
+                    'Backup Frequency'
+                ),
+                h(
+                    'select',
+                    {
+                        class: 'form-control',
+                        disabled: true,
+                    },
+                    h('option', { value: '' }, 'Select frequency'),
+                    h('option', { value: 'daily' }, 'Daily'),
+                    h('option', { value: 'weekly' }, 'Weekly'),
+                    h('option', { value: 'monthly' }, 'Monthly')
+                ),
+                h(
+                    'button',
+                    {
+                        type: 'button',
+                        class: 'btn btn-secondary',
+                        disabled: true,
+                    },
+                    'Save Schedule'
+                )
+            ),
+            h(
+                'small',
+                { class: 'backup-note' },
+                'Automatic scheduling requires a server-side backup service.'
+            )
+        ),
+
+        h(
+            'div',
+            { class: 'backup-panel' },
+            h('h3', {}, 'Backup History'),
+            h(
+                'p',
+                {},
+                'Review previous backup operations and their status.'
+            ),
+            h(
+                'div',
+                { class: 'backup-history-empty' },
+                'No backup history available yet.'
+            )
+        ),
+
+        h(
+            'div',
+            { class: 'backup-panel backup-recovery-panel' },
+            h('h3', {}, 'System Recovery'),
+            h(
+                'p',
+                {},
+                'Restore Tanikala data from a previously created backup.'
+            ),
+            h(
+                'div',
+                { class: 'backup-warning' },
+                'Recovery is currently unavailable. Restoring a backup can overwrite existing system data and must only be performed through a verified recovery process.'
+            ),
+            h(
+                'button',
+                {
+                    type: 'button',
+                    class: 'btn btn-danger',
+                    disabled: true,
+                },
+                'Restore Backup'
+            )
+        )
+    );
+}
+
 
 async function renderView(viewRoot) {
     root = viewRoot || document.getElementById('view');
