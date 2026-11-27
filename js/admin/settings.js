@@ -1,3 +1,4 @@
+
 import { supabase } from '../connection.js';
 import { h, pageHead, select, toast } from './ui.js';
 
@@ -24,7 +25,24 @@ let accountRequestId = 0;
 let backupHistory = [];
 let backupLoading = false;
 let backupCreating = false;
+let backupDownloadingId = null;
 let backupLoadError = '';
+
+let backupPollTimer = null;
+let backupPollInFlight = false;
+
+const BACKUP_POLL_INTERVAL = 4000;
+
+// Automatic Backup Schedule state
+let backupSchedule = {
+    enabled: false,
+    backup_time: '02:00:00',
+    timezone: 'Asia/Manila',
+};
+
+let backupScheduleLoading = false;
+let backupScheduleSaving = false;
+let backupScheduleLoaded = false;
 
 const PROFILE = [
     'dashboard.view',
@@ -347,10 +365,173 @@ function getBackupStatusClass(status) {
     return 'pending';
 }
 
-async function loadBackupHistory() {
-    backupLoading = true;
-    backupLoadError = '';
+// ----------------------------------------
+// AUTOMATIC BACKUP SCHEDULE
+// ----------------------------------------
+
+async function loadBackupSchedule() {
+    if (backupScheduleLoading) return;
+
+    backupScheduleLoading = true;
+    backupScheduleLoaded = false;
     render();
+
+    try {
+        const { data, error } = await supabase
+            .from('backup_schedule_settings')
+            .select('id, enabled, backup_time, timezone')
+            .eq('id', 1)
+            .maybeSingle();
+
+        if (error) throw error;
+
+        if (!data) {
+            throw new Error('Backup schedule settings record was not found.');
+        }
+
+        backupSchedule = {
+            enabled: Boolean(data.enabled),
+            backup_time: String(data.backup_time || '02:00:00').slice(0, 5),
+            timezone: data.timezone || 'Asia/Manila',
+        };
+
+        backupScheduleLoaded = true;
+
+    } catch (error) {
+        console.error('Failed to load backup schedule:', error);
+        toast(error.message || 'Failed to load automatic backup schedule.');
+
+    } finally {
+        backupScheduleLoading = false;
+        render();
+    }
+}
+
+function updateBackupSchedule(field, value) {
+    if (backupScheduleSaving || backupScheduleLoading) return;
+
+    backupSchedule = {
+        ...backupSchedule,
+        [field]: value,
+    };
+
+    render();
+
+    const control = $(`[data-backup-schedule="${field}"]`);
+
+    if (control) {
+        control.focus();
+    }
+}
+
+async function saveBackupSchedule() {
+    if (
+        backupScheduleSaving
+        || backupScheduleLoading
+        || !backupScheduleLoaded
+    ) {
+        return;
+    }
+
+    const time = String(backupSchedule.backup_time || '').trim();
+    const timezone = String(backupSchedule.timezone || '').trim();
+
+    if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+        toast('Please enter a valid backup time.');
+        return;
+    }
+
+    if (!timezone) {
+        toast('Please enter a valid timezone.');
+        return;
+    }
+
+    backupScheduleSaving = true;
+    render();
+
+    try {
+        const { data, error } = await supabase
+            .from('backup_schedule_settings')
+            .update({
+                enabled: Boolean(backupSchedule.enabled),
+                backup_time: `${time}:00`,
+                timezone,
+                updated_by: currentUserId,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', 1)
+            .select('id, enabled, backup_time, timezone')
+            .maybeSingle();
+
+        if (error) throw error;
+
+        if (!data) {
+            throw new Error(
+                'Schedule was not saved. Check the admin update permission for backup_schedule_settings.'
+            );
+        }
+
+        backupSchedule = {
+            enabled: Boolean(data.enabled),
+            backup_time: String(data.backup_time || '02:00:00').slice(0, 5),
+            timezone: data.timezone || 'Asia/Manila',
+        };
+
+        toast('Automatic backup schedule saved successfully.');
+
+    } catch (error) {
+        console.error('Failed to save backup schedule:', error);
+        toast(error.message || 'Failed to save automatic backup schedule.');
+
+    } finally {
+        backupScheduleSaving = false;
+        render();
+    }
+}
+
+// ----------------------------------------
+// BACKUP AUTOMATIC POLLING
+// ----------------------------------------
+
+function hasActiveBackup() {
+    return backupHistory.some((backup) =>
+        ['pending', 'running'].includes(
+            String(backup.status || '').toLowerCase()
+        )
+    );
+}
+
+function stopBackupPolling() {
+    if (backupPollTimer) {
+        clearInterval(backupPollTimer);
+        backupPollTimer = null;
+    }
+}
+
+function syncBackupPolling() {
+    if (hasActiveBackup()) {
+        if (backupPollTimer) return;
+
+        backupPollTimer = setInterval(() => {
+            loadBackupHistory({ silent: true });
+        }, BACKUP_POLL_INTERVAL);
+
+        return;
+    }
+
+    stopBackupPolling();
+}
+
+async function loadBackupHistory({ silent = false } = {}) {
+    if (backupPollInFlight) return;
+
+    backupPollInFlight = true;
+
+    if (!silent) {
+        backupLoading = true;
+        backupLoadError = '';
+        render();
+    }
 
     try {
         const { data, error } = await supabase
@@ -362,6 +543,7 @@ async function loadBackupHistory() {
                 database_status,
                 storage_status,
                 workflow_run_url,
+                workflow_run_id,
                 artifact_name,
                 database_file_name,
                 storage_archive_name,
@@ -379,16 +561,24 @@ async function loadBackupHistory() {
         if (error) throw error;
 
         backupHistory = data || [];
+        backupLoadError = '';
 
     } catch (error) {
         console.error('Failed to load backup history:', error);
 
-        backupHistory = [];
-        backupLoadError = error.message || 'Failed to load backup history.';
+        if (!silent) {
+            backupLoadError = error.message || 'Failed to load backup history.';
+        }
 
     } finally {
-        backupLoading = false;
+        backupPollInFlight = false;
+
+        if (!silent) {
+            backupLoading = false;
+        }
+
         render();
+        syncBackupPolling();
     }
 }
 
@@ -423,6 +613,7 @@ async function createSystemBackup() {
         toast('Backup successfully queued.');
 
         await loadBackupHistory();
+        syncBackupPolling();
 
     } catch (error) {
         console.error('Failed to create system backup:', error);
@@ -434,8 +625,170 @@ async function createSystemBackup() {
     }
 }
 
+function showBackupDownloadModal() {
+    hideBackupDownloadModal();
+
+    const modal = document.createElement('div');
+    modal.id = 'backup-download-modal';
+    modal.className = 'backup-download-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'backup-download-modal-title');
+
+    const card = document.createElement('div');
+    card.className = 'backup-download-modal-card';
+
+    const spinner = document.createElement('div');
+    spinner.className = 'backup-download-spinner';
+    spinner.setAttribute('aria-hidden', 'true');
+
+    const title = document.createElement('h3');
+    title.id = 'backup-download-modal-title';
+    title.textContent = 'Preparing Backup Download';
+
+    const message = document.createElement('p');
+    message.textContent =
+        'Please wait while Tanikala retrieves and verifies your backup ZIP file. Do not close this page.';
+
+    card.append(spinner, title, message);
+    modal.appendChild(card);
+    document.body.appendChild(modal);
+}
+
+function hideBackupDownloadModal() {
+    document.getElementById('backup-download-modal')?.remove();
+}
+
+// ----------------------------------------
+// DOWNLOAD COMPLETED BACKUP
+// ----------------------------------------
+
+async function downloadSystemBackup(backup) {
+    if (backupDownloadingId) return;
+
+    if (
+        String(backup.status || '').toLowerCase() !== 'completed'
+        || !backup.workflow_run_id
+        || !backup.artifact_name
+    ) {
+        toast('This backup is not available for download.');
+        return;
+    }
+
+    backupDownloadingId = backup.id;
+    render();
+    showBackupDownloadModal();
+
+    try {
+        const {
+            data: sessionData,
+            error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError) throw sessionError;
+
+        const accessToken = sessionData?.session?.access_token;
+
+        if (!accessToken) {
+            throw new Error('Your session has expired. Please sign in again.');
+        }
+
+        const response = await fetch(
+            `${supabase.supabaseUrl}/functions/v1/admin-system-backup`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`,
+                    'apikey': supabase.supabaseKey,
+                },
+                body: JSON.stringify({
+                    action: 'download',
+                    backupId: backup.id,
+                }),
+            }
+        );
+
+        if (!response.ok) {
+            const responseText = await response.text();
+
+            let errorMessage = `Download failed (${response.status}).`;
+
+            try {
+                const errorData = JSON.parse(responseText);
+                errorMessage = errorData.error
+                    || errorData.message
+                    || errorMessage;
+            } catch {
+                if (responseText) {
+                    errorMessage = responseText.slice(0, 500);
+                }
+            }
+
+            throw new Error(errorMessage);
+        }
+
+        const blob = await response.blob();
+
+        if (!blob || blob.size === 0) {
+            throw new Error('The downloaded backup file is empty.');
+        }
+
+        const signature = new Uint8Array(
+            await blob.slice(0, 4).arrayBuffer()
+        );
+
+        if (
+            signature.length < 4
+            || signature[0] !== 0x50
+            || signature[1] !== 0x4B
+        ) {
+            throw new Error(
+                'The server response is not a valid ZIP archive. Check the Edge Function download response.'
+            );
+        }
+
+        const filename = `tanikala-system-backup-${backup.id}.zip`;
+        const downloadBlob = new Blob(
+            [blob],
+            { type: 'application/zip' }
+        );
+
+        const downloadUrl = URL.createObjectURL(downloadBlob);
+
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = filename;
+
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+
+        toast('Backup download started.');
+
+    } catch (error) {
+        console.error('Backup download failed:', error);
+        toast(error.message || 'Failed to download system backup.');
+
+    } finally {
+        hideBackupDownloadModal();
+        backupDownloadingId = null;
+        render();
+    }
+}
+
 function renderBackupHistoryItem(backup) {
     const statusClass = getBackupStatusClass(backup.status);
+    const isActive = ['pending', 'running'].includes(
+        String(backup.status || '').toLowerCase()
+    );
+
+    const isCompleted =
+        String(backup.status || '').toLowerCase() === 'completed';
+
+    const isDownloading = backupDownloadingId === backup.id;
 
     const details = h(
         'div',
@@ -472,6 +825,21 @@ function renderBackupHistoryItem(backup) {
     );
 
     const links = [];
+
+    if (isCompleted && backup.workflow_run_id && backup.artifact_name) {
+        links.push(
+            h(
+                'button',
+                {
+                    type: 'button',
+                    class: 'btn btn-primary backup-download-button',
+                    disabled: Boolean(backupDownloadingId),
+                    onclick: () => downloadSystemBackup(backup),
+                },
+                isDownloading ? 'Preparing Download...' : 'Download Backup'
+            )
+        );
+    }
 
     if (backup.workflow_run_url) {
         links.push(
@@ -516,6 +884,19 @@ function renderBackupHistoryItem(backup) {
                 formatBackupStatus(backup.status)
             )
         ),
+
+        isActive
+            ? h(
+                'div',
+                { class: 'backup-progress-indicator' },
+                h('span', { class: 'backup-spinner' }),
+                h(
+                    'span',
+                    {},
+                    'Backup is in progress. Status updates automatically.'
+                )
+            )
+            : null,
 
         details,
 
@@ -1132,7 +1513,6 @@ async function init() {
 
         catalog = catalogData || [];
 
-        // Keep only permission keys that actually exist in the catalog.
         for (const [roleKey, permissionSet] of Object.entries(ROLE_PERMISSIONS)) {
             ROLE_PERMISSIONS[roleKey] = new Set(
                 [...permissionSet].filter((key) =>
@@ -1147,6 +1527,7 @@ async function init() {
         await Promise.all([
             loadAccounts(),
             loadBackupHistory(),
+            loadBackupSchedule(),
         ]);
 
     } catch (error) {
@@ -1184,6 +1565,11 @@ function renderBackupSection() {
         ? getBackupStatusClass(latestBackup.status)
         : 'pending';
 
+    const latestIsActive = latestBackup
+        && ['pending', 'running'].includes(
+            String(latestBackup.status || '').toLowerCase()
+        );
+
     const historyContent = backupLoading
         ? h(
             'div',
@@ -1208,6 +1594,40 @@ function renderBackupSection() {
                     'No backup history available yet.'
                 );
 
+    const scheduleTimeInput = h('input', {
+        type: 'time',
+        class: 'form-control',
+        value: backupSchedule.backup_time,
+        disabled: backupScheduleLoading || backupScheduleSaving || !backupScheduleLoaded,
+        'data-backup-schedule': 'backup_time',
+        oninput: (event) => {
+            backupSchedule.backup_time = event.target.value;
+        },
+    });
+
+    const scheduleTimezoneInput = h('input', {
+        type: 'text',
+        class: 'form-control',
+        value: backupSchedule.timezone,
+        placeholder: 'Asia/Manila',
+        disabled: backupScheduleLoading || backupScheduleSaving || !backupScheduleLoaded,
+        'data-backup-schedule': 'timezone',
+        oninput: (event) => {
+            backupSchedule.timezone = event.target.value;
+        },
+    });
+
+    const scheduleEnabledInput = h('input', {
+        type: 'checkbox',
+        checked: backupSchedule.enabled,
+        disabled: backupScheduleLoading || backupScheduleSaving || !backupScheduleLoaded,
+        'data-backup-schedule': 'enabled',
+        onchange: (event) => {
+            backupSchedule.enabled = event.target.checked;
+            render();
+        },
+    });
+
     return h(
         'section',
         { class: 'system-backup' },
@@ -1231,6 +1651,24 @@ function renderBackupSection() {
                 latestStatus
             )
         ),
+
+        latestIsActive
+            ? h(
+                'div',
+                { class: 'backup-active-notice' },
+                h('span', { class: 'backup-spinner' }),
+                h(
+                    'div',
+                    {},
+                    h('strong', {}, 'System backup is in progress'),
+                    h(
+                        'small',
+                        {},
+                        'Backup status refreshes automatically. Please wait while the database and uploaded files are being backed up.'
+                    )
+                )
+            )
+            : null,
 
         h(
             'div',
@@ -1299,10 +1737,14 @@ function renderBackupSection() {
                 {
                     type: 'button',
                     class: 'btn btn-primary',
-                    disabled: backupCreating || backupLoading,
+                    disabled: backupCreating || backupLoading || latestIsActive,
                     onclick: createSystemBackup,
                 },
-                backupCreating ? 'Starting Backup...' : 'Create Backup'
+                backupCreating
+                    ? 'Starting Backup...'
+                    : latestIsActive
+                        ? 'Backup in Progress...'
+                        : 'Create Backup'
             ),
             h(
                 'small',
@@ -1318,37 +1760,63 @@ function renderBackupSection() {
             h(
                 'p',
                 {},
-                'Configure how frequently the system should create backups.'
+                'Configure the daily automatic backup time. The scheduler checks this setting every minute.'
             ),
+
+            backupScheduleLoading
+                ? h(
+                    'p',
+                    { class: 'backup-note' },
+                    'Loading automatic backup settings...'
+                )
+                : null,
+
             h(
                 'div',
                 { class: 'backup-schedule-controls' },
-                h('label', {}, 'Backup Frequency'),
+
                 h(
-                    'select',
-                    {
-                        class: 'form-control',
-                        disabled: true,
-                    },
-                    h('option', { value: '' }, 'Select frequency'),
-                    h('option', { value: 'daily' }, 'Daily'),
-                    h('option', { value: 'weekly' }, 'Weekly'),
-                    h('option', { value: 'monthly' }, 'Monthly')
+                    'label',
+                    { class: 'backup-schedule-toggle' },
+                    scheduleEnabledInput,
+                    'Enable automatic daily backup'
                 ),
+
+                h(
+                    'div',
+                    { class: 'backup-schedule-field' },
+                    h('label', {}, 'Daily Backup Time'),
+                    scheduleTimeInput
+                ),
+
+                h(
+                    'div',
+                    { class: 'backup-schedule-field' },
+                    h('label', {}, 'Timezone'),
+                    scheduleTimezoneInput
+                ),
+
                 h(
                     'button',
                     {
                         type: 'button',
-                        class: 'btn btn-secondary',
-                        disabled: true,
+                        class: 'btn btn-primary',
+                        disabled:
+                            backupScheduleLoading
+                            || backupScheduleSaving
+                            || !backupScheduleLoaded,
+                        onclick: saveBackupSchedule,
                     },
-                    'Save Schedule'
+                    backupScheduleSaving
+                        ? 'Saving Schedule...'
+                        : 'Save Schedule'
                 )
             ),
+
             h(
                 'small',
                 { class: 'backup-note' },
-                'Automatic scheduling will be configured separately.'
+                'The automatic scheduler uses the saved time and timezone. Disabling this option stops future automatic backups without affecting manual backups.'
             )
         ),
 
@@ -1410,6 +1878,8 @@ function renderBackupSection() {
 }
 
 async function renderView(viewRoot) {
+    stopBackupPolling();
+
     root = viewRoot || document.getElementById('view');
 
     catalog = [];
@@ -1430,7 +1900,18 @@ async function renderView(viewRoot) {
     backupHistory = [];
     backupLoading = false;
     backupCreating = false;
+    backupDownloadingId = null;
     backupLoadError = '';
+    backupPollInFlight = false;
+
+    backupSchedule = {
+        enabled: false,
+        backup_time: '02:00:00',
+        timezone: 'Asia/Manila',
+    };
+    backupScheduleLoading = false;
+    backupScheduleSaving = false;
+    backupScheduleLoaded = false;
 
     loadRequestId++;
     accountRequestId++;

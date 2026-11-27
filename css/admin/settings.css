@@ -12,10 +12,10 @@
     min-width: 0;
 }
 
-/* ---------- Toolbar (role select + search) ---------- */
+/* ---------- Toolbar (role + user + search) ---------- */
 .permission-toolbar {
     display: grid;
-    grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 240px) minmax(0, 1fr) minmax(0, 1fr);
     align-items: end;
     gap: 16px;
     padding: 20px;
@@ -25,6 +25,7 @@
 }
 
 .permission-role-field,
+.permission-user-field,
 .permission-search-field {
     display: flex;
     flex-direction: column;
@@ -33,6 +34,7 @@
 }
 
 .permission-role-field label,
+.permission-user-field label,
 .permission-search-field label {
     color: var(--muted);
     font-size: .8rem;
@@ -54,7 +56,7 @@
     color: var(--muted);
 }
 
-.form-control:hover {
+.form-control:hover:not(:disabled) {
     border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
 }
 
@@ -64,14 +66,45 @@
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
 }
 
-.permission-role-select {
+.form-control:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+.permission-role-select,
+.permission-user-select {
     padding-right: 36px;
     cursor: pointer;
+    text-overflow: ellipsis;
 }
 
 .permission-search {
     -webkit-appearance: none;
     appearance: none;
+}
+
+/* ---------- Selected account chip ---------- */
+.permission-selected-account {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+    padding: 14px 20px;
+    border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
+    border-radius: var(--r);
+    background: color-mix(in srgb, var(--mint) 45%, var(--card));
+}
+
+.permission-selected-account strong {
+    font-size: .95rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.permission-selected-account span {
+    color: var(--muted);
+    font-size: .82rem;
+    overflow-wrap: anywhere;
 }
 
 /* ---------- Summary counters ---------- */
@@ -130,7 +163,7 @@
 .permission-modules {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-    align-items: stretch;
+    align-items: start;
     gap: 16px;
 }
 
@@ -207,7 +240,15 @@
 }
 
 .permission-item-info small {
+    color: var(--muted);
     font-size: .74rem;
+}
+
+.permission-item-info .permission-source {
+    margin-top: 2px;
+    color: var(--primary);
+    font-size: .7rem;
+    font-weight: 600;
 }
 
 .permission-item-control {
@@ -248,6 +289,16 @@
     cursor: pointer;
 }
 
+.permission-toggle:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+}
+
+.permission-toggle:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
 .permission-toggle-track {
     position: relative;
     display: block;
@@ -278,7 +329,7 @@
     transform: translateX(20px);
 }
 
-.permission-toggle:hover .permission-toggle-track {
+.permission-toggle:hover:not(:disabled) .permission-toggle-track {
     filter: brightness(1.06);
 }
 
@@ -312,19 +363,23 @@
     color: var(--muted);
     font-size: .85rem;
     font-weight: 500;
+    overflow-wrap: anywhere;
 }
 
 
 /* =========================================
    SYSTEM BACKUP & RECOVERY
+   (uses the same shared tokens, so no
+   separate dark-mode overrides are needed)
 ========================================= */
 
 .system-backup {
-    margin-top: 32px;
+    margin-top: 8px;
     padding: 24px;
-    border: 1px solid var(--border-color, #e5e7eb);
-    border-radius: 16px;
-    background: var(--card-bg, #fff);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+    color: var(--text);
 }
 
 .system-backup-header {
@@ -342,23 +397,40 @@
 }
 
 .system-backup-header p,
-.backup-panel>p {
+.backup-panel>p,
+.backup-history-header p {
     margin: 0;
-    color: var(--text-muted, #777);
-    font-size: 0.88rem;
+    color: var(--muted);
+    font-size: .88rem;
     line-height: 1.6;
 }
 
+/* Status badge (base = pending/amber) */
 .backup-status {
+    display: inline-block;
     flex-shrink: 0;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 0.75rem;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: .75rem;
     font-weight: 600;
-    background: #fef3c7;
-    color: #92400e;
+    white-space: nowrap;
+    background: color-mix(in srgb, var(--warning) 22%, var(--card));
+    color: var(--text);
 }
 
+.backup-status.pending {
+    background: color-mix(in srgb, var(--warning) 22%, var(--card));
+}
+
+.backup-status.completed {
+    background: color-mix(in srgb, var(--success) 22%, var(--card));
+}
+
+.backup-status.failed {
+    background: color-mix(in srgb, var(--error) 20%, var(--card));
+}
+
+/* Overview cards */
 .backup-overview {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -370,33 +442,36 @@
     display: flex;
     flex-direction: column;
     gap: 7px;
+    min-width: 0;
     padding: 17px;
-    border: 1px solid var(--border-color, #e5e7eb);
+    border: 1px solid var(--border);
     border-radius: 12px;
-    background: var(--surface-bg, #fafafa);
+    background: color-mix(in srgb, var(--border) 25%, var(--card));
 }
 
 .backup-overview-card span {
-    color: var(--text-muted, #777);
-    font-size: 0.8rem;
+    color: var(--muted);
+    font-size: .8rem;
 }
 
 .backup-overview-card strong {
     font-size: 1rem;
     font-weight: 600;
+    overflow-wrap: anywhere;
 }
 
 .backup-overview-card small,
 .backup-note {
-    color: var(--text-muted, #777);
-    font-size: 0.76rem;
+    color: var(--muted);
+    font-size: .76rem;
     line-height: 1.5;
 }
 
+/* Panels */
 .backup-panel {
     margin-top: 16px;
     padding: 20px;
-    border: 1px solid var(--border-color, #e5e7eb);
+    border: 1px solid var(--border);
     border-radius: 12px;
 }
 
@@ -415,6 +490,7 @@
     margin-top: 10px;
 }
 
+/* Schedule */
 .backup-schedule-controls {
     display: flex;
     align-items: center;
@@ -423,7 +499,7 @@
 }
 
 .backup-schedule-controls label {
-    font-size: 0.85rem;
+    font-size: .85rem;
     font-weight: 500;
 }
 
@@ -431,51 +507,250 @@
     width: min(240px, 100%);
 }
 
+/* ---------- Backup history ---------- */
+.backup-history-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.backup-history-header h3 {
+    margin-bottom: 4px;
+}
+
+.backup-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.backup-history-item {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--border) 18%, var(--card));
+}
+
+.backup-history-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.backup-history-heading strong {
+    font-size: .92rem;
+    font-weight: 600;
+}
+
+.backup-history-details {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.backup-history-details>div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.backup-history-details strong {
+    font-size: .86rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.backup-history-details small {
+    color: var(--muted);
+    font-size: .74rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.backup-history-components {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.backup-history-components span {
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--mint);
+    color: var(--primary-dark);
+    font-size: .72rem;
+    font-weight: 600;
+}
+
+.backup-history-link {
+    align-self: flex-start;
+    color: var(--primary);
+    font-size: .8rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.backup-history-link:hover {
+    text-decoration: underline;
+}
+
+.backup-history-error {
+    padding: 8px 12px;
+    border-left: 3px solid var(--error);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--error) 12%, var(--card));
+    color: var(--text);
+    font-size: .78rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
 .backup-history-empty {
     padding: 22px;
-    border: 1px dashed var(--border-color, #d1d5db);
+    border: 1px dashed var(--border);
     border-radius: 10px;
-    color: var(--text-muted, #777);
+    color: var(--muted);
     text-align: center;
-    font-size: 0.85rem;
+    font-size: .85rem;
+}
+
+/* ---------- Recovery ---------- */
+.backup-recovery-panel {
+    border-color: color-mix(in srgb, var(--error) 35%, var(--border));
 }
 
 .backup-warning {
     margin-bottom: 16px;
     padding: 13px 15px;
-    border-left: 3px solid #d97706;
+    border-left: 3px solid var(--warning);
     border-radius: 6px;
-    background: #fffbeb;
-    color: #92400e;
-    font-size: 0.84rem;
+    background: color-mix(in srgb, var(--warning) 14%, var(--card));
+    color: var(--text);
+    font-size: .84rem;
     line-height: 1.6;
 }
 
-/* Dark mode */
-
-:root[data-theme="dark"] .system-backup {
-    background: var(--card-bg, #211f1c);
-    border-color: #3b3833;
+.backup-panel .btn:disabled {
+    opacity: .55;
+    cursor: not-allowed;
 }
 
-:root[data-theme="dark"] .backup-overview-card,
-:root[data-theme="dark"] .backup-panel {
-    background: var(--surface-bg, #191816);
-    border-color: #3b3833;
+/* =========================================
+   BACKUP DOWNLOAD LOADING MODAL
+========================================= */
+
+.backup-download-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, .65);
+    backdrop-filter: blur(4px);
 }
 
-:root[data-theme="dark"] .backup-warning {
-    background: #352b1b;
-    color: #fcd68a;
-    border-left-color: #d97706;
+.backup-download-modal-card {
+    width: 100%;
+    max-width: 380px;
+    padding: 30px 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--card);
+    color: var(--text);
+    text-align: center;
+    box-shadow: var(--shadow);
 }
 
-:root[data-theme="dark"] .backup-status {
-    background: #493817;
-    color: #fcd68a;
+.backup-download-spinner {
+    width: 46px;
+    height: 46px;
+    margin: 0 auto 20px;
+    border: 4px solid color-mix(in srgb, var(--primary) 20%, transparent);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: backup-download-spin .8s linear infinite;
 }
 
-/* Responsive */
+.backup-download-modal-card h3 {
+    margin: 0 0 10px;
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.backup-download-modal-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: .85rem;
+    line-height: 1.6;
+}
+
+/* ---------- Dark mode (only what tokens can't cover) ---------- */
+:root[data-theme="dark"] .permission-notice {
+    background: color-mix(in srgb, var(--warning) 10%, var(--card));
+}
+
+:root[data-theme="dark"] .permission-toggle-track {
+    background: color-mix(in srgb, var(--secondary-text) 30%, var(--card));
+}
+
+:root[data-theme="dark"] .permission-toggle.is-allowed .permission-toggle-track {
+    background: var(--primary);
+}
+
+:root[data-theme="dark"] .permission-footer {
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, .35);
+}
+
+:root[data-theme="dark"] .permission-selected-account {
+    background: color-mix(in srgb, var(--primary) 12%, var(--card));
+}
+@keyframes backup-download-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .backup-download-spinner {
+        animation-duration: 2s;
+    }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) {
+    .permission-toolbar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .permission-search-field {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 800px) {
+    .permission-toolbar {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .permission-modules {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .backup-history-details {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
 
 @media (max-width: 768px) {
     .system-backup {
@@ -497,36 +772,6 @@
 
     .backup-schedule-controls select {
         width: 100%;
-    }
-}
-
-
-/* ---------- Dark mode ---------- */
-:root[data-theme="dark"] .permission-notice {
-    background: color-mix(in srgb, var(--warning) 10%, var(--card));
-}
-
-:root[data-theme="dark"] .permission-toggle-track {
-    background: color-mix(in srgb, var(--secondary-text) 30%, var(--card));
-}
-
-:root[data-theme="dark"] .permission-toggle.is-allowed .permission-toggle-track {
-    background: var(--primary);
-}
-
-:root[data-theme="dark"] .permission-footer {
-    box-shadow: 0 -4px 18px rgba(0, 0, 0, .35);
-}
-
-
-/* ---------- Responsive ---------- */
-@media (max-width: 800px) {
-    .permission-toolbar {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .permission-modules {
-        grid-template-columns: minmax(0, 1fr);
     }
 }
 
