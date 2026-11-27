@@ -915,7 +915,6 @@ useCurrentLocationButton?.addEventListener(
    SHOW / HIDE PASSWORD
 ========================================================= */
 
-// Matches the .password-toggle class in signup.html.
 document.querySelectorAll(".password-toggle").forEach(toggleButton => {
     toggleButton.addEventListener("click", () => {
         const targetId = toggleButton.dataset.target;
@@ -924,13 +923,23 @@ document.querySelectorAll(".password-toggle").forEach(toggleButton => {
             ? document.getElementById(targetId)
             : toggleButton.parentElement.querySelector("input");
 
-        if (!passwordInput) return;
+        if (!passwordInput) {
+            console.error(
+                "Password input not found:",
+                targetId
+            );
+            return;
+        }
 
-        const isPassword =
-            passwordInput.type === "password";
+        const isPassword = passwordInput.type === "password";
 
+        // Toggle password visibility
         passwordInput.type = isPassword ? "text" : "password";
 
+        // Toggle button text
+        toggleButton.textContent = isPassword ? "Hide" : "Show";
+
+        // Update accessibility attributes
         toggleButton.setAttribute(
             "aria-label",
             isPassword ? "Hide password" : "Show password"
