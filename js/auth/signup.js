@@ -951,7 +951,7 @@ if (!form) {
 
         if (!strongPassword) {
             showMessage(
-                "Password must be at least 12 characters and include " +
+                "Password must be at least 15 characters and include " +
                 "a lowercase letter, an uppercase letter, a number, " +
                 "and a symbol.",
                 true
