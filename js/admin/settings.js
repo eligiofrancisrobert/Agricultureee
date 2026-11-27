@@ -20,6 +20,12 @@ let searchTerm = '';
 let loadRequestId = 0;
 let accountRequestId = 0;
 
+// System Backup state
+let backupHistory = [];
+let backupLoading = false;
+let backupCreating = false;
+let backupLoadError = '';
+
 const PROFILE = [
     'dashboard.view',
     'profile.view',
@@ -276,6 +282,265 @@ function getSelectedAccount() {
         (account) => account.user_id === selectedUserId
     ) || null;
 }
+
+// ----------------------------------------
+// SYSTEM BACKUP HELPERS
+// ----------------------------------------
+
+function formatBackupDate(value) {
+    if (!value) return 'Not available';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return 'Not available';
+    }
+
+    return date.toLocaleString('en-PH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+}
+
+function formatBackupSize(bytes) {
+    const size = Number(bytes);
+
+    if (!Number.isFinite(size) || size <= 0) {
+        return '0 B';
+    }
+
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const index = Math.min(
+        Math.floor(Math.log(size) / Math.log(1024)),
+        units.length - 1
+    );
+
+    return `${(size / Math.pow(1024, index)).toFixed(index === 0 ? 0 : 2)} ${units[index]}`;
+}
+
+function formatBackupStatus(status) {
+    const value = String(status || 'unknown')
+        .trim()
+        .toLowerCase();
+
+    return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function getBackupStatusClass(status) {
+    const value = String(status || 'unknown').toLowerCase();
+
+    if (['completed', 'success', 'successful'].includes(value)) {
+        return 'completed';
+    }
+
+    if (['failed', 'cancelled'].includes(value)) {
+        return 'failed';
+    }
+
+    if (['pending', 'running'].includes(value)) {
+        return 'pending';
+    }
+
+    return 'pending';
+}
+
+async function loadBackupHistory() {
+    backupLoading = true;
+    backupLoadError = '';
+    render();
+
+    try {
+        const { data, error } = await supabase
+            .from('system_backup_logs')
+            .select(`
+                id,
+                backup_type,
+                status,
+                database_status,
+                storage_status,
+                workflow_run_url,
+                artifact_name,
+                database_file_name,
+                storage_archive_name,
+                database_size_bytes,
+                storage_size_bytes,
+                total_size_bytes,
+                error_message,
+                started_at,
+                completed_at,
+                created_at
+            `)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        if (error) throw error;
+
+        backupHistory = data || [];
+
+    } catch (error) {
+        console.error('Failed to load backup history:', error);
+
+        backupHistory = [];
+        backupLoadError = error.message || 'Failed to load backup history.';
+
+    } finally {
+        backupLoading = false;
+        render();
+    }
+}
+
+async function createSystemBackup() {
+    if (backupCreating) return;
+
+    backupCreating = true;
+    render();
+
+    try {
+        const { data, error } = await supabase.functions.invoke(
+            'admin-system-backup',
+            {
+                body: {
+                    backupType: 'manual',
+                },
+            }
+        );
+
+        if (error) {
+            throw new Error(
+                error.message || 'Could not start the backup workflow.'
+            );
+        }
+
+        if (!data?.success || !data?.backupId) {
+            throw new Error(
+                data?.error || 'The backup service returned an unexpected response.'
+            );
+        }
+
+        toast('Backup successfully queued.');
+
+        await loadBackupHistory();
+
+    } catch (error) {
+        console.error('Failed to create system backup:', error);
+        toast(error.message || 'Failed to create system backup.');
+
+    } finally {
+        backupCreating = false;
+        render();
+    }
+}
+
+function renderBackupHistoryItem(backup) {
+    const statusClass = getBackupStatusClass(backup.status);
+
+    const details = h(
+        'div',
+        { class: 'backup-history-details' },
+
+        h(
+            'div',
+            {},
+            h('strong', {}, formatBackupStatus(backup.status)),
+            h(
+                'small',
+                {},
+                `${String(backup.backup_type || 'manual').toUpperCase()} backup`
+            )
+        ),
+
+        h(
+            'div',
+            {},
+            h('strong', {}, formatBackupDate(backup.created_at)),
+            h(
+                'small',
+                {},
+                `Database: ${formatBackupStatus(backup.database_status)} · Storage: ${formatBackupStatus(backup.storage_status)}`
+            )
+        ),
+
+        h(
+            'div',
+            {},
+            h('strong', {}, formatBackupSize(backup.total_size_bytes)),
+            h('small', {}, 'Total backup size')
+        )
+    );
+
+    const links = [];
+
+    if (backup.workflow_run_url) {
+        links.push(
+            h(
+                'a',
+                {
+                    href: backup.workflow_run_url,
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                    class: 'backup-history-link',
+                },
+                'View GitHub Actions run'
+            )
+        );
+    }
+
+    if (backup.error_message) {
+        links.push(
+            h(
+                'small',
+                { class: 'backup-history-error' },
+                backup.error_message
+            )
+        );
+    }
+
+    return h(
+        'div',
+        { class: 'backup-history-item' },
+
+        h(
+            'div',
+            { class: 'backup-history-heading' },
+            h(
+                'strong',
+                {},
+                `Backup ${String(backup.id).slice(0, 8)}`
+            ),
+            h(
+                'span',
+                { class: `backup-status ${statusClass}` },
+                formatBackupStatus(backup.status)
+            )
+        ),
+
+        details,
+
+        h(
+            'div',
+            { class: 'backup-history-components' },
+            h(
+                'span',
+                {},
+                `Database: ${formatBackupSize(backup.database_size_bytes)}`
+            ),
+            h(
+                'span',
+                {},
+                `Storage: ${formatBackupSize(backup.storage_size_bytes)}`
+            )
+        ),
+
+        ...links
+    );
+}
+
+// ----------------------------------------
+// EXISTING PERMISSION RENDERING
+// ----------------------------------------
 
 function renderPermissionCard(permission) {
     const key = permission.permission_key;
@@ -567,7 +832,6 @@ function render() {
         ),
 
         renderBackupSection()
-
     );
 
     root.replaceChildren(
@@ -880,7 +1144,10 @@ async function init() {
         loading = false;
         render();
 
-        await loadAccounts();
+        await Promise.all([
+            loadAccounts(),
+            loadBackupHistory(),
+        ]);
 
     } catch (error) {
         console.error('Admin Settings initialization failed:', error);
@@ -896,8 +1163,51 @@ async function init() {
     }
 }
 
+// ----------------------------------------
+// SYSTEM BACKUP SECTION
+// ----------------------------------------
 
 function renderBackupSection() {
+    const latestBackup = backupHistory[0] || null;
+
+    const latestStatus = latestBackup
+        ? formatBackupStatus(latestBackup.status)
+        : backupLoading
+            ? 'Loading...'
+            : 'No backup yet';
+
+    const latestDate = latestBackup
+        ? formatBackupDate(latestBackup.created_at)
+        : 'No backup records available';
+
+    const statusClass = latestBackup
+        ? getBackupStatusClass(latestBackup.status)
+        : 'pending';
+
+    const historyContent = backupLoading
+        ? h(
+            'div',
+            { class: 'backup-history-empty' },
+            'Loading backup history...'
+        )
+        : backupLoadError
+            ? h(
+                'div',
+                { class: 'backup-history-empty' },
+                backupLoadError
+            )
+            : backupHistory.length > 0
+                ? h(
+                    'div',
+                    { class: 'backup-history-list' },
+                    ...backupHistory.map(renderBackupHistoryItem)
+                )
+                : h(
+                    'div',
+                    { class: 'backup-history-empty' },
+                    'No backup history available yet.'
+                );
+
     return h(
         'section',
         { class: 'system-backup' },
@@ -917,34 +1227,61 @@ function renderBackupSection() {
             ),
             h(
                 'span',
-                { class: 'backup-status pending' },
-                'Not Configured'
+                { class: `backup-status ${statusClass}` },
+                latestStatus
             )
         ),
 
         h(
             'div',
             { class: 'backup-overview' },
+
             h(
                 'div',
                 { class: 'backup-overview-card' },
                 h('span', {}, 'Latest Backup'),
-                h('strong', {}, 'No backup yet'),
-                h('small', {}, 'No backup records available')
+                h('strong', {}, latestDate),
+                h(
+                    'small',
+                    {},
+                    latestBackup
+                        ? `Backup ID: ${String(latestBackup.id).slice(0, 8)}`
+                        : 'No completed backup information yet'
+                )
             ),
+
             h(
                 'div',
                 { class: 'backup-overview-card' },
                 h('span', {}, 'Backup Status'),
-                h('strong', {}, 'Not Configured'),
-                h('small', {}, 'Backup service is not connected')
+                h('strong', {}, latestStatus),
+                h(
+                    'small',
+                    {},
+                    latestBackup
+                        ? `Database: ${formatBackupStatus(latestBackup.database_status)} · Storage: ${formatBackupStatus(latestBackup.storage_status)}`
+                        : 'Backup service connected'
+                )
             ),
+
             h(
                 'div',
                 { class: 'backup-overview-card' },
-                h('span', {}, 'Automatic Backup'),
-                h('strong', {}, 'Disabled'),
-                h('small', {}, 'No schedule configured')
+                h('span', {}, 'Latest Backup Size'),
+                h(
+                    'strong',
+                    {},
+                    latestBackup
+                        ? formatBackupSize(latestBackup.total_size_bytes)
+                        : 'Not available'
+                ),
+                h(
+                    'small',
+                    {},
+                    latestBackup
+                        ? `Database: ${formatBackupSize(latestBackup.database_size_bytes)} · Storage: ${formatBackupSize(latestBackup.storage_size_bytes)}`
+                        : 'No backup size available'
+                )
             )
         ),
 
@@ -962,15 +1299,15 @@ function renderBackupSection() {
                 {
                     type: 'button',
                     class: 'btn btn-primary',
-                    disabled: true,
-                    title: 'Backup service is not configured yet.',
+                    disabled: backupCreating || backupLoading,
+                    onclick: createSystemBackup,
                 },
-                'Create Backup'
+                backupCreating ? 'Starting Backup...' : 'Create Backup'
             ),
             h(
                 'small',
                 { class: 'backup-note' },
-                'Manual backup will be available after the secure backup service is configured.'
+                'The backup will run securely through the configured GitHub Actions workflow. You can monitor its progress in Backup History.'
             )
         ),
 
@@ -986,11 +1323,7 @@ function renderBackupSection() {
             h(
                 'div',
                 { class: 'backup-schedule-controls' },
-                h(
-                    'label',
-                    {},
-                    'Backup Frequency'
-                ),
+                h('label', {}, 'Backup Frequency'),
                 h(
                     'select',
                     {
@@ -1015,24 +1348,38 @@ function renderBackupSection() {
             h(
                 'small',
                 { class: 'backup-note' },
-                'Automatic scheduling requires a server-side backup service.'
+                'Automatic scheduling will be configured separately.'
             )
         ),
 
         h(
             'div',
             { class: 'backup-panel' },
-            h('h3', {}, 'Backup History'),
-            h(
-                'p',
-                {},
-                'Review previous backup operations and their status.'
-            ),
             h(
                 'div',
-                { class: 'backup-history-empty' },
-                'No backup history available yet.'
-            )
+                { class: 'backup-history-header' },
+                h(
+                    'div',
+                    {},
+                    h('h3', {}, 'Backup History'),
+                    h(
+                        'p',
+                        {},
+                        'Review previous backup operations and their status.'
+                    )
+                ),
+                h(
+                    'button',
+                    {
+                        type: 'button',
+                        class: 'btn btn-secondary',
+                        disabled: backupLoading,
+                        onclick: loadBackupHistory,
+                    },
+                    backupLoading ? 'Refreshing...' : 'Refresh'
+                )
+            ),
+            historyContent
         ),
 
         h(
@@ -1062,7 +1409,6 @@ function renderBackupSection() {
     );
 }
 
-
 async function renderView(viewRoot) {
     root = viewRoot || document.getElementById('view');
 
@@ -1080,6 +1426,11 @@ async function renderView(viewRoot) {
     saving = false;
     accountsLoading = false;
     searchTerm = '';
+
+    backupHistory = [];
+    backupLoading = false;
+    backupCreating = false;
+    backupLoadError = '';
 
     loadRequestId++;
     accountRequestId++;
