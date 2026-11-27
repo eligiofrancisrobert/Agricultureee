@@ -2,40 +2,123 @@ import { h, table, badge, person, select, fmtDate, toast, pageHead, ROLE } from 
 import { listUsers, setUserStatus } from './api.js';
 import { openDetails } from './details.js';
 
+/**
+ * Ask for a rejection reason using the same modal style as the delete dialog.
+ * Resolves to the trimmed reason, or null if the admin cancels.
+ */
+function askRejectionReason(userName) {
+    return new Promise((resolve) => {
+        const previousFocus = document.activeElement;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'delete-modal-overlay';
+
+        const modal = document.createElement('div');
+        modal.className = 'delete-modal';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.setAttribute('aria-labelledby', 'rejectTitle');
+
+        const icon = document.createElement('div');
+        icon.className = 'delete-modal-icon';
+        icon.textContent = '!';
+
+        const title = document.createElement('h2');
+        title.id = 'rejectTitle';
+        title.textContent = 'Reject application';
+
+        const text = document.createElement('p');
+        text.className = 'delete-modal-message';
+        const name = document.createElement('strong');
+        name.textContent = userName;
+        text.append(
+            "Why is ", name, "'s application being rejected? ",
+            'Explain what information or documents need correction.'
+        );
+
+        const field = document.createElement('textarea');
+        field.className = 'reject-reason';
+        field.rows = 4;
+        field.maxLength = 500;
+        field.placeholder = 'e.g. The uploaded ID is blurry. Please upload a clearer photo.';
+        field.setAttribute('aria-label', 'Rejection reason');
+
+        const actions = document.createElement('div');
+        actions.className = 'delete-modal-actions';
+
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'btn delete-cancel';
+        cancel.textContent = 'Cancel';
+
+        const confirm = document.createElement('button');
+        confirm.type = 'button';
+        confirm.className = 'btn delete-confirm';
+        confirm.textContent = 'Reject';
+        confirm.disabled = true;
+
+        actions.append(cancel, confirm);
+        modal.append(icon, title, text, field, actions);
+        overlay.append(modal);
+
+        const close = (result) => {
+            document.removeEventListener('keydown', onKey);
+            overlay.remove();
+            document.body.classList.remove('modal-open');
+            previousFocus?.focus?.();
+            resolve(result);
+        };
+
+        const submit = () => {
+            const reason = field.value.trim();
+            if (reason) close(reason);
+        };
+
+        const onKey = (event) => {
+            if (event.key === 'Escape') close(null);
+        };
+
+        field.addEventListener('input', () => {
+            confirm.disabled = !field.value.trim();
+        });
+        cancel.addEventListener('click', () => close(null));
+        confirm.addEventListener('click', submit);
+        overlay.addEventListener('mousedown', (event) => {
+            if (event.target === overlay) close(null);
+        });
+        document.addEventListener('keydown', onKey);
+
+        document.body.append(overlay);
+        document.body.classList.add('modal-open');
+        field.focus();
+    });
+}
+
 export async function render(root, ctx) {
     const filter = { role: 'all', status: 'pending' };
     const holder = h('div');
-
 
     /** Apply an approval or a reasoned rejection, then refresh the queue. */
     const decide = async (user, status) => {
         let reason = '';
 
         if (status === 'rejected') {
-            const enteredReason = window.prompt(
-                `Why is ${user.name}'s application being rejected?\n\n` +
-                'Explain what information or documents need correction.'
-            );
+            const entered = await askRejectionReason(user.name);
 
-            // Cancel was clicked.
-            if (enteredReason === null) return;
+            // Cancelled (button, Escape, or backdrop click).
+            if (entered === null) return;
 
-            reason = enteredReason.trim();
-
-            if (!reason) {
-                toast('A rejection reason is required.');
-                return;
-            }
+            reason = entered;
         }
 
         try {
-            const result = await setUserStatus(user, status);
+            const result = await setUserStatus(user, status, reason);
 
             if (status === 'active') {
                 toast(`Approved ${user.name}`);
             } else {
                 toast(
-                    result.emailSent
+                    result?.emailSent
                         ? `Rejected ${user.name}. Email sent.`
                         : `Rejected ${user.name}, but the email was not sent.`
                 );
@@ -48,7 +131,6 @@ export async function render(root, ctx) {
             toast(err.message || 'Could not update this application.');
         }
     };
-
 
     /** Render applicants matching the current role, status, and search filters. */
     const draw = async () => {

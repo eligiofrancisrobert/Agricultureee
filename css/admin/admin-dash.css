@@ -1760,6 +1760,7 @@ a.fm-row:hover .fm-row-main b {
     .hero {
         min-height: 280px;
     }
+
     .fm-user {
         margin-top: 0;
     }
@@ -2186,6 +2187,26 @@ a.fm-row:hover .fm-row-main b {
     text-decoration: underline;
 }
 
+.reject-reason {
+    width: 100%;
+    margin-bottom: 8px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--background);
+    color: var(--primary-text);
+    font: inherit;
+    font-size: .9rem;
+    line-height: 1.5;
+    text-align: left;
+    resize: vertical;
+}
+
+.reject-reason:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+}
 
 /* ==========================================================
    RESPONSIVE TABLES (CSS only)
@@ -2234,6 +2255,7 @@ a.fm-row:hover .fm-row-main b {
 
 /* ---------- Tablet ---------- */
 @media (max-width: 800px) {
+
     .table-wrap th,
     .table-wrap td {
         padding: 12px;
@@ -2243,7 +2265,8 @@ a.fm-row:hover .fm-row-main b {
 /* ---------- Phone: mas compact, hindi mag-o-overflow ang laman ---------- */
 @media (max-width: 560px) {
     .table-wrap table {
-        min-width: 560px; /* override sa lumang 680px */
+        min-width: 560px;
+        /* override sa lumang 680px */
     }
 
     .table-wrap th,
@@ -2472,13 +2495,13 @@ a.fm-row:hover .fm-row-main b {
     /* ROOT CAUSE ng malaking search bar: `.search { flex: 1 1 100% }`
        sa loob ng `.toolbar` na naka-column, kaya ang 100% ay naging HEIGHT.
        Ibalik sa auto height. */
-    .toolbar > * {
+    .toolbar>* {
         flex: 0 0 auto;
     }
 
     .toolbar .search,
-    .toolbar > input[type="search"],
-    .toolbar > input[type="text"] {
+    .toolbar>input[type="search"],
+    .toolbar>input[type="text"] {
         width: 100%;
         height: 44px;
         min-height: 44px;
@@ -2556,14 +2579,14 @@ a.fm-row:hover .fm-row-main b {
     }
 
     /* walang wrapper: nasa <td> mismo ang buttons */
-    .table-wrap td > :is(.btn, button) {
+    .table-wrap td> :is(.btn, button) {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         vertical-align: middle;
     }
 
-    .table-wrap td > :is(.btn, button) + :is(.btn, button) {
+    .table-wrap td> :is(.btn, button)+ :is(.btn, button) {
         margin-left: 8px;
     }
 }
